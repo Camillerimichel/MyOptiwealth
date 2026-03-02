@@ -1,0 +1,18 @@
+[Unit]
+Description=CAPTIVA QRT Ops Worker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/CAPTIVA
+EnvironmentFile=/var/www/CAPTIVA/.env
+ExecStart=/bin/bash -lc 'while true; do /usr/bin/npm run ops:qrt:once; sleep 30; done'
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+StandardOutput=append:/var/log/captiva/qrt-ops-worker.log
+StandardError=append:/var/log/captiva/qrt-ops-worker.err.log
+
+[Install]
+WantedBy=multi-user.target
