@@ -131,9 +131,9 @@ async function main() {
   const captiveId = await pickCaptiveId();
   if (!captiveId) throw new Error("captive_id_not_found");
 
-  const l1 = parseRecipientsCsv(process.env.ONCALL_L1 || "ops@captiva-risks.com").join(",");
-  const l2 = parseRecipientsCsv(process.env.ONCALL_L2 || process.env.ONCALL_L1 || "risk@captiva-risks.com").join(",");
-  const l3 = parseRecipientsCsv(process.env.ONCALL_L3 || process.env.ONCALL_L2 || process.env.ONCALL_L1 || "direction@captiva-risks.com").join(",");
+  const l1 = parseRecipientsCsv(process.env.ONCALL_L1 || "ops@myoptiwealth.fr").join(",");
+  const l2 = parseRecipientsCsv(process.env.ONCALL_L2 || process.env.ONCALL_L1 || "risk@myoptiwealth.fr").join(",");
+  const l3 = parseRecipientsCsv(process.env.ONCALL_L3 || process.env.ONCALL_L2 || process.env.ONCALL_L1 || "direction@myoptiwealth.fr").join(",");
   if (!l1 || !l2 || !l3) throw new Error("oncall_recipients_invalid");
 
   const rawMax = process.env.ONCALL_MAX_LEVEL;

@@ -5,7 +5,7 @@ const router = Router();
 router.get("/", (_req, res) => {
   res.json({
     ok: true,
-    service: "captiva-api",
+    service: "myoptiwealth-api",
     now: new Date().toISOString(),
   });
 });

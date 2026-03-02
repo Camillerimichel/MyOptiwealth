@@ -327,12 +327,12 @@ const ALERT_EVENT_OPTIONS: Array<{ value: string; label: string }> = [
 ];
 
 const ALERT_RECIPIENT_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "ops@captiva-risks.com", label: "Equipe Ops" },
-  { value: "risk@captiva-risks.com", label: "Equipe Risk" },
-  { value: "direction@captiva-risks.com", label: "Direction" },
-  { value: "ops@captiva-risks.com,risk@captiva-risks.com", label: "Ops + Risk" },
-  { value: "ops@captiva-risks.com,risk@captiva-risks.com,direction@captiva-risks.com", label: "Ops + Risk + Direction" },
-  { value: "admin@captiva-risks.com", label: "Administrateur" },
+  { value: "ops@myoptiwealth.fr", label: "Equipe Ops" },
+  { value: "risk@myoptiwealth.fr", label: "Equipe Risk" },
+  { value: "direction@myoptiwealth.fr", label: "Direction" },
+  { value: "ops@myoptiwealth.fr,risk@myoptiwealth.fr", label: "Ops + Risk" },
+  { value: "ops@myoptiwealth.fr,risk@myoptiwealth.fr,direction@myoptiwealth.fr", label: "Ops + Risk + Direction" },
+  { value: "admin@myoptiwealth.fr", label: "Administrateur" },
   { value: "__custom__", label: "Personnalise (saisie manuelle)" },
 ];
 
@@ -353,7 +353,7 @@ function isIncidentOverdueAck(status: string, ackDueAt: string | null | undefine
 const PAGE_SIZE_DEFAULT = 10;
 const PAGE_SIZE_INCIDENTS = 5;
 const PAGE_SIZE_ALERTS = 5;
-const PANEL_PREFS_KEY = "captiva_ops_panels_v1";
+const PANEL_PREFS_KEY = "myoptiwealth_ops_panels_v1";
 
 function pageCount(total: number, pageSize = PAGE_SIZE_DEFAULT) {
   return Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
@@ -442,7 +442,7 @@ export default function OperationsQrtPage() {
   const [ruleSeverity, setRuleSeverity] = useState<AlertRuleItem["severity"]>("critical");
   const [ruleMinEscalation, setRuleMinEscalation] = useState("0");
   const [ruleMaxEscalation, setRuleMaxEscalation] = useState("");
-  const [ruleRecipientsPreset, setRuleRecipientsPreset] = useState("ops@captiva-risks.com");
+  const [ruleRecipientsPreset, setRuleRecipientsPreset] = useState("ops@myoptiwealth.fr");
   const [ruleRecipientsCustom, setRuleRecipientsCustom] = useState("");
   const [ruleCooldownMinutes, setRuleCooldownMinutes] = useState("30");
   const [ruleIsActive, setRuleIsActive] = useState(true);
@@ -726,7 +726,7 @@ export default function OperationsQrtPage() {
     setRuleSeverity("critical");
     setRuleMinEscalation("0");
     setRuleMaxEscalation("");
-    setRuleRecipientsPreset("ops@captiva-risks.com");
+    setRuleRecipientsPreset("ops@myoptiwealth.fr");
     setRuleRecipientsCustom("");
     setRuleCooldownMinutes("30");
     setRuleIsActive(true);
@@ -1488,7 +1488,7 @@ export default function OperationsQrtPage() {
                       value={ruleRecipientsCustom}
                       onChange={(e) => setRuleRecipientsCustom(e.target.value)}
                       className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
-                      placeholder="ops@captiva-risks.com,risk@captiva-risks.com"
+                      placeholder="ops@myoptiwealth.fr,risk@myoptiwealth.fr"
                     />
                   </label>
                 ) : null}

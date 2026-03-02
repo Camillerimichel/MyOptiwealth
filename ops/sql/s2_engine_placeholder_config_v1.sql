@@ -3,7 +3,7 @@
 --
 -- Usage:
 --   SET @scenario_id = 1;
---   SOURCE /var/www/CAPTIVA/ops/sql/s2_engine_placeholder_config_v1.sql;
+--   SOURCE /var/www/myoptiwealth/ops/sql/s2_engine_placeholder_config_v1.sql;
 
 SET @scenario_id = COALESCE(@scenario_id, 1);
 

@@ -1,18 +1,18 @@
 [Unit]
-Description=CAPTIVA Mail Gateway
+Description=MYOPTIWEALTH Mail Gateway
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/var/www/CAPTIVA
-EnvironmentFile=/var/www/CAPTIVA/ops/mail-gateway/.env
-ExecStart=/usr/bin/node /var/www/CAPTIVA/ops/mail-gateway/server.mjs
+WorkingDirectory=/var/www/myoptiwealth
+EnvironmentFile=/var/www/myoptiwealth/ops/mail-gateway/.env
+ExecStart=/usr/bin/node /var/www/myoptiwealth/ops/mail-gateway/server.mjs
 Restart=always
 RestartSec=5
 User=www-data
 Group=www-data
-StandardOutput=append:/var/log/captiva/mail-gateway.log
-StandardError=append:/var/log/captiva/mail-gateway.err.log
+StandardOutput=append:/var/log/myoptiwealth/mail-gateway.log
+StandardError=append:/var/log/myoptiwealth/mail-gateway.err.log
 
 [Install]
 WantedBy=multi-user.target

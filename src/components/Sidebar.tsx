@@ -72,7 +72,7 @@ function SidebarInner() {
 
   const logout = () => {
     try {
-      window.localStorage.removeItem("captiva_token");
+      window.localStorage.removeItem("myoptiwealth_token");
     } catch {
       // no-op
     }
@@ -82,7 +82,7 @@ function SidebarInner() {
   return (
     <aside className="relative z-[90] flex h-full flex-col gap-6 overflow-visible border-r border-slate-200 bg-white/90 p-5 shadow-sm backdrop-blur">
       <div className="space-y-1">
-        <div className="text-2xl font-semibold text-slate-900">Captiva</div>
+        <div className="text-2xl font-semibold text-slate-900">MyOptiWealth</div>
         <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Risk & Assurance</div>
         <div className="pt-1 text-xs font-medium text-slate-600">{currentPathLabel}</div>
       </div>

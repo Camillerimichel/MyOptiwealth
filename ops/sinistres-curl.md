@@ -4,7 +4,7 @@
 
 ```bash
 export API_URL="http://127.0.0.1:3000"
-export EMAIL="admin@captiva.local"
+export EMAIL="admin@myoptiwealth.local"
 export PASSWORD="ChangeMe123!"
 export CAPTIVE_ID="1"
 ```

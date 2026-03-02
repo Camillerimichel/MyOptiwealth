@@ -71,7 +71,7 @@ const allowedColumns = {
 };
 
 async function fetchWithToken<T>(url: string): Promise<T> {
-  const token = localStorage.getItem("captiva_token");
+  const token = localStorage.getItem("myoptiwealth_token");
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -83,7 +83,7 @@ async function fetchWithToken<T>(url: string): Promise<T> {
 }
 
 async function postWithToken<T>(url: string, body: any): Promise<T> {
-  const token = localStorage.getItem("captiva_token");
+  const token = localStorage.getItem("myoptiwealth_token");
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -100,7 +100,7 @@ async function postWithToken<T>(url: string, body: any): Promise<T> {
 }
 
 async function putWithToken<T>(url: string, body: any): Promise<T> {
-  const token = localStorage.getItem("captiva_token");
+  const token = localStorage.getItem("myoptiwealth_token");
   const res = await fetch(url, {
     method: "PUT",
     headers: {
@@ -117,7 +117,7 @@ async function putWithToken<T>(url: string, body: any): Promise<T> {
 }
 
 async function deleteWithToken<T>(url: string): Promise<T> {
-  const token = localStorage.getItem("captiva_token");
+  const token = localStorage.getItem("myoptiwealth_token");
   const res = await fetch(url, {
     method: "DELETE",
     headers: token ? { Authorization: `Bearer ${token}` } : {},

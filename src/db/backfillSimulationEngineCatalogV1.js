@@ -48,7 +48,7 @@ function classifyEngine(versionRaw) {
   else if (lower.includes("s2")) scriptName = "src/db/recomputeS2FromGeoCatV1.js";
   else if (lower.includes("cat")) scriptName = "src/db/buildCatConcentrationV1.js";
 
-  const repoPath = "/var/www/CAPTIVA";
+  const repoPath = "/var/www/myoptiwealth";
   const commonParams = [
     { key: "engine_version", label: "Version moteur", type: "string", source: "simulation_runs.engine_version", description: "Identifiant de version de logique utilisé par le run." },
     { key: "run_label", label: "Label de run", type: "string", source: "simulation_runs.run_label", description: "Libellé de l'exécution pour contexte métier/technique." },

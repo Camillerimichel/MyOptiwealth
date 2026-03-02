@@ -30,7 +30,7 @@ function ProgrammePdfPreviewContent() {
     setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("captiva_token");
+      const token = localStorage.getItem("myoptiwealth_token");
       const res = await fetch(`/api/programmes/${programmeId}/summary.pdf`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

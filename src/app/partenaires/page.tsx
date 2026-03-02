@@ -1674,8 +1674,8 @@ function PartnersPage() {
     const res = await fetch(`/api/partners?${params.toString()}`, {
       headers: {
         "Content-Type": "text/csv",
-        ...(typeof window !== "undefined" && localStorage.getItem("captiva_token")
-          ? { Authorization: `Bearer ${localStorage.getItem("captiva_token")}` }
+        ...(typeof window !== "undefined" && localStorage.getItem("myoptiwealth_token")
+          ? { Authorization: `Bearer ${localStorage.getItem("myoptiwealth_token")}` }
           : {}),
       },
     });
@@ -1707,8 +1707,8 @@ function PartnersPage() {
     if (!selectedPartnerId) return;
     const res = await fetch(`/api/partners/${selectedPartnerId}?format=json`, {
       headers: {
-        ...(typeof window !== "undefined" && localStorage.getItem("captiva_token")
-          ? { Authorization: `Bearer ${localStorage.getItem("captiva_token")}` }
+        ...(typeof window !== "undefined" && localStorage.getItem("myoptiwealth_token")
+          ? { Authorization: `Bearer ${localStorage.getItem("myoptiwealth_token")}` }
           : {}),
       },
     });

@@ -490,10 +490,10 @@ function buildXbrlLiteXml({
   const lines = [];
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
   lines.push(
-    `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:iso4217="http://www.xbrl.org/2003/iso4217" xmlns:cap="https://captiva-risks.com/xbrl/qrt-lite">`
+    `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:link="http://www.xbrl.org/2003/linkbase" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:iso4217="http://www.xbrl.org/2003/iso4217" xmlns:cap="https://myoptiwealth.fr/xbrl/qrt-lite">`
   );
   lines.push(
-    `  <link:schemaRef xlink:type="simple" xlink:href="https://captiva-risks.com/taxonomy/qrt-lite/${xmlText(taxonomyVersion)}/entry.xsd"/>`
+    `  <link:schemaRef xlink:type="simple" xlink:href="https://myoptiwealth.fr/taxonomy/qrt-lite/${xmlText(taxonomyVersion)}/entry.xsd"/>`
   );
   lines.push(
     `  <cap:metadata captiveId="${safeXml(captiveId)}" source="${safeXml(source)}" snapshotDate="${safeXml(snapshotDate)}" taxonomyVersion="${safeXml(taxonomyVersion)}" jurisdiction="${safeXml(jurisdiction)}"/>`
@@ -768,11 +768,11 @@ async function emitQrtEvent(captiveId, eventCode, payload) {
       if (!/^https?:\/\//i.test(targetUrl)) throw new Error("invalid_webhook_url");
       const headers = {
         "Content-Type": "application/json",
-        "X-CAPTIVA-Event": safeEvent,
+        "X-MYOPTIWEALTH-Event": safeEvent,
       };
       if (h.secret_token) {
         const sig = createHmac("sha256", String(h.secret_token)).update(body, "utf8").digest("hex");
-        headers["X-CAPTIVA-Signature"] = sig;
+        headers["X-MYOPTIWEALTH-Signature"] = sig;
       }
       const ctl = new AbortController();
       const t = setTimeout(() => ctl.abort(), 5000);
@@ -1014,7 +1014,7 @@ router.post("/export/xbrl-lite", authRequired, requireRole(...canUse), async (re
     const entityIdentifier = isLeiLike(requestedLei) ? requestedLei : String(captive?.code || `CAPTIVE-${captiveId}`);
     const entityScheme = isLeiLike(entityIdentifier)
       ? "http://standards.iso.org/iso/17442"
-      : "https://captiva-risks.com/entity-id";
+      : "https://myoptiwealth.fr/entity-id";
     const xml = buildXbrlLiteXml({
       facts,
       snapshotDate,
@@ -2231,7 +2231,7 @@ router.post("/workflow/full", authRequired, requireRole(...canUse), async (req, 
     const entityIdentifier = isLeiLike(requestedLei) ? requestedLei : String(captive?.code || `CAPTIVE-${captiveId}`);
     const entityScheme = isLeiLike(entityIdentifier)
       ? "http://standards.iso.org/iso/17442"
-      : "https://captiva-risks.com/entity-id";
+      : "https://myoptiwealth.fr/entity-id";
     const xml = buildXbrlLiteXml({
       facts,
       snapshotDate,
@@ -2423,7 +2423,7 @@ router.post("/workflow/full/preview", authRequired, requireRole(...canUse), asyn
     const entityIdentifier = isLeiLike(requestedLei) ? requestedLei : String(captive?.code || `CAPTIVE-${captiveId}`);
     const entityScheme = isLeiLike(entityIdentifier)
       ? "http://standards.iso.org/iso/17442"
-      : "https://captiva-risks.com/entity-id";
+      : "https://myoptiwealth.fr/entity-id";
     const xml = buildXbrlLiteXml({
       facts,
       snapshotDate,
@@ -3354,7 +3354,7 @@ router.post("/closure/monthly", authRequired, requireRole(...canUse), async (req
         taxonomyVersion: String(req.body?.taxonomy_version || "2.8.0"),
         jurisdiction: String(req.body?.jurisdiction || "MT").slice(0, 2).toUpperCase(),
         entityIdentifier,
-        entityScheme: "https://captiva-risks.com/entity-id",
+        entityScheme: "https://myoptiwealth.fr/entity-id",
       });
       const dir = path.join(process.cwd(), "storage", "output", "qrt");
       await fs.mkdir(dir, { recursive: true });

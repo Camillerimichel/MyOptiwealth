@@ -34,7 +34,7 @@ type ReportJob = {
 };
 
 async function fetchWithToken<T>(url: string): Promise<T> {
-  const token = localStorage.getItem("captiva_token");
+  const token = localStorage.getItem("myoptiwealth_token");
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -46,7 +46,7 @@ async function fetchWithToken<T>(url: string): Promise<T> {
 }
 
 async function postWithToken<T>(url: string, body: any): Promise<T> {
-  const token = localStorage.getItem("captiva_token");
+  const token = localStorage.getItem("myoptiwealth_token");
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -133,7 +133,7 @@ export default function JobsPage() {
   async function downloadLastReport() {
     if (!lastReport) return;
     try {
-      const token = localStorage.getItem("captiva_token");
+      const token = localStorage.getItem("myoptiwealth_token");
       const res = await fetch(`/api/reports/${lastReport.id}/download`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

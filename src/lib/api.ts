@@ -27,7 +27,7 @@ async function readApiError(res: Response) {
 }
 
 async function fetchWithToken<T>(url: string, method: HttpMethod = "GET", body?: any) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("captiva_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("myoptiwealth_token") : null;
   const res = await fetch(url, {
     method,
     headers: {
@@ -40,7 +40,7 @@ async function fetchWithToken<T>(url: string, method: HttpMethod = "GET", body?:
     const { code, message } = await readApiError(res);
     if (res.status === 401 && (code === "invalid_token" || code === "missing_token" || code === "invalid_token_scope")) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("captiva_token");
+        localStorage.removeItem("myoptiwealth_token");
         if (window.location.pathname !== "/login") {
           window.location.href = "/login";
         }

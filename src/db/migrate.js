@@ -1406,7 +1406,7 @@ async function ensureDefaultRoles() {
 }
 
 async function ensureDefaultAdmin() {
-  const email = process.env.ADMIN_EMAIL || "admin@captiva.local";
+  const email = process.env.ADMIN_EMAIL || "admin@myoptiwealth.local";
   const password = process.env.ADMIN_PASSWORD || "ChangeMe123!";
   const [rows] = await pool.query(`SELECT id FROM users WHERE email = ? LIMIT 1`, [email]);
   let userId = rows[0]?.id;

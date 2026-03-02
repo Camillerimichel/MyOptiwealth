@@ -78,12 +78,12 @@ function buildXml({ facts, snapshotDate, captiveId, source }) {
   const lines = [];
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
   lines.push(
-    `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:cap="https://captiva-risks.com/xbrl/qrt-lite">`
+    `<xbrli:xbrl xmlns:xbrli="http://www.xbrl.org/2003/instance" xmlns:xbrldi="http://xbrl.org/2006/xbrldi" xmlns:cap="https://myoptiwealth.fr/xbrl/qrt-lite">`
   );
   lines.push(`  <cap:metadata captiveId="${safeXml(captiveId)}" source="${safeXml(source)}" snapshotDate="${safeXml(snapshotDate)}"/>`);
   for (const ctx of contexts.values()) {
     lines.push(`  <xbrli:context id="${ctx.id}">`);
-    lines.push("    <xbrli:entity><xbrli:identifier scheme=\"https://captiva-risks.com/entity-id\">OPS</xbrli:identifier></xbrli:entity>");
+    lines.push("    <xbrli:entity><xbrli:identifier scheme=\"https://myoptiwealth.fr/entity-id\">OPS</xbrli:identifier></xbrli:entity>");
     lines.push(`    <xbrli:period><xbrli:instant>${safeXml(snapshotDate)}</xbrli:instant></xbrli:period>`);
     lines.push("  </xbrli:context>");
   }
@@ -763,7 +763,7 @@ async function sendAlertEmail(payload) {
   if (webhookUrl) {
     const headers = { "Content-Type": "application/json" };
     if (webhookToken) {
-      headers["x-captiva-token"] = webhookToken;
+      headers["x-myoptiwealth-token"] = webhookToken;
       headers.Authorization = `Bearer ${webhookToken}`;
     }
     const rsp = await fetch(webhookUrl, {

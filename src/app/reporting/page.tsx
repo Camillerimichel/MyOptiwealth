@@ -23,7 +23,7 @@ type Template = {
 };
 
 async function fetchWithToken<T>(url: string): Promise<T> {
-  const token = localStorage.getItem("captiva_token");
+  const token = localStorage.getItem("myoptiwealth_token");
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -35,7 +35,7 @@ async function fetchWithToken<T>(url: string): Promise<T> {
 }
 
 async function postWithToken<T>(url: string, body: any): Promise<T> {
-  const token = localStorage.getItem("captiva_token");
+  const token = localStorage.getItem("myoptiwealth_token");
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -228,7 +228,7 @@ export default function ReportingPage() {
   async function downloadLastReport() {
     if (!lastReport) return;
     try {
-      const token = localStorage.getItem("captiva_token");
+      const token = localStorage.getItem("myoptiwealth_token");
       const res = await fetch(`/api/reports/${lastReport.id}/download`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -252,7 +252,7 @@ export default function ReportingPage() {
 
   async function downloadReport(report: ReportJob) {
     try {
-      const token = localStorage.getItem("captiva_token");
+      const token = localStorage.getItem("myoptiwealth_token");
       const res = await fetch(`/api/reports/${report.id}/download`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -660,7 +660,7 @@ export default function ReportingPage() {
                             await fetch(`/api/reports/scheduled/${r.id}`, {
                               method: "DELETE",
                               headers: {
-                                Authorization: `Bearer ${localStorage.getItem("captiva_token") || ""}`,
+                                Authorization: `Bearer ${localStorage.getItem("myoptiwealth_token") || ""}`,
                               },
                             });
                             await loadLast();

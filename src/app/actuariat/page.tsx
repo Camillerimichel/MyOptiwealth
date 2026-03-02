@@ -61,7 +61,7 @@ const sectionOptions = [
 ] as const;
 
 async function fetchWithToken<T>(url: string): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("captiva_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("myoptiwealth_token") : null;
   const res = await fetch(url, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     cache: "no-store",
@@ -74,7 +74,7 @@ async function fetchWithToken<T>(url: string): Promise<T> {
 }
 
 async function fetchJsonWithToken<T>(url: string, init: RequestInit): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("captiva_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("myoptiwealth_token") : null;
   const res = await fetch(url, {
     ...init,
     headers: {

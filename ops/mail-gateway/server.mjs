@@ -14,7 +14,7 @@ const TOKEN = String(process.env.MAIL_GATEWAY_TOKEN || "").trim();
 const PROVIDER = String(process.env.MAIL_PROVIDER || "smtp").trim().toLowerCase();
 
 const FROM_EMAIL = String(process.env.MAIL_FROM_EMAIL || "").trim();
-const FROM_NAME = String(process.env.MAIL_FROM_NAME || "CAPTIVA").trim();
+const FROM_NAME = String(process.env.MAIL_FROM_NAME || "MYOPTIWEALTH").trim();
 
 const SMTP_HOST = String(process.env.MAIL_SMTP_HOST || "").trim();
 const SMTP_PORT = Math.max(1, Number(process.env.MAIL_SMTP_PORT || 587));
@@ -41,7 +41,7 @@ function parseRecipients(input) {
 
 function authOk(req) {
   if (!TOKEN) return true;
-  const headerToken = String(req.get("x-captiva-token") || "").trim();
+  const headerToken = String(req.get("x-myoptiwealth-token") || "").trim();
   const auth = String(req.get("authorization") || "").trim();
   const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
   return headerToken === TOKEN || bearer === TOKEN;
@@ -140,5 +140,5 @@ app.listen(PORT, HOST, () => {
     smtp_user: mask(SMTP_USER),
     brevo_key: mask(BREVO_API_KEY),
   };
-  console.log(JSON.stringify({ ok: true, service: "captiva-mail-gateway", config: cfg }, null, 2));
+  console.log(JSON.stringify({ ok: true, service: "myoptiwealth-mail-gateway", config: cfg }, null, 2));
 });

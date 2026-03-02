@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd /var/www/CAPTIVA
+cd /var/www/myoptiwealth
 
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-3306}"
-DB_NAME="${DB_NAME:-captiva}"
-DB_USER="${DB_USER:-captiva}"
+DB_NAME="${DB_NAME:-myoptiwealth}"
+DB_USER="${DB_USER:-myoptiwealth}"
 DB_PASS="${DB_PASS:-$(awk -F= '/^DB_PASS=/{print $2}' .env)}"
 
 if [[ -z "${DB_PASS:-}" ]]; then
@@ -37,4 +37,3 @@ GROUP BY cpp.contract_id;
 SQL
 
 echo "[refresh-primes-payment-agg] OK"
-

@@ -43,7 +43,7 @@ Avec login:
 
 ```bash
 API_BASE_URL=http://127.0.0.1:3000 \
-SMOKE_EMAIL=admin@captiva.local \
+SMOKE_EMAIL=admin@myoptiwealth.local \
 SMOKE_PASSWORD='***' \
 SMOKE_CAPTIVE_ID=1 \
 npm run smoke:qrt

@@ -3,8 +3,8 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 
 export const metadata: Metadata = {
-  title: "Captiva Platform",
-  description: "Suivi complet d’une captive d’assurance",
+  title: "MyOptiWealth Platform",
+  description: "Pilotage complet des risques et de la performance",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

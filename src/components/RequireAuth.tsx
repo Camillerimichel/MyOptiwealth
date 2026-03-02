@@ -8,7 +8,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     try {
-      const token = window.localStorage.getItem("captiva_token");
+      const token = window.localStorage.getItem("myoptiwealth_token");
       if (!token) {
         setRedirecting(true);
         window.location.replace("/login");

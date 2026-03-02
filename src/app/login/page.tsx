@@ -14,7 +14,7 @@ type CaptiveChoice = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@captiva.local");
+  const [email, setEmail] = useState("admin@myoptiwealth.local");
   const [password, setPassword] = useState("");
   const [selectedCaptiveId, setSelectedCaptiveId] = useState<number | "">("");
   const [captiveChoices, setCaptiveChoices] = useState<CaptiveChoice[]>([]);
@@ -31,8 +31,8 @@ export default function LoginPage() {
         password,
         selectedCaptiveId === "" ? null : Number(selectedCaptiveId)
       );
-      localStorage.setItem("captiva_token", token);
-      localStorage.setItem("captiva_email", email);
+      localStorage.setItem("myoptiwealth_token", token);
+      localStorage.setItem("myoptiwealth_email", email);
       setCaptiveChoices([]);
       setSelectedCaptiveId("");
       router.push("/dashboard");
@@ -52,7 +52,7 @@ export default function LoginPage() {
     <div className="max-w-md mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Connexion</h1>
-        <p className="text-slate-600 text-sm">Accès à la plateforme Captiva.</p>
+        <p className="text-slate-600 text-sm">Accès à la plateforme MyOptiWealth.</p>
       </div>
       <form onSubmit={onSubmit} className="space-y-4 bg-white/90 border border-slate-200 shadow-sm p-5 rounded-lg">
         <div className="space-y-1">

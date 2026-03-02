@@ -33,14 +33,14 @@
 - Installer l'unité:
   - `sudo cp ops/systemd/qrt-ops-worker.service /etc/systemd/system/`
 - Créer le dossier de logs:
-  - `sudo mkdir -p /var/log/captiva && sudo chown -R www-data:www-data /var/log/captiva`
+  - `sudo mkdir -p /var/log/myoptiwealth && sudo chown -R www-data:www-data /var/log/myoptiwealth`
 - Activer et démarrer:
   - `sudo systemctl daemon-reload`
   - `sudo systemctl enable qrt-ops-worker`
   - `sudo systemctl start qrt-ops-worker`
 - Vérifier:
   - `sudo systemctl status qrt-ops-worker --no-pager`
-  - `tail -f /var/log/captiva/qrt-ops-worker.log`
+  - `tail -f /var/log/myoptiwealth/qrt-ops-worker.log`
 
 ## Décision
 - `GO` si `verify:qrt:prod` = `ok:true` et aucun warning bloquant métier.

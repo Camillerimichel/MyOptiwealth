@@ -533,7 +533,7 @@ function validateSeed(seed: SeedForm): string | null {
 }
 
 function tokenRoles(): string[] {
-  const token = typeof window !== "undefined" ? localStorage.getItem("captiva_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("myoptiwealth_token") : null;
   if (!token) return [];
   try {
     const payloadBase64 = token.split(".")[1] || "";
@@ -545,7 +545,7 @@ function tokenRoles(): string[] {
 }
 
 function tokenSubject(): string {
-  const token = typeof window !== "undefined" ? localStorage.getItem("captiva_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem("myoptiwealth_token") : null;
   if (!token) return "";
   try {
     const payloadBase64 = token.split(".")[1] || "";

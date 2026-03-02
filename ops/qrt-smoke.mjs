@@ -2,7 +2,7 @@
 import process from "node:process";
 
 const BASE_URL = String(process.env.API_BASE_URL || "http://127.0.0.1:3000").replace(/\/+$/, "");
-const EMAIL = String(process.env.SMOKE_EMAIL || process.env.ADMIN_EMAIL || "admin@captiva.local");
+const EMAIL = String(process.env.SMOKE_EMAIL || process.env.ADMIN_EMAIL || "admin@myoptiwealth.local");
 const PASSWORD = String(process.env.SMOKE_PASSWORD || process.env.ADMIN_PASSWORD || "ChangeMe123!");
 const CAPTIVE_ID = process.env.SMOKE_CAPTIVE_ID == null ? null : Number(process.env.SMOKE_CAPTIVE_ID);
 const TOKEN_OVERRIDE = String(process.env.SMOKE_TOKEN || "").trim();

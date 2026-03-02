@@ -38,10 +38,8 @@ const rateLimitEnabled = process.env.RATE_LIMIT_ENABLED === "true";
 app.use(helmet());
 app.set("trust proxy", 1);
 const allowedOrigins = [
-  "https://capitva-risks.com",
-  "https://www.capitva-risks.com",
-  "https://captiva-risks.com",
-  "https://www.captiva-risks.com",
+  "https://myoptiwealth.fr",
+  "https://www.myoptiwealth.fr",
   "http://localhost:3200",
   "http://127.0.0.1:3200",
   "http://72.61.94.45:3200",
@@ -95,5 +93,5 @@ app.use("/api/qrt", qrtRouter);
 app.use((req, res) => res.status(404).json({ error: "not_found" }));
 
 app.listen(port, () => {
-  console.log("CAPTIVA API listening on port " + port);
+  console.log("MYOPTIWEALTH API listening on port " + port);
 });

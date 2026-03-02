@@ -1,6 +1,6 @@
 # Tâches Automatiques (Cron / Jobs)
 
-Recensement des tâches automatiques observées sur le serveur et dans l'application CAPTIVA.
+Recensement des tâches automatiques observées sur le serveur et dans l'application MYOPTIWEALTH.
 
 Date de mise à jour: 2026-02-25
 
@@ -20,19 +20,19 @@ Source: `crontab -l`
 
 ### Rappel certificat (ponctuel)
 - Horaire: `0 10 14 4 *` (14 avril à `10:00`)
-- Commande: `logger 'Rappel: vérifier/renouveler certifs captiva-risks.com avant échéance du 24 avril 2026'`
+- Commande: `logger 'Rappel: vérifier/renouveler certifs myoptiwealth.fr avant échéance du 24 avril 2026'`
 - Objet: rappel opérationnel
 
 ### Refresh agrégat paiements primes (nouveau)
 - Horaire: `30 3 * * *` (toutes les nuits à `03:30`)
-- Commande: `/var/www/CAPTIVA/ops/refresh-primes-payment-agg.sh >> /var/log/captiva/primes-payment-agg-refresh.log 2>&1`
+- Commande: `/var/www/myoptiwealth/ops/refresh-primes-payment-agg.sh >> /var/log/myoptiwealth/primes-payment-agg-refresh.log 2>&1`
 - Objet: reconstruire l'agrégat `contract_premium_payments_agg` pour accélérer l'écran `Primes`
-- Log: `/var/log/captiva/primes-payment-agg-refresh.log`
+- Log: `/var/log/myoptiwealth/primes-payment-agg-refresh.log`
 
-## Jobs applicatifs CAPTIVA (asynchrones)
+## Jobs applicatifs MYOPTIWEALTH (asynchrones)
 
 ### Worker de jobs (PM2)
-- Processus: `captiva-jobs`
+- Processus: `myoptiwealth-jobs`
 - Script: `/root/apps/captiva-api/src/jobs/runner.js`
 - Statut observé: `online`
 - Rôle: exécuter les jobs en base (`jobs`, `report_jobs`, etc.)
@@ -46,7 +46,7 @@ Note:
 ### Rapports planifiés
 - Endpoint: `POST /api/reports/schedule`
 - Les demandes sont enregistrées en base (`jobs`, `report_jobs`) avec `scheduled_at`
-- Exécution assurée par `captiva-jobs`
+- Exécution assurée par `myoptiwealth-jobs`
 
 ## Performance Primes (mécanisme automatique associé)
 
@@ -58,7 +58,7 @@ Note:
 - Script: `ops/refresh-primes-payment-agg.sh`
 - Exécution manuelle:
 ```bash
-/var/www/CAPTIVA/ops/refresh-primes-payment-agg.sh
+/var/www/myoptiwealth/ops/refresh-primes-payment-agg.sh
 ```
 
 ## Index SQL ajoutés pour accélération (Primes)
@@ -76,6 +76,5 @@ Ajouts principaux:
 - Si des paiements primes sont modifiés en journée, l'agrégat peut être en léger décalage jusqu'au refresh nocturne.
 - Si besoin d'un recalcul immédiat après import massif:
 ```bash
-/var/www/CAPTIVA/ops/refresh-primes-payment-agg.sh
+/var/www/myoptiwealth/ops/refresh-primes-payment-agg.sh
 ```
-

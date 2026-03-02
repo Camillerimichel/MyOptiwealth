@@ -1,11 +1,11 @@
-# CAPTIVA Mail Gateway
+# MYOPTIWEALTH Mail Gateway
 
 Service HTTP local pour recevoir les alertes QRT (`POST /qrt-alert`) puis les transmettre au provider mail.
 
 ## 1) Préparer la config
 
 ```bash
-cd /var/www/CAPTIVA/ops/mail-gateway
+cd /var/www/myoptiwealth/ops/mail-gateway
 cp .env.example .env
 ```
 
@@ -14,7 +14,7 @@ Remplir `.env` (token + provider).
 ## 2) Lancer en manuel
 
 ```bash
-cd /var/www/CAPTIVA
+cd /var/www/myoptiwealth
 set -a && source ops/mail-gateway/.env && set +a
 node ops/mail-gateway/server.mjs
 ```
@@ -25,9 +25,9 @@ Healthcheck:
 curl -s http://127.0.0.1:8787/health
 ```
 
-## 3) Configurer CAPTIVA
+## 3) Configurer MYOPTIWEALTH
 
-Dans `/var/www/CAPTIVA/.env`:
+Dans `/var/www/myoptiwealth/.env`:
 
 ```env
 QRT_ALERT_EMAIL_WEBHOOK_URL=http://127.0.0.1:8787/qrt-alert
@@ -45,8 +45,8 @@ sudo systemctl restart qrt-ops-worker
 ```bash
 curl -s -X POST http://127.0.0.1:8787/qrt-alert \
   -H 'Content-Type: application/json' \
-  -H 'x-captiva-token: change-me-long-random-token' \
-  -d '{"to":["ops@captiva-risks.com"],"subject":"Test QRT","text":"hello"}'
+  -H 'x-myoptiwealth-token: change-me-long-random-token' \
+  -d '{"to":["ops@myoptiwealth.fr"],"subject":"Test QRT","text":"hello"}'
 ```
 
 ## Notes

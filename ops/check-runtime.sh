@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/var/www/CAPTIVA"
+APP_DIR="/var/www/myoptiwealth"
 cd "$APP_DIR"
 
-echo "== Captiva runtime check =="
+echo "== MyOptiWealth runtime check =="
 echo "Expected source directory: $APP_DIR"
 echo
 
-echo "== PM2 process (captiva-frontend) =="
-if PM2_DESC="$(pm2 describe captiva-frontend 2>&1)"; then
+echo "== PM2 process (myoptiwealth-frontend) =="
+if PM2_DESC="$(pm2 describe myoptiwealth-frontend 2>&1)"; then
   printf '%s\n' "$PM2_DESC" | sed -n '1,80p'
   echo
   echo "== PM2 cwd (extracted) =="
@@ -28,4 +28,4 @@ echo
 echo
 
 echo "== Reminder =="
-echo "Deploy local changes without pull: /var/www/CAPTIVA/ops/deploy-local.sh"
+echo "Deploy local changes without pull: /var/www/myoptiwealth/ops/deploy-local.sh"
