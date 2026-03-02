@@ -17,7 +17,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           script_stop: true
+          command_timeout: 40m
           script: |
             cd /var/www/myoptiwealth
             git pull --ff-only origin main
-            bash /var/www/myoptiwealth/ops/deploy-local.sh
+            BUILD_TIMEOUT_SECONDS=1800 bash /var/www/myoptiwealth/ops/deploy-local.sh
