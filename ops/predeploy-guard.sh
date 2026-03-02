@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EXPECTED_DIR="/var/www/CAPTIVA"
+EXPECTED_DIR="/var/www/myoptiwealth"
 FORBIDDEN_PATH="/root/apps/frontend"
-SERVICE_FILE="/etc/systemd/system/captiva-frontend-deploy.service"
+SERVICE_FILE="/etc/systemd/system/myoptiwealth-frontend-deploy.service"
 
 if [ "${PWD}" != "${EXPECTED_DIR}" ]; then
   echo "[guard][error] mauvais repertoire courant: ${PWD} (attendu: ${EXPECTED_DIR})" >&2
@@ -27,14 +27,14 @@ if ! command -v pm2 >/dev/null 2>&1; then
   exit 1
 fi
 
-PM2_DESC="$(pm2 describe captiva-frontend 2>&1 || true)"
-if [ -z "${PM2_DESC}" ] || printf '%s\n' "${PM2_DESC}" | rg -q "Process or Namespace captiva-frontend not found"; then
-  echo "[guard][error] process PM2 captiva-frontend introuvable" >&2
+PM2_DESC="$(pm2 describe myoptiwealth-frontend 2>&1 || true)"
+if [ -z "${PM2_DESC}" ] || printf '%s\n' "${PM2_DESC}" | rg -q "Process or Namespace myoptiwealth-frontend not found"; then
+  echo "[guard][error] process PM2 myoptiwealth-frontend introuvable" >&2
   exit 1
 fi
 
 if ! printf '%s\n' "${PM2_DESC}" | rg -q "exec cwd\s+│\s+${EXPECTED_DIR}"; then
-  echo "[guard][error] exec cwd PM2 invalide pour captiva-frontend (attendu: ${EXPECTED_DIR})" >&2
+  echo "[guard][error] exec cwd PM2 invalide pour myoptiwealth-frontend (attendu: ${EXPECTED_DIR})" >&2
   exit 1
 fi
 

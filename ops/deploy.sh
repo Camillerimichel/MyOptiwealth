@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="/var/www/CAPTIVA"
+APP_DIR="/var/www/myoptiwealth"
 cd "$APP_DIR"
 
 bash "$APP_DIR/ops/predeploy-guard.sh"
@@ -16,8 +16,8 @@ if [ "${CLEAN_NEXT:-1}" = "1" ]; then
 fi
 timeout "$BUILD_TIMEOUT_SECONDS" npm run build
 # Next.js can keep stale runtime manifests after reload; prefer hard restart for frontend.
-pm2 startOrReload ecosystem.config.cjs --only captiva-api
-pm2 restart captiva-frontend
+pm2 startOrReload ecosystem.config.cjs --only myoptiwealth-api
+pm2 restart myoptiwealth-frontend
 pm2 save
 
 wait_for_http() {
@@ -39,8 +39,8 @@ wait_for_http() {
   return 1
 }
 
-wait_for_http "http://127.0.0.1:3000/api/health" "API health"
-wait_for_http "http://127.0.0.1:3001/sinistres?view=visualisation" "Frontend page"
+wait_for_http "http://127.0.0.1:3400/health" "API health"
+wait_for_http "http://127.0.0.1:3401/" "Frontend page"
 
 echo "Deploy OK from $APP_DIR"
 pm2 ls
