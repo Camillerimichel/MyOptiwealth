@@ -4,6 +4,14 @@ set -euo pipefail
 APP_DIR="/var/www/myoptiwealth"
 cd "$APP_DIR"
 
+# Ensure node/npm/pm2 are available in non-interactive SSH sessions (GitHub Actions).
+if [ -d "/root/.nvm/versions/node" ]; then
+  NVM_NODE_BIN="$(ls -d /root/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -n1 || true)"
+  if [ -n "${NVM_NODE_BIN:-}" ]; then
+    export PATH="${NVM_NODE_BIN}:${PATH}"
+  fi
+fi
+
 bash "$APP_DIR/ops/predeploy-guard.sh"
 
 if [ "${SKIP_PULL:-0}" != "1" ]; then
