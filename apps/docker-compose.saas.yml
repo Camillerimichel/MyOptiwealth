@@ -1,0 +1,56 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: myoptiwealth_saas
+      POSTGRES_PASSWORD: myoptiwealth_saas_2026
+      POSTGRES_DB: myoptiwealth_saas
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  api:
+    build:
+      context: ./api
+    command: npm run start:dev
+    working_dir: /app
+    volumes:
+      - ./api:/app
+      - /app/node_modules
+    environment:
+      DATABASE_URL: postgresql://myoptiwealth_saas:myoptiwealth_saas_2026@postgres:5432/myoptiwealth_saas
+      JWT_ACCESS_SECRET: dev_access_secret_change_me
+      JWT_REFRESH_SECRET: dev_refresh_secret_change_me
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 7d
+      BCRYPT_SALT_ROUNDS: 12
+      AES_SECRET_BASE64: 3l0C1jPNLvvkiKTdcK6ThM+uhnT5+W5E5zQIGiIw2lo=
+      API_PORT: 7000
+      REFRESH_COOKIE_NAME: mw_refresh_token
+      COOKIE_SECURE: 'false'
+    ports:
+      - '7000:7000'
+    depends_on:
+      - postgres
+
+  web:
+    build:
+      context: ./web
+    command: npm run dev
+    working_dir: /app
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:7000/api
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

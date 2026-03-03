@@ -1,0 +1,11 @@
+[Unit]
+Description=MyOptiwealth SaaS healthcheck
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/myoptiwealth
+EnvironmentFile=-/etc/myoptiwealth-saas/healthcheck.env
+ExecStart=/var/www/myoptiwealth/ops/saas-healthcheck.sh

@@ -1,0 +1,17 @@
+[Unit]
+Description=MyOptiwealth SaaS PM2 process manager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User=root
+WorkingDirectory=/var/www/myoptiwealth
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/bin/bash -lc 'pm2 resurrect'
+ExecReload=/usr/bin/bash -lc 'pm2 startOrReload /var/www/myoptiwealth/ops/ecosystem.saas.config.cjs'
+ExecStop=/usr/bin/bash -lc 'pm2 kill'
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -8,7 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.2
@@ -17,8 +17,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
           script_stop: true
-          command_timeout: 40m
+          command_timeout: 50m
           script: |
             cd /var/www/myoptiwealth
             git pull --ff-only origin main
-            BUILD_TIMEOUT_SECONDS=1800 bash /var/www/myoptiwealth/ops/deploy-local.sh
+            bash /var/www/myoptiwealth/ops/saas-deploy-local.sh

@@ -1,0 +1,147 @@
+import { CreateDocumentDto } from './dto/create-document.dto';
+import { SendSignatureRequestDto } from './dto/send-signature-request.dto';
+import { SignDocumentDto } from './dto/sign-document.dto';
+import { UploadDocumentDto } from './dto/upload-document.dto';
+import { DocumentsService } from './documents.service';
+interface AuthUser {
+    sub: string;
+    activeWorkspaceId: string;
+}
+interface UploadedBinaryFile {
+    originalname: string;
+    mimetype: string;
+    buffer: Buffer;
+}
+export declare class DocumentsController {
+    private readonly documentsService;
+    constructor(documentsService: DocumentsService);
+    list(user: AuthUser): import(".prisma/client").Prisma.PrismaPromise<({
+        society: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            name: string;
+            updatedAt: Date;
+            legalForm: string | null;
+            siren: string | null;
+            siret: string | null;
+            addressLine1: string | null;
+            addressLine2: string | null;
+            postalCode: string | null;
+            city: string | null;
+            country: string | null;
+        } | null;
+        contact: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            email: string | null;
+            updatedAt: Date;
+            role: import(".prisma/client").$Enums.ContactRole | null;
+            societyId: string | null;
+            firstName: string;
+            lastName: string;
+            phone: string | null;
+        } | null;
+        project: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            name: string;
+            updatedAt: Date;
+            societyId: string;
+            missionType: string | null;
+            currentPhase: import(".prisma/client").$Enums.ProjectPhaseCode;
+            progressPercent: number;
+            estimatedFees: import("@prisma/client/runtime/library").Decimal;
+            invoicedAmount: import("@prisma/client/runtime/library").Decimal;
+            collectedAmount: import("@prisma/client/runtime/library").Decimal;
+            estimatedMargin: import("@prisma/client/runtime/library").Decimal;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        societyId: string | null;
+        contactId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    })[]>;
+    create(user: AuthUser, dto: CreateDocumentDto): import(".prisma/client").Prisma.Prisma__DocumentClient<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        societyId: string | null;
+        contactId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    }, never, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    upload(user: AuthUser, dto: UploadDocumentDto, file: UploadedBinaryFile): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        societyId: string | null;
+        contactId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    }>;
+    sendSignature(user: AuthUser, id: string, dto: SendSignatureRequestDto): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        societyId: string | null;
+        contactId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    }>;
+    sign(user: AuthUser, id: string, body: SignDocumentDto): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        societyId: string | null;
+        contactId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    }>;
+}
+export {};

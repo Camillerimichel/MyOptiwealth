@@ -9,10 +9,12 @@ on:
       - main
 
 jobs:
-  build:
+  web-build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
+    defaults:
+      run:
+        working-directory: apps/web
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,9 +24,67 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
+          cache-dependency-path: apps/web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
+      - name: Build web
+        run: npm run build
+
+  api-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: myoptiwealth_saas
+          POSTGRES_PASSWORD: myoptiwealth_saas_2026
+          POSTGRES_DB: myoptiwealth_saas
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U myoptiwealth_saas -d myoptiwealth_saas"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      DATABASE_URL: postgresql://myoptiwealth_saas:myoptiwealth_saas_2026@127.0.0.1:5432/myoptiwealth_saas
+      JWT_ACCESS_SECRET: ci_access_secret
+      JWT_REFRESH_SECRET: ci_refresh_secret
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 7d
+      BCRYPT_SALT_ROUNDS: 12
+      AES_SECRET_BASE64: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      API_PORT: 7000
+      REFRESH_COOKIE_NAME: mw_refresh_token
+      COOKIE_SECURE: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Migrate database
+        run: npm run prisma:deploy
+
+      - name: Seed database
+        run: npm run prisma:seed
+
+      - name: Run API e2e tests
+        run: npm run test:e2e
+
+      - name: Build api
         run: npm run build

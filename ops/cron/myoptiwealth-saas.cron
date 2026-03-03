@@ -1,0 +1,2 @@
+# MyOptiwealth SaaS healthcheck every 5 minutes
+*/5 * * * * API_BASE_URL=http://127.0.0.1:7000/api /var/www/myoptiwealth/ops/saas-healthcheck.sh >> /var/log/myoptiwealth/saas-healthcheck.log 2>&1
