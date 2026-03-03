@@ -36,11 +36,11 @@ export declare class DocumentsController {
             createdAt: Date;
             workspaceId: string;
             email: string | null;
+            firstName: string;
+            lastName: string;
             updatedAt: Date;
             role: import(".prisma/client").$Enums.ContactRole | null;
             societyId: string | null;
-            firstName: string;
-            lastName: string;
             phone: string | null;
         } | null;
         project: {
@@ -66,9 +66,9 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
-        status: import(".prisma/client").$Enums.DocumentStatus;
         storagePath: string;
         signatureRequestId: string | null;
         version: number;
@@ -83,9 +83,9 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
-        status: import(".prisma/client").$Enums.DocumentStatus;
         storagePath: string;
         signatureRequestId: string | null;
         version: number;
@@ -100,9 +100,9 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
-        status: import(".prisma/client").$Enums.DocumentStatus;
         storagePath: string;
         signatureRequestId: string | null;
         version: number;
@@ -117,9 +117,9 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
-        status: import(".prisma/client").$Enums.DocumentStatus;
         storagePath: string;
         signatureRequestId: string | null;
         version: number;
@@ -134,9 +134,9 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
-        status: import(".prisma/client").$Enums.DocumentStatus;
         storagePath: string;
         signatureRequestId: string | null;
         version: number;

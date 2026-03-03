@@ -11,11 +11,11 @@ export declare class FinanceService {
         workspaceId: string;
         updatedAt: Date;
         projectId: string;
+        status: string;
+        dueDate: Date | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
         amount: import("@prisma/client/runtime/library").Decimal;
-        status: string;
-        dueDate: Date | null;
     }>;
     listByWorkspace(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<({
         project: {
@@ -39,11 +39,11 @@ export declare class FinanceService {
         workspaceId: string;
         updatedAt: Date;
         projectId: string;
+        status: string;
+        dueDate: Date | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
         amount: import("@prisma/client/runtime/library").Decimal;
-        status: string;
-        dueDate: Date | null;
     })[]>;
     kpis(workspaceId: string): Promise<{
         billedRevenue: number;

@@ -27,11 +27,11 @@ export declare class CrmService {
             createdAt: Date;
             workspaceId: string;
             email: string | null;
+            firstName: string;
+            lastName: string;
             updatedAt: Date;
             role: import(".prisma/client").$Enums.ContactRole | null;
             societyId: string | null;
-            firstName: string;
-            lastName: string;
             phone: string | null;
         }[];
     } & {
@@ -55,11 +55,11 @@ export declare class CrmService {
             createdAt: Date;
             workspaceId: string;
             email: string | null;
+            firstName: string;
+            lastName: string;
             updatedAt: Date;
             role: import(".prisma/client").$Enums.ContactRole | null;
             societyId: string | null;
-            firstName: string;
-            lastName: string;
             phone: string | null;
         }[];
     } & {
@@ -82,11 +82,11 @@ export declare class CrmService {
         createdAt: Date;
         workspaceId: string;
         email: string | null;
+        firstName: string;
+        lastName: string;
         updatedAt: Date;
         role: import(".prisma/client").$Enums.ContactRole | null;
         societyId: string | null;
-        firstName: string;
-        lastName: string;
         phone: string | null;
     }, never, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
     updateContact(workspaceId: string, contactId: string, dto: UpdateContactDto): Promise<({
@@ -110,11 +110,11 @@ export declare class CrmService {
         createdAt: Date;
         workspaceId: string;
         email: string | null;
+        firstName: string;
+        lastName: string;
         updatedAt: Date;
         role: import(".prisma/client").$Enums.ContactRole | null;
         societyId: string | null;
-        firstName: string;
-        lastName: string;
         phone: string | null;
     }) | null>;
     listContacts(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<({
@@ -138,11 +138,11 @@ export declare class CrmService {
         createdAt: Date;
         workspaceId: string;
         email: string | null;
+        firstName: string;
+        lastName: string;
         updatedAt: Date;
         role: import(".prisma/client").$Enums.ContactRole | null;
         societyId: string | null;
-        firstName: string;
-        lastName: string;
         phone: string | null;
     })[]>;
 }

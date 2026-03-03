@@ -129,6 +129,13 @@ export function ContactsBlock() {
     setSocietyId('');
   }
 
+  function formatRole(value?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null): string {
+    if (value === 'DECIDEUR') return 'Decideur';
+    if (value === 'N_MINUS_1') return 'N-1';
+    if (value === 'OPERATIONNEL') return 'Operationnel';
+    return '-';
+  }
+
   return (
     <article id="contacts" className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
       <div className="flex items-center justify-between gap-2">
@@ -222,19 +229,38 @@ export function ContactsBlock() {
         </form>
       ) : null}
 
-      <ul className="mt-4 grid gap-2 text-sm">
-        {contacts.map((contact) => (
-          <li key={contact.id} className="rounded border border-[var(--line)] bg-[#fbfaf7] px-3 py-2">
-            <button
-              type="button"
-              onClick={() => onEditContact(contact)}
-              className="font-semibold text-[var(--brand)] underline-offset-2 hover:underline"
-            >
-              {contact.firstName} {contact.lastName}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-4 overflow-x-auto">
+        <table className="min-w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-[var(--line)] text-left text-[#5b5952]">
+              <th className="px-2 py-2">Nom + Prenom</th>
+              <th className="px-2 py-2">Adresse mail</th>
+              <th className="px-2 py-2">Telephone</th>
+              <th className="px-2 py-2">Societe</th>
+              <th className="px-2 py-2">Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contacts.map((contact) => (
+              <tr key={contact.id} className="border-b border-[var(--line)] bg-[#fbfaf7]">
+                <td className="px-2 py-2">
+                  <button
+                    type="button"
+                    onClick={() => onEditContact(contact)}
+                    className="font-semibold text-[var(--brand)] underline-offset-2 hover:underline"
+                  >
+                    {contact.lastName} {contact.firstName}
+                  </button>
+                </td>
+                <td className="px-2 py-2">{contact.email || '-'}</td>
+                <td className="px-2 py-2">{contact.phone || '-'}</td>
+                <td className="px-2 py-2">{contact.society?.name || '-'}</td>
+                <td className="px-2 py-2">{formatRole(contact.role)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </article>
   );
 }

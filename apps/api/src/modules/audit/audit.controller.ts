@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { WorkspaceRole } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { WorkspaceRoles } from '../../common/decorators/workspace-roles.decorator';
@@ -17,7 +17,17 @@ export class AuditController {
 
   @Get()
   @WorkspaceRoles(WorkspaceRole.ADMIN)
-  findAll(@CurrentUser() user: AuthUser) {
-    return this.auditService.listByWorkspace(user.activeWorkspaceId);
+  findAll(
+    @CurrentUser() user: AuthUser,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ) {
+    const parsedPage = Number(page);
+    const parsedPageSize = Number(pageSize);
+    return this.auditService.listByWorkspace(
+      user.activeWorkspaceId,
+      Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1,
+      Number.isFinite(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 25,
+    );
   }
 }

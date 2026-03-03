@@ -29,11 +29,11 @@ export declare class FinanceController {
         workspaceId: string;
         updatedAt: Date;
         projectId: string;
+        status: string;
+        dueDate: Date | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
         amount: import("@prisma/client/runtime/library").Decimal;
-        status: string;
-        dueDate: Date | null;
     })[]>;
     create(user: AuthUser, dto: CreateFinanceDocumentDto): Promise<{
         id: string;
@@ -41,11 +41,11 @@ export declare class FinanceController {
         workspaceId: string;
         updatedAt: Date;
         projectId: string;
+        status: string;
+        dueDate: Date | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
         amount: import("@prisma/client/runtime/library").Decimal;
-        status: string;
-        dueDate: Date | null;
     }>;
     kpis(user: AuthUser): Promise<{
         billedRevenue: number;

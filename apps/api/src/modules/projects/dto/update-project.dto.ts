@@ -1,10 +1,4 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
-
-const MISSION_TYPES = [
-  'WEALTH_STRATEGY',
-  'SUCCESSION',
-  'CORPORATE_FINANCE',
-] as const;
+import { IsOptional, IsString } from 'class-validator';
 
 export class UpdateProjectDto {
   @IsOptional()
@@ -13,6 +7,5 @@ export class UpdateProjectDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(MISSION_TYPES)
-  missionType?: (typeof MISSION_TYPES)[number];
+  missionType?: string;
 }

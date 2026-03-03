@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 export class UpdateWorkspaceSettingsDto {
   @IsOptional()
@@ -30,4 +30,9 @@ export class UpdateWorkspaceSettingsDto {
   @IsOptional()
   @IsString()
   signatureApiKey?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  projectTypologies?: string[];
 }

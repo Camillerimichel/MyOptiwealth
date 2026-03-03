@@ -11,11 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateProjectDto = void 0;
 const class_validator_1 = require("class-validator");
-const MISSION_TYPES = [
-    'WEALTH_STRATEGY',
-    'SUCCESSION',
-    'CORPORATE_FINANCE',
-];
 class UpdateProjectDto {
 }
 exports.UpdateProjectDto = UpdateProjectDto;
@@ -27,7 +22,6 @@ __decorate([
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
-    (0, class_validator_1.IsIn)(MISSION_TYPES),
-    __metadata("design:type", Object)
+    __metadata("design:type", String)
 ], UpdateProjectDto.prototype, "missionType", void 0);
 //# sourceMappingURL=update-project.dto.js.map

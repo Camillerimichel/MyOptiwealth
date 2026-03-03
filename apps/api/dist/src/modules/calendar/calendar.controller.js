@@ -28,6 +28,9 @@ let CalendarController = class CalendarController {
     list(user) {
         return this.calendarService.list(user.activeWorkspaceId);
     }
+    feed(user) {
+        return this.calendarService.unifiedFeed(user.sub, user.activeWorkspaceId);
+    }
     create(user, dto) {
         return this.calendarService.create(user.activeWorkspaceId, dto);
     }
@@ -43,6 +46,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], CalendarController.prototype, "list", null);
+__decorate([
+    (0, common_1.Get)('feed'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CalendarController.prototype, "feed", null);
 __decorate([
     (0, common_1.Post)('events'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),

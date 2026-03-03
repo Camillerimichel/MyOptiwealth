@@ -271,7 +271,7 @@ export const apiClient = {
       name: string;
       societyId: string;
       estimatedFees?: string;
-      missionType?: 'WEALTH_STRATEGY' | 'SUCCESSION' | 'CORPORATE_FINANCE';
+      missionType?: string;
     },
   ) {
     return request('/projects', { method: 'POST', token, body: payload });
@@ -282,7 +282,7 @@ export const apiClient = {
     projectId: string,
     payload: {
       name?: string;
-      missionType?: 'WEALTH_STRATEGY' | 'SUCCESSION' | 'CORPORATE_FINANCE';
+      missionType?: string;
     },
   ) {
     return request(`/projects/${projectId}`, { method: 'PATCH', token, body: payload });
@@ -294,6 +294,9 @@ export const apiClient = {
         id: string;
         description: string;
         privateComment?: string | null;
+        startDate?: string | null;
+        expectedEndDate?: string | null;
+        actualEndDate?: string | null;
         status: string;
         priority: number;
         orderNumber: number;
@@ -309,6 +312,9 @@ export const apiClient = {
       projectId: string;
       description: string;
       privateComment?: string;
+      startDate?: string;
+      expectedEndDate?: string;
+      actualEndDate?: string;
       priority: number;
       orderNumber?: number;
       status?: string;
@@ -329,6 +335,9 @@ export const apiClient = {
       projectPhaseId?: string | null;
       description?: string;
       privateComment?: string | null;
+      startDate?: string | null;
+      expectedEndDate?: string | null;
+      actualEndDate?: string | null;
       priority?: number;
       orderNumber?: number;
       status?: string;
@@ -349,6 +358,22 @@ export const apiClient = {
     return request<Array<{ id: string; title: string; eventType: string; startAt: string; endAt: string }>>('/calendar/events', {
       token,
     });
+  },
+
+  listCalendarFeed(token: string) {
+    return request<{
+      activeWorkspaceId: string;
+      items: Array<{
+        id: string;
+        title: string;
+        start: string;
+        end: string;
+        allDay: boolean;
+        source: 'EVENT' | 'TASK' | 'TIMESHEET' | string;
+        workspaceId: string;
+        workspaceName: string;
+      }>;
+    }>('/calendar/feed', { token });
   },
 
   createEvent(
@@ -467,7 +492,7 @@ export const apiClient = {
   },
 
   listWorkspaces(token: string) {
-    return request<Array<{ workspace: { id: string; name: string }; role: string; isDefault: boolean }>>('/workspaces', { token });
+    return request<Array<{ workspace: { id: string; name: string }; role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER'; isDefault: boolean }>>('/workspaces', { token });
   },
 
   createWorkspace(token: string, payload: { name: string }) {
@@ -486,6 +511,7 @@ export const apiClient = {
       imapHost?: string | null;
       imapPort?: number | null;
       imapUser?: string | null;
+      projectTypologies?: string[] | null;
       signatureProvider?: string | null;
       signatureApiBaseUrl?: string | null;
     }>('/workspaces/settings/current', { token });
@@ -498,6 +524,7 @@ export const apiClient = {
       imapPort?: number;
       imapUser?: string;
       imapPassword?: string;
+      projectTypologies?: string[];
       signatureProvider?: 'YOUSIGN' | 'DOCUSIGN' | 'MOCK';
       signatureApiBaseUrl?: string;
       signatureApiKey?: string;
@@ -507,10 +534,61 @@ export const apiClient = {
   },
 
   listUsers(token: string) {
-    return request<Array<{ user: { id: string; email: string }; role: string }>>('/users', { token });
+    return request<Array<{ user: { id: string; email: string; firstName?: string | null; lastName?: string | null }; role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER'; isDefault: boolean }>>('/users', { token });
   },
 
-  listAudit(token: string) {
-    return request<Array<{ id: string; action: string; createdAt: string }>>('/audit', { token });
+  updateUser(
+    token: string,
+    userId: string,
+    payload: {
+      firstName?: string | null;
+      lastName?: string | null;
+      role?: 'ADMIN' | 'COLLABORATOR' | 'VIEWER';
+    },
+  ) {
+    return request(`/users/${userId}`, { method: 'PATCH', token, body: payload });
+  },
+
+  createUser(
+    token: string,
+    payload: {
+      email: string;
+      password: string;
+      firstName?: string;
+      lastName?: string;
+      role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER';
+    },
+  ) {
+    return request<{
+      user: { id: string; email: string; firstName?: string | null; lastName?: string | null };
+      role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER';
+      isDefault: boolean;
+      twoFactorProvisioning?: { secret: string; otpauth: string };
+    }>('/users', { method: 'POST', token, body: payload });
+  },
+
+  getUserTwoFactorProvisioning(token: string, userId: string) {
+    return request<{
+      userId: string;
+      email: string;
+      twoFactorEnabled: boolean;
+      secret: string;
+      otpauth: string;
+    }>(`/users/${userId}/2fa-provisioning`, { token });
+  },
+
+  listAudit(token: string, page = 1, pageSize = 25) {
+    return request<{
+      items: Array<{
+        id: string;
+        action: string;
+        createdAt: string;
+        user?: { id: string; email: string; firstName?: string | null; lastName?: string | null } | null;
+      }>;
+      total: number;
+      page: number;
+      pageSize: number;
+      totalPages: number;
+    }>(`/audit?page=${page}&pageSize=${pageSize}`, { token });
   },
 };

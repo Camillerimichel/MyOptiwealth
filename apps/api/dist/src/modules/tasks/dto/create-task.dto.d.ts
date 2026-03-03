@@ -4,6 +4,9 @@ export declare class CreateTaskDto {
     projectPhaseId?: string;
     description: string;
     privateComment?: string;
+    startDate?: Date;
+    expectedEndDate?: Date;
+    actualEndDate?: Date;
     priority: number;
     orderNumber?: number;
     status?: TaskStatus;

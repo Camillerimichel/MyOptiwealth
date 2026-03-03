@@ -19,6 +19,8 @@ const current_user_decorator_1 = require("../../common/decorators/current-user.d
 const workspace_roles_decorator_1 = require("../../common/decorators/workspace-roles.decorator");
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const workspace_role_guard_1 = require("../../common/guards/workspace-role.guard");
+const create_workspace_user_dto_1 = require("./dto/create-workspace-user.dto");
+const update_workspace_user_dto_1 = require("./dto/update-workspace-user.dto");
 const users_service_1 = require("./users.service");
 let UsersController = class UsersController {
     constructor(usersService) {
@@ -26,6 +28,15 @@ let UsersController = class UsersController {
     }
     list(user) {
         return this.usersService.listWorkspaceUsers(user.activeWorkspaceId);
+    }
+    create(user, dto) {
+        return this.usersService.createWorkspaceUser(user.activeWorkspaceId, user.sub, dto);
+    }
+    update(user, userId, dto) {
+        return this.usersService.updateWorkspaceUser(user.activeWorkspaceId, user.sub, userId, dto);
+    }
+    getTwoFactorProvisioning(user, userId) {
+        return this.usersService.getUserTwoFactorProvisioning(user.activeWorkspaceId, userId);
     }
 };
 exports.UsersController = UsersController;
@@ -37,6 +48,34 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "list", null);
+__decorate([
+    (0, common_1.Post)(),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, create_workspace_user_dto_1.CreateWorkspaceUserDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "create", null);
+__decorate([
+    (0, common_1.Patch)(':userId'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('userId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, update_workspace_user_dto_1.UpdateWorkspaceUserDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "update", null);
+__decorate([
+    (0, common_1.Get)(':userId/2fa-provisioning'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "getTwoFactorProvisioning", null);
 exports.UsersController = UsersController = __decorate([
     (0, common_1.Controller)('users'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, workspace_role_guard_1.WorkspaceRoleGuard),

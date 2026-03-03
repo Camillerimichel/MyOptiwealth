@@ -1,6 +1,7 @@
 import { CalendarService } from './calendar.service';
 import { CreateEventDto } from './dto/create-event.dto';
 interface AuthUser {
+    sub: string;
     activeWorkspaceId: string;
 }
 export declare class CalendarController {
@@ -21,6 +22,19 @@ export declare class CalendarController {
         visioLink: string | null;
         alertMinutes: number | null;
     }[]>;
+    feed(user: AuthUser): Promise<{
+        activeWorkspaceId: string;
+        items: {
+            id: string;
+            title: string;
+            start: string;
+            end: string;
+            allDay: boolean;
+            source: string;
+            workspaceId: string;
+            workspaceName: string;
+        }[];
+    }>;
     create(user: AuthUser, dto: CreateEventDto): import(".prisma/client").Prisma.Prisma__CalendarEventClient<{
         id: string;
         createdAt: Date;

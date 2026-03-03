@@ -24,8 +24,10 @@ let AuditController = class AuditController {
     constructor(auditService) {
         this.auditService = auditService;
     }
-    findAll(user) {
-        return this.auditService.listByWorkspace(user.activeWorkspaceId);
+    findAll(user, page, pageSize) {
+        const parsedPage = Number(page);
+        const parsedPageSize = Number(pageSize);
+        return this.auditService.listByWorkspace(user.activeWorkspaceId, Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1, Number.isFinite(parsedPageSize) && parsedPageSize > 0 ? parsedPageSize : 25);
     }
 };
 exports.AuditController = AuditController;
@@ -33,8 +35,10 @@ __decorate([
     (0, common_1.Get)(),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Query)('page')),
+    __param(2, (0, common_1.Query)('pageSize')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", void 0)
 ], AuditController.prototype, "findAll", null);
 exports.AuditController = AuditController = __decorate([

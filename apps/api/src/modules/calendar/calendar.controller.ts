@@ -8,6 +8,7 @@ import { CalendarService } from './calendar.service';
 import { CreateEventDto } from './dto/create-event.dto';
 
 interface AuthUser {
+  sub: string;
   activeWorkspaceId: string;
 }
 
@@ -19,6 +20,11 @@ export class CalendarController {
   @Get('events')
   list(@CurrentUser() user: AuthUser) {
     return this.calendarService.list(user.activeWorkspaceId);
+  }
+
+  @Get('feed')
+  feed(@CurrentUser() user: AuthUser) {
+    return this.calendarService.unifiedFeed(user.sub, user.activeWorkspaceId);
   }
 
   @Post('events')

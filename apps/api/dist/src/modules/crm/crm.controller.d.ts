@@ -15,11 +15,11 @@ export declare class CrmController {
             createdAt: Date;
             workspaceId: string;
             email: string | null;
+            firstName: string;
+            lastName: string;
             updatedAt: Date;
             role: import(".prisma/client").$Enums.ContactRole | null;
             societyId: string | null;
-            firstName: string;
-            lastName: string;
             phone: string | null;
         }[];
     } & {
@@ -58,11 +58,11 @@ export declare class CrmController {
             createdAt: Date;
             workspaceId: string;
             email: string | null;
+            firstName: string;
+            lastName: string;
             updatedAt: Date;
             role: import(".prisma/client").$Enums.ContactRole | null;
             societyId: string | null;
-            firstName: string;
-            lastName: string;
             phone: string | null;
         }[];
     } & {
@@ -101,11 +101,11 @@ export declare class CrmController {
         createdAt: Date;
         workspaceId: string;
         email: string | null;
+        firstName: string;
+        lastName: string;
         updatedAt: Date;
         role: import(".prisma/client").$Enums.ContactRole | null;
         societyId: string | null;
-        firstName: string;
-        lastName: string;
         phone: string | null;
     })[]>;
     createContact(user: AuthUser, dto: CreateContactDto): import(".prisma/client").Prisma.Prisma__ContactClient<{
@@ -113,11 +113,11 @@ export declare class CrmController {
         createdAt: Date;
         workspaceId: string;
         email: string | null;
+        firstName: string;
+        lastName: string;
         updatedAt: Date;
         role: import(".prisma/client").$Enums.ContactRole | null;
         societyId: string | null;
-        firstName: string;
-        lastName: string;
         phone: string | null;
     }, never, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
     updateContact(user: AuthUser, contactId: string, dto: UpdateContactDto): Promise<({
@@ -141,11 +141,11 @@ export declare class CrmController {
         createdAt: Date;
         workspaceId: string;
         email: string | null;
+        firstName: string;
+        lastName: string;
         updatedAt: Date;
         role: import(".prisma/client").$Enums.ContactRole | null;
         societyId: string | null;
-        firstName: string;
-        lastName: string;
         phone: string | null;
     }) | null>;
 }

@@ -43,7 +43,10 @@ export declare class WorkspacesController {
         accessToken: string;
         activeWorkspaceId: string;
     }>;
-    settings(user: AuthUser): import(".prisma/client").Prisma.Prisma__WorkspaceSettingsClient<{
+    settings(user: AuthUser): Promise<{
+        projectTypologies: string[];
+    } | {
+        projectTypologies: string[];
         id: string;
         createdAt: Date;
         workspaceId: string;
@@ -53,7 +56,7 @@ export declare class WorkspacesController {
         imapUser: string | null;
         signatureProvider: string | null;
         signatureApiBaseUrl: string | null;
-    } | null, null, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    }>;
     updateSettings(user: AuthUser, dto: UpdateWorkspaceSettingsDto): Promise<{
         id: string;
         createdAt: Date;
@@ -62,6 +65,7 @@ export declare class WorkspacesController {
         imapHost: string | null;
         imapPort: number | null;
         imapUser: string | null;
+        projectTypologies: import("@prisma/client/runtime/library").JsonValue;
         signatureProvider: string | null;
         signatureApiBaseUrl: string | null;
     }>;

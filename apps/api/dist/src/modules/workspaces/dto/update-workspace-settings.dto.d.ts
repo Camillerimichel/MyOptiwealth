@@ -6,4 +6,5 @@ export declare class UpdateWorkspaceSettingsDto {
     signatureProvider?: 'YOUSIGN' | 'DOCUSIGN' | 'MOCK';
     signatureApiBaseUrl?: string;
     signatureApiKey?: string;
+    projectTypologies?: string[];
 }

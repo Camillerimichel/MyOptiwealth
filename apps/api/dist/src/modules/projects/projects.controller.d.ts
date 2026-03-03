@@ -29,8 +29,8 @@ export declare class ProjectsController {
             id: string;
             createdAt: Date;
             workspaceId: string;
-            code: import(".prisma/client").$Enums.ProjectPhaseCode;
             updatedAt: Date;
+            code: import(".prisma/client").$Enums.ProjectPhaseCode;
             title: string;
             projectId: string;
             position: number;
@@ -53,8 +53,8 @@ export declare class ProjectsController {
             id: string;
             createdAt: Date;
             workspaceId: string;
-            code: import(".prisma/client").$Enums.ProjectPhaseCode;
             updatedAt: Date;
+            code: import(".prisma/client").$Enums.ProjectPhaseCode;
             title: string;
             projectId: string;
             position: number;
@@ -94,8 +94,8 @@ export declare class ProjectsController {
             id: string;
             createdAt: Date;
             workspaceId: string;
-            code: import(".prisma/client").$Enums.ProjectPhaseCode;
             updatedAt: Date;
+            code: import(".prisma/client").$Enums.ProjectPhaseCode;
             title: string;
             projectId: string;
             position: number;

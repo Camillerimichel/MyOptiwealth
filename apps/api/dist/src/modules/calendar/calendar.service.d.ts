@@ -33,6 +33,21 @@ export declare class CalendarService {
         visioLink: string | null;
         alertMinutes: number | null;
     }[]>;
+    unifiedFeed(userId: string, activeWorkspaceId: string): Promise<{
+        activeWorkspaceId: string;
+        items: {
+            id: string;
+            title: string;
+            start: string;
+            end: string;
+            allDay: boolean;
+            source: string;
+            workspaceId: string;
+            workspaceName: string;
+        }[];
+    }>;
     exportWeeklyIcs(workspaceId: string): Promise<string>;
     private toUtc;
+    private toDateOnly;
+    private addOneDay;
 }

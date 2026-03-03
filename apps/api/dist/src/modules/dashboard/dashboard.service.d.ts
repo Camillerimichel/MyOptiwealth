@@ -28,12 +28,15 @@ export declare class DashboardService {
             updatedAt: Date;
             description: string;
             projectId: string;
-            status: import(".prisma/client").$Enums.TaskStatus;
-            dueDate: Date | null;
             projectPhaseId: string | null;
             privateComment: string | null;
+            startDate: Date | null;
+            expectedEndDate: Date | null;
+            actualEndDate: Date | null;
             orderNumber: number;
             priority: number;
+            status: import(".prisma/client").$Enums.TaskStatus;
+            dueDate: Date | null;
             assigneeId: string | null;
             companyOwnerContactId: string | null;
             visibleToClient: boolean;

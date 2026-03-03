@@ -7,6 +7,12 @@ import { showToast } from '@/lib/toast';
 
 type Project = { id: string; name: string; progressPercent: number; missionType?: string | null };
 type Society = { id: string; name: string };
+const DEFAULT_MISSION_TYPES = ['Strategie patrimoniale', 'Succession', 'Finance d entreprise'];
+const LEGACY_MISSION_LABELS: Record<string, string> = {
+  WEALTH_STRATEGY: 'Strategie patrimoniale',
+  SUCCESSION: 'Succession',
+  CORPORATE_FINANCE: 'Finance d entreprise',
+};
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -14,9 +20,8 @@ export default function ProjectsPage() {
   const [name, setName] = useState('');
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [societyId, setSocietyId] = useState('');
-  const [missionType, setMissionType] = useState<'WEALTH_STRATEGY' | 'SUCCESSION' | 'CORPORATE_FINANCE'>(
-    'WEALTH_STRATEGY',
-  );
+  const [missionType, setMissionType] = useState<string>(DEFAULT_MISSION_TYPES[0]);
+  const [missionTypes, setMissionTypes] = useState<string[]>(DEFAULT_MISSION_TYPES);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,12 +35,19 @@ export default function ProjectsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [projectsData, societiesData] = await Promise.all([
+      const [projectsData, societiesData, settings] = await Promise.all([
         apiClient.listProjects(token),
         apiClient.listSocieties(token),
+        apiClient.getWorkspaceSettings(token),
       ]);
       setProjects(projectsData);
       setSocieties(societiesData);
+      const configuredMissionTypes =
+        settings.projectTypologies && settings.projectTypologies.length > 0
+          ? settings.projectTypologies
+          : DEFAULT_MISSION_TYPES;
+      setMissionTypes(configuredMissionTypes);
+      setMissionType((current) => current || configuredMissionTypes[0] || DEFAULT_MISSION_TYPES[0]);
       setSocietyId((current) => current || societiesData[0]?.id || '');
     } catch {
       setError('Chargement impossible.');
@@ -70,9 +82,7 @@ export default function ProjectsPage() {
   function onEditProject(project: Project): void {
     setEditingProjectId(project.id);
     setName(project.name);
-    if (project.missionType === 'WEALTH_STRATEGY' || project.missionType === 'SUCCESSION' || project.missionType === 'CORPORATE_FINANCE') {
-      setMissionType(project.missionType);
-    }
+    setMissionType(project.missionType ? (LEGACY_MISSION_LABELS[project.missionType] ?? project.missionType) : (missionTypes[0] ?? DEFAULT_MISSION_TYPES[0]));
   }
 
   function onCancelEdit(): void {
@@ -92,10 +102,12 @@ export default function ProjectsPage() {
             <option value="">Sélectionner société</option>
             {societies.map((society) => <option key={society.id} value={society.id}>{society.name}</option>)}
           </select>
-          <select value={missionType} onChange={(e) => setMissionType(e.target.value as 'WEALTH_STRATEGY' | 'SUCCESSION' | 'CORPORATE_FINANCE')} className="rounded border border-[var(--line)] px-3 py-2">
-            <option value="WEALTH_STRATEGY">Wealth strategy</option>
-            <option value="SUCCESSION">Succession</option>
-            <option value="CORPORATE_FINANCE">Corporate finance</option>
+          <select value={missionType} onChange={(e) => setMissionType(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
+            {missionTypes.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
           </select>
           <div className="flex gap-2">
             <button className="rounded bg-[var(--brand)] px-3 py-2 text-white">
@@ -129,7 +141,7 @@ export default function ProjectsPage() {
                 <tr key={project.id} className="border-b border-[var(--line)]">
                   <td className="px-2 py-2">{project.name}</td>
                   <td className="px-2 py-2">{project.progressPercent}%</td>
-                  <td className="px-2 py-2">{project.missionType ?? '-'}</td>
+                  <td className="px-2 py-2">{project.missionType ? (LEGACY_MISSION_LABELS[project.missionType] ?? project.missionType) : '-'}</td>
                   <td className="px-2 py-2">
                     <button
                       type="button"

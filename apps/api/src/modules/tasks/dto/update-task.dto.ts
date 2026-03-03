@@ -29,6 +29,21 @@ export class UpdateTaskDto {
   privateComment?: string | null;
 
   @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  startDate?: Date | null;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  expectedEndDate?: Date | null;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  actualEndDate?: Date | null;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(3)

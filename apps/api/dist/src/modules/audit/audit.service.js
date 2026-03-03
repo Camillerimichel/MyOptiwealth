@@ -26,12 +26,36 @@ let AuditService = class AuditService {
             },
         });
     }
-    listByWorkspace(workspaceId) {
-        return this.prisma.auditLog.findMany({
-            where: { workspaceId },
-            orderBy: { createdAt: 'desc' },
-            take: 200,
-        });
+    async listByWorkspace(workspaceId, page = 1, pageSize = 25) {
+        const safePage = Math.max(1, page);
+        const safePageSize = Math.min(100, Math.max(1, pageSize));
+        const skip = (safePage - 1) * safePageSize;
+        const [total, items] = await this.prisma.$transaction([
+            this.prisma.auditLog.count({ where: { workspaceId } }),
+            this.prisma.auditLog.findMany({
+                where: { workspaceId },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: safePageSize,
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            email: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
+            }),
+        ]);
+        return {
+            items,
+            total,
+            page: safePage,
+            pageSize: safePageSize,
+            totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+        };
     }
 };
 exports.AuditService = AuditService;

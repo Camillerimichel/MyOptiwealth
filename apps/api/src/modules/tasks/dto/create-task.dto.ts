@@ -27,6 +27,21 @@ export class CreateTaskDto {
   @IsString()
   privateComment?: string;
 
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  startDate?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  expectedEndDate?: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  actualEndDate?: Date;
+
   @IsInt()
   @Min(1)
   @Max(3)

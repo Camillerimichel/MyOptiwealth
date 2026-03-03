@@ -9,6 +9,9 @@ type Task = {
   id: string;
   description: string;
   privateComment?: string | null;
+  startDate?: string | null;
+  expectedEndDate?: string | null;
+  actualEndDate?: string | null;
   status: string;
   priority: number;
   orderNumber: number;
@@ -16,8 +19,23 @@ type Task = {
   companyOwnerContact?: { id: string; firstName: string; lastName: string; society?: { name: string } | null } | null;
 };
 type Project = { id: string; name: string; progressPercent: number };
-type UserOption = { user: { id: string; email: string }; role: string };
+type UserOption = { user: { id: string; email: string; firstName?: string | null; lastName?: string | null }; role: string };
 type ContactOption = { id: string; firstName: string; lastName: string; society?: { id: string; name: string } | null };
+
+function toDateInputValue(value?: string | null): string {
+  if (!value) return '';
+  return value.slice(0, 10);
+}
+
+function toApiDateValue(value: string): string | undefined {
+  if (!value) return undefined;
+  return `${value}T00:00:00.000Z`;
+}
+
+function userDisplayName(user: { email: string; firstName?: string | null; lastName?: string | null }): string {
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  return fullName || user.email;
+}
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -30,6 +48,9 @@ export default function TasksPage() {
   const [priority, setPriority] = useState(2);
   const [orderNumber, setOrderNumber] = useState(1);
   const [status, setStatus] = useState('TODO');
+  const [startDate, setStartDate] = useState('');
+  const [expectedEndDate, setExpectedEndDate] = useState('');
+  const [actualEndDate, setActualEndDate] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [companyOwnerContactId, setCompanyOwnerContactId] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
@@ -79,6 +100,9 @@ export default function TasksPage() {
         projectId,
         description,
         privateComment: privateComment || null,
+        startDate: toApiDateValue(startDate) ?? null,
+        expectedEndDate: toApiDateValue(expectedEndDate) ?? null,
+        actualEndDate: toApiDateValue(actualEndDate) ?? null,
         priority,
         orderNumber,
         status,
@@ -91,6 +115,9 @@ export default function TasksPage() {
         projectId,
         description,
         privateComment: privateComment || undefined,
+        startDate: toApiDateValue(startDate),
+        expectedEndDate: toApiDateValue(expectedEndDate),
+        actualEndDate: toApiDateValue(actualEndDate),
         priority,
         orderNumber,
         status: 'TODO',
@@ -107,6 +134,9 @@ export default function TasksPage() {
     setPriority(2);
     setOrderNumber(1);
     setStatus('TODO');
+    setStartDate('');
+    setExpectedEndDate('');
+    setActualEndDate('');
     setAssigneeId('');
     setCompanyOwnerContactId('');
     await load();
@@ -119,6 +149,9 @@ export default function TasksPage() {
     setPriority(task.priority);
     setOrderNumber(task.orderNumber);
     setStatus(task.status);
+    setStartDate(toDateInputValue(task.startDate));
+    setExpectedEndDate(toDateInputValue(task.expectedEndDate));
+    setActualEndDate(toDateInputValue(task.actualEndDate));
     setAssigneeId(task.assignee?.id ?? '');
     setCompanyOwnerContactId(task.companyOwnerContact?.id ?? '');
   }
@@ -130,6 +163,9 @@ export default function TasksPage() {
     setPriority(2);
     setOrderNumber(1);
     setStatus('TODO');
+    setStartDate('');
+    setExpectedEndDate('');
+    setActualEndDate('');
     setAssigneeId('');
     setCompanyOwnerContactId('');
   }
@@ -215,7 +251,7 @@ export default function TasksPage() {
               <option value="">Responsable interne</option>
               {users.map((item) => (
                 <option key={item.user.id} value={item.user.id}>
-                  {item.user.email}
+                  {userDisplayName(item.user)}
                 </option>
               ))}
             </select>
@@ -231,6 +267,39 @@ export default function TasksPage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+            <label className="grid gap-1 text-sm text-[#4f4d45] lg:col-span-4">
+              Date de début
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded border border-[var(--line)] px-3 py-2"
+                aria-label="Date de début"
+              />
+            </label>
+            <label className="grid gap-1 text-sm text-[#4f4d45] lg:col-span-4">
+              Date de fin attendue
+              <input
+                type="date"
+                value={expectedEndDate}
+                onChange={(e) => setExpectedEndDate(e.target.value)}
+                className="rounded border border-[var(--line)] px-3 py-2"
+                aria-label="Date de fin attendue"
+              />
+            </label>
+            <label className="grid gap-1 text-sm text-[#4f4d45] lg:col-span-4">
+              Date de fin réelle
+              <input
+                type="date"
+                value={actualEndDate}
+                onChange={(e) => setActualEndDate(e.target.value)}
+                className="rounded border border-[var(--line)] px-3 py-2"
+                aria-label="Date de fin réelle"
+              />
+            </label>
           </div>
 
           <div className="grid gap-3 lg:grid-cols-12">
@@ -286,6 +355,9 @@ export default function TasksPage() {
                 <th className="px-2 py-2">Rang</th>
                 <th className="px-2 py-2">Priorité</th>
                 <th className="px-2 py-2">Description</th>
+                <th className="px-2 py-2">Début</th>
+                <th className="px-2 py-2">Fin attendue</th>
+                <th className="px-2 py-2">Fin réelle</th>
                 <th className="px-2 py-2">Action</th>
               </tr>
             </thead>
@@ -296,6 +368,9 @@ export default function TasksPage() {
                   <td className="px-2 py-2 font-medium">N{task.orderNumber}</td>
                   <td className="px-2 py-2">P{task.priority}</td>
                   <td className="px-2 py-2">{task.description}</td>
+                  <td className="px-2 py-2">{toDateInputValue(task.startDate) || '-'}</td>
+                  <td className="px-2 py-2">{toDateInputValue(task.expectedEndDate) || '-'}</td>
+                  <td className="px-2 py-2">{toDateInputValue(task.actualEndDate) || '-'}</td>
                   <td className="px-2 py-2">
                     <button
                       type="button"
