@@ -11,5 +11,6 @@ import { DocumentStorageService } from './storage.service';
   imports: [AuditModule],
   controllers: [DocumentsController, DocumentsWebhookController],
   providers: [DocumentsService, DocumentStorageService, SignatureService, EncryptionService],
+  exports: [DocumentStorageService],
 })
 export class DocumentsModule {}

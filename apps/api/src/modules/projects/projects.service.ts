@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { ProjectPhaseCode, TaskStatus } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ContactRole, ProjectPhaseCode, TaskStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma.service';
 import { CreateProjectDto } from './dto/create-project.dto';
+import { LinkProjectContactDto } from './dto/link-project-contact.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { UpdateProjectContactDto } from './dto/update-project-contact.dto';
 
 const PHASES: Array<{ code: ProjectPhaseCode; title: string; position: number }> = [
   { code: ProjectPhaseCode.QUALIFICATION_CADRAGE, title: 'Qualification & Cadrage', position: 1 },
@@ -55,10 +57,34 @@ export class ProjectsService {
   ) {}
 
   async create(workspaceId: string, userId: string, dto: CreateProjectDto) {
+    const normalizedName = dto.name.trim();
+    const society = await this.prisma.society.findFirst({
+      where: {
+        id: dto.societyId,
+        workspaceId,
+      },
+      select: { id: true },
+    });
+    if (!society) {
+      throw new NotFoundException('Societe introuvable dans ce workspace');
+    }
+
+    const existing = await this.prisma.project.findFirst({
+      where: {
+        workspaceId,
+        societyId: dto.societyId,
+        name: normalizedName,
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestException('Un projet avec ce nom existe déjà pour cette société.');
+    }
+
     const project = await this.prisma.project.create({
       data: {
         workspaceId,
-        name: dto.name,
+        name: normalizedName,
         societyId: dto.societyId,
         estimatedFees: dto.estimatedFees,
         missionType: dto.missionType,
@@ -112,10 +138,33 @@ export class ProjectsService {
   }
 
   async update(workspaceId: string, userId: string, projectId: string, dto: UpdateProjectDto) {
+    const normalizedName = dto.name?.trim();
+    if (normalizedName) {
+      const current = await this.prisma.project.findFirst({
+        where: { id: projectId, workspaceId },
+        select: { societyId: true },
+      });
+      if (!current) {
+        throw new NotFoundException('Projet introuvable dans ce workspace');
+      }
+      const existing = await this.prisma.project.findFirst({
+        where: {
+          workspaceId,
+          societyId: current.societyId,
+          name: normalizedName,
+          id: { not: projectId },
+        },
+        select: { id: true },
+      });
+      if (existing) {
+        throw new BadRequestException('Un projet avec ce nom existe déjà pour cette société.');
+      }
+    }
+
     const result = await this.prisma.project.updateMany({
       where: { id: projectId, workspaceId },
       data: {
-        name: dto.name,
+        name: normalizedName ?? dto.name,
         missionType: dto.missionType,
       },
     });
@@ -170,5 +219,101 @@ export class ProjectsService {
         progressPercent,
       };
     });
+  }
+
+  async listProjectContacts(workspaceId: string, projectId: string) {
+    await this.getProjectOrThrow(workspaceId, projectId);
+    return this.prisma.projectContact.findMany({
+      where: { projectId },
+      include: {
+        contact: {
+          include: {
+            society: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async addProjectContact(workspaceId: string, userId: string, projectId: string, dto: LinkProjectContactDto) {
+    await this.getProjectOrThrow(workspaceId, projectId);
+    await this.getContactOrThrow(workspaceId, dto.contactId);
+    const result = await this.prisma.projectContact.upsert({
+      where: { projectId_contactId: { projectId, contactId: dto.contactId } },
+      update: {
+        projectRole: dto.projectRole,
+      },
+      create: {
+        projectId,
+        contactId: dto.contactId,
+        projectRole: dto.projectRole,
+      },
+      include: {
+        contact: {
+          include: {
+            society: true,
+          },
+        },
+      },
+    });
+    await this.auditService.log(workspaceId, 'PROJECT_CONTACT_LINKED', { projectId, contactId: dto.contactId }, userId);
+    return result;
+  }
+
+  async updateProjectContact(
+    workspaceId: string,
+    userId: string,
+    projectId: string,
+    contactId: string,
+    dto: UpdateProjectContactDto,
+  ) {
+    await this.getProjectOrThrow(workspaceId, projectId);
+    const result = await this.prisma.projectContact.update({
+      where: { projectId_contactId: { projectId, contactId } },
+      data: {
+        projectRole: dto.projectRole as ContactRole | null | undefined,
+      },
+      include: {
+        contact: {
+          include: {
+            society: true,
+          },
+        },
+      },
+    });
+    await this.auditService.log(workspaceId, 'PROJECT_CONTACT_UPDATED', { projectId, contactId }, userId);
+    return result;
+  }
+
+  async removeProjectContact(workspaceId: string, userId: string, projectId: string, contactId: string) {
+    await this.getProjectOrThrow(workspaceId, projectId);
+    await this.prisma.projectContact.delete({
+      where: { projectId_contactId: { projectId, contactId } },
+    });
+    await this.auditService.log(workspaceId, 'PROJECT_CONTACT_UNLINKED', { projectId, contactId }, userId);
+    return { success: true };
+  }
+
+  private async getProjectOrThrow(workspaceId: string, projectId: string) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+      select: { id: true },
+    });
+    if (!project) {
+      throw new NotFoundException('Projet introuvable dans ce workspace');
+    }
+    return project;
+  }
+
+  private async getContactOrThrow(workspaceId: string, contactId: string) {
+    const contact = await this.prisma.contact.findFirst({
+      where: { id: contactId, workspaceId },
+      select: { id: true },
+    });
+    if (!contact) {
+      throw new NotFoundException('Contact introuvable dans ce workspace');
+    }
+    return contact;
   }
 }

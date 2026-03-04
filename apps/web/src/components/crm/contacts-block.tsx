@@ -42,8 +42,8 @@ export function ContactsBlock() {
       setLoading(true);
       setError(null);
       const [societiesData, contactsData] = await Promise.all([
-        apiClient.listSocieties(token),
-        apiClient.listContacts(token),
+        apiClient.listSocietiesAll(token),
+        apiClient.listContactsAll(token),
       ]);
       setSocieties(societiesData);
       setContacts(contactsData);

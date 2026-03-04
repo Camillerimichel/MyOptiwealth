@@ -53,10 +53,32 @@ let ProjectsService = class ProjectsService {
         this.auditService = auditService;
     }
     async create(workspaceId, userId, dto) {
+        const normalizedName = dto.name.trim();
+        const society = await this.prisma.society.findFirst({
+            where: {
+                id: dto.societyId,
+                workspaceId,
+            },
+            select: { id: true },
+        });
+        if (!society) {
+            throw new common_1.NotFoundException('Societe introuvable dans ce workspace');
+        }
+        const existing = await this.prisma.project.findFirst({
+            where: {
+                workspaceId,
+                societyId: dto.societyId,
+                name: normalizedName,
+            },
+            select: { id: true },
+        });
+        if (existing) {
+            throw new common_1.BadRequestException('Un projet avec ce nom existe déjà pour cette société.');
+        }
         const project = await this.prisma.project.create({
             data: {
                 workspaceId,
-                name: dto.name,
+                name: normalizedName,
                 societyId: dto.societyId,
                 estimatedFees: dto.estimatedFees,
                 missionType: dto.missionType,
@@ -103,10 +125,32 @@ let ProjectsService = class ProjectsService {
         return project;
     }
     async update(workspaceId, userId, projectId, dto) {
+        const normalizedName = dto.name?.trim();
+        if (normalizedName) {
+            const current = await this.prisma.project.findFirst({
+                where: { id: projectId, workspaceId },
+                select: { societyId: true },
+            });
+            if (!current) {
+                throw new common_1.NotFoundException('Projet introuvable dans ce workspace');
+            }
+            const existing = await this.prisma.project.findFirst({
+                where: {
+                    workspaceId,
+                    societyId: current.societyId,
+                    name: normalizedName,
+                    id: { not: projectId },
+                },
+                select: { id: true },
+            });
+            if (existing) {
+                throw new common_1.BadRequestException('Un projet avec ce nom existe déjà pour cette société.');
+            }
+        }
         const result = await this.prisma.project.updateMany({
             where: { id: projectId, workspaceId },
             data: {
-                name: dto.name,
+                name: normalizedName ?? dto.name,
                 missionType: dto.missionType,
             },
         });
@@ -152,6 +196,90 @@ let ProjectsService = class ProjectsService {
                 progressPercent,
             };
         });
+    }
+    async listProjectContacts(workspaceId, projectId) {
+        await this.getProjectOrThrow(workspaceId, projectId);
+        return this.prisma.projectContact.findMany({
+            where: { projectId },
+            include: {
+                contact: {
+                    include: {
+                        society: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+    async addProjectContact(workspaceId, userId, projectId, dto) {
+        await this.getProjectOrThrow(workspaceId, projectId);
+        await this.getContactOrThrow(workspaceId, dto.contactId);
+        const result = await this.prisma.projectContact.upsert({
+            where: { projectId_contactId: { projectId, contactId: dto.contactId } },
+            update: {
+                projectRole: dto.projectRole,
+            },
+            create: {
+                projectId,
+                contactId: dto.contactId,
+                projectRole: dto.projectRole,
+            },
+            include: {
+                contact: {
+                    include: {
+                        society: true,
+                    },
+                },
+            },
+        });
+        await this.auditService.log(workspaceId, 'PROJECT_CONTACT_LINKED', { projectId, contactId: dto.contactId }, userId);
+        return result;
+    }
+    async updateProjectContact(workspaceId, userId, projectId, contactId, dto) {
+        await this.getProjectOrThrow(workspaceId, projectId);
+        const result = await this.prisma.projectContact.update({
+            where: { projectId_contactId: { projectId, contactId } },
+            data: {
+                projectRole: dto.projectRole,
+            },
+            include: {
+                contact: {
+                    include: {
+                        society: true,
+                    },
+                },
+            },
+        });
+        await this.auditService.log(workspaceId, 'PROJECT_CONTACT_UPDATED', { projectId, contactId }, userId);
+        return result;
+    }
+    async removeProjectContact(workspaceId, userId, projectId, contactId) {
+        await this.getProjectOrThrow(workspaceId, projectId);
+        await this.prisma.projectContact.delete({
+            where: { projectId_contactId: { projectId, contactId } },
+        });
+        await this.auditService.log(workspaceId, 'PROJECT_CONTACT_UNLINKED', { projectId, contactId }, userId);
+        return { success: true };
+    }
+    async getProjectOrThrow(workspaceId, projectId) {
+        const project = await this.prisma.project.findFirst({
+            where: { id: projectId, workspaceId },
+            select: { id: true },
+        });
+        if (!project) {
+            throw new common_1.NotFoundException('Projet introuvable dans ce workspace');
+        }
+        return project;
+    }
+    async getContactOrThrow(workspaceId, contactId) {
+        const contact = await this.prisma.contact.findFirst({
+            where: { id: contactId, workspaceId },
+            select: { id: true },
+        });
+        if (!contact) {
+            throw new common_1.NotFoundException('Contact introuvable dans ce workspace');
+        }
+        return contact;
     }
 };
 exports.ProjectsService = ProjectsService;

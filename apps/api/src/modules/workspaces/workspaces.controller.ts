@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { WorkspaceRoles } from '../../common/decorators/workspace-roles.decorator';
@@ -8,6 +17,8 @@ import { WorkspaceRole } from '@prisma/client';
 import { Response } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateWorkspaceSettingsDto } from './dto/update-workspace-settings.dto';
 import { WorkspacesService } from './workspaces.service';
 
@@ -43,6 +54,24 @@ export class WorkspacesController {
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateWorkspaceDto) {
     return this.workspacesService.createByPlatformAdmin(user.sub, user.isPlatformAdmin, dto);
+  }
+
+  @Patch(':workspaceId')
+  updateWorkspace(
+    @CurrentUser() user: AuthUser,
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: UpdateWorkspaceDto,
+  ) {
+    return this.workspacesService.updateWorkspace(user.sub, workspaceId, dto);
+  }
+
+  @Post(':workspaceId/delete')
+  deleteWorkspace(
+    @CurrentUser() user: AuthUser,
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: DeleteWorkspaceDto,
+  ) {
+    return this.workspacesService.deleteWorkspace(user.sub, workspaceId, dto.confirmation);
   }
 
   @Post(':workspaceId/switch')

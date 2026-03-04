@@ -31,6 +31,7 @@ export declare class CalendarController {
             end: string;
             allDay: boolean;
             source: string;
+            url: string;
             workspaceId: string;
             workspaceName: string;
         }[];

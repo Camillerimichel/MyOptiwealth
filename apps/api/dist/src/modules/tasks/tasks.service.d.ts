@@ -134,6 +134,18 @@ export declare class TasksService {
             firstName: string;
             lastName: string;
         } | null;
+        linkedEmails: ({
+            email: {
+                id: string;
+                fromAddress: string;
+                subject: string;
+                receivedAt: Date;
+            };
+        } & {
+            createdAt: Date;
+            taskId: string;
+            emailId: string;
+        })[];
     } & {
         id: string;
         createdAt: Date;

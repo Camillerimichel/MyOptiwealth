@@ -12,7 +12,6 @@ export default function RegisterPage() {
   const [workspaceName, setWorkspaceName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otpauth, setOtpauth] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -21,9 +20,9 @@ export default function RegisterPage() {
 
     try {
       const response = await apiClient.register(email, password, workspaceName);
-      setOtpauth(response.twoFactorProvisioning.otpauth);
       localStorage.setItem('mw_access_token', response.tokens.accessToken);
-      showToast('Workspace créé. Configure ton 2FA puis connecte-toi.', 'success');
+      localStorage.setItem('mw_active_workspace_id', response.workspace.id);
+      showToast('Workspace créé. Connecte-toi.', 'success');
       router.push('/login');
     } catch {
       setError('Inscription impossible.');
@@ -39,7 +38,6 @@ export default function RegisterPage() {
           <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email admin" className="rounded-md border border-[var(--line)] px-3 py-2" />
           <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" type="password" className="rounded-md border border-[var(--line)] px-3 py-2" />
           {error ? <p className="text-sm text-red-700">{error}</p> : null}
-          {otpauth ? <p className="text-xs text-[#58564f]">Provisioning TOTP: {otpauth}</p> : null}
           <Button type="submit">Créer</Button>
         </div>
         <p className="mt-5 text-sm text-[#5b5952]">

@@ -200,6 +200,18 @@ export class TasksService {
       include: {
         project: true,
         phase: true,
+        linkedEmails: {
+          include: {
+            email: {
+              select: {
+                id: true,
+                subject: true,
+                fromAddress: true,
+                receivedAt: true,
+              },
+            },
+          },
+        },
         assignee: {
           select: { id: true, email: true },
         },

@@ -10,22 +10,31 @@ type WorkspaceMembership = {
   role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER';
   isDefault: boolean;
 };
+type Society = { id: string; name: string };
 
 export default function WorkspaceSettingsPage() {
   const [workspaces, setWorkspaces] = useState<WorkspaceMembership[]>([]);
+  const [allSocieties, setAllSocieties] = useState<Society[]>([]);
+  const [societies, setSocieties] = useState<Society[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [imapHost, setImapHost] = useState('');
   const [imapPort, setImapPort] = useState<number>(993);
   const [imapUser, setImapUser] = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [associatedSocietyId, setAssociatedSocietyId] = useState('');
   const [imapPassword, setImapPassword] = useState('');
   const [signatureProvider, setSignatureProvider] = useState<'MOCK' | 'YOUSIGN' | 'DOCUSIGN'>('MOCK');
   const [signatureApiBaseUrl, setSignatureApiBaseUrl] = useState('');
   const [signatureApiKey, setSignatureApiKey] = useState('');
 
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [newWorkspaceAssociatedSocietyId, setNewWorkspaceAssociatedSocietyId] = useState('');
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false);
+  const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
+  const [editingWorkspaceName, setEditingWorkspaceName] = useState('');
+  const [editingAssociatedSocietyId, setEditingAssociatedSocietyId] = useState('');
 
   const load = useCallback(async (): Promise<void> => {
     const token = getAccessToken();
@@ -38,14 +47,24 @@ export default function WorkspaceSettingsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [workspacesData, settings] = await Promise.all([
+      const [workspacesData, settings, societiesData, allSocietiesData] = await Promise.all([
         apiClient.listWorkspaces(token),
         apiClient.getWorkspaceSettings(token),
+        apiClient.listSocieties(token),
+        apiClient.listSocietiesAll(token),
       ]);
       setWorkspaces(workspacesData);
+      setSocieties(societiesData);
+      setAllSocieties(allSocietiesData);
+      setWorkspaceName(settings.workspaceName ?? '');
       setImapHost(settings.imapHost ?? '');
       setImapPort(settings.imapPort ?? 993);
       setImapUser(settings.imapUser ?? '');
+      const validAssociatedSocietyId =
+        settings.associatedSocietyId && societiesData.some((society) => society.id === settings.associatedSocietyId)
+          ? settings.associatedSocietyId
+          : societiesData[0]?.id ?? '';
+      setAssociatedSocietyId(validAssociatedSocietyId);
       if (settings.signatureProvider === 'YOUSIGN' || settings.signatureProvider === 'DOCUSIGN' || settings.signatureProvider === 'MOCK') {
         setSignatureProvider(settings.signatureProvider);
       }
@@ -66,36 +85,90 @@ export default function WorkspaceSettingsPage() {
     if (!token) return;
     const switched = await apiClient.switchWorkspace(token, workspaceId);
     localStorage.setItem('mw_access_token', switched.accessToken);
+    localStorage.setItem('mw_active_workspace_id', switched.activeWorkspaceId);
+    window.dispatchEvent(new Event('mw_workspace_changed'));
     showToast('Workspace actif changé.', 'success');
-    await load();
+    window.location.reload();
   }
 
   async function onCreateWorkspace(): Promise<void> {
     const token = getAccessToken();
-    if (!token || !newWorkspaceName.trim()) return;
-    await apiClient.createWorkspace(token, { name: newWorkspaceName.trim() });
+    if (!token || !newWorkspaceName.trim() || !newWorkspaceAssociatedSocietyId) return;
+    await apiClient.createWorkspace(token, {
+      name: newWorkspaceName.trim(),
+      associatedSocietyId: newWorkspaceAssociatedSocietyId,
+    });
     setNewWorkspaceName('');
+    setNewWorkspaceAssociatedSocietyId('');
     setShowCreateWorkspace(false);
     showToast('Workspace créé.', 'success');
     await load();
   }
 
+  function onStartEdit(workspaceId: string, name: string): void {
+    setEditingWorkspaceId(workspaceId);
+    setEditingWorkspaceName(name);
+    setEditingAssociatedSocietyId('');
+  }
+
+  async function onSaveWorkspaceEdit(): Promise<void> {
+    const token = getAccessToken();
+    if (!token || !editingWorkspaceId || !editingWorkspaceName.trim()) return;
+    try {
+      await apiClient.updateWorkspace(token, editingWorkspaceId, {
+        name: editingWorkspaceName.trim(),
+        associatedSocietyId: editingAssociatedSocietyId || undefined,
+      });
+      showToast('Workspace modifié.', 'success');
+      setEditingWorkspaceId(null);
+      setEditingWorkspaceName('');
+      setEditingAssociatedSocietyId('');
+      await load();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Modification impossible.', 'error');
+    }
+  }
+
+  async function onDeleteWorkspace(workspaceId: string): Promise<void> {
+    const token = getAccessToken();
+    if (!token) return;
+    const confirmation = window.prompt('Tape SUPPRESSION pour confirmer:');
+    if (!confirmation) return;
+    try {
+      await apiClient.deleteWorkspace(token, workspaceId, confirmation);
+      showToast('Workspace supprimé.', 'success');
+      await load();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Suppression impossible.', 'error');
+    }
+  }
+
   async function onSaveSettings(): Promise<void> {
     const token = getAccessToken();
     if (!token) return;
-    await apiClient.updateWorkspaceSettings(token, {
-      imapHost: imapHost || undefined,
-      imapPort,
-      imapUser: imapUser || undefined,
-      imapPassword: imapPassword || undefined,
-      signatureProvider,
-      signatureApiBaseUrl: signatureApiBaseUrl || undefined,
-      signatureApiKey: signatureApiKey || undefined,
-    });
-    setImapPassword('');
-    setSignatureApiKey('');
-    showToast('Paramètres workspace enregistrés.', 'success');
-    await load();
+    try {
+      const validAssociatedSocietyId =
+        associatedSocietyId && societies.some((society) => society.id === associatedSocietyId)
+          ? associatedSocietyId
+          : undefined;
+      await apiClient.updateWorkspaceSettings(token, {
+        imapHost: imapHost.trim() || undefined,
+        imapPort,
+        imapUser: imapUser.trim() || undefined,
+        workspaceName: workspaceName.trim() || undefined,
+        associatedSocietyId: validAssociatedSocietyId,
+        imapPassword: imapPassword || undefined,
+        signatureProvider,
+        signatureApiBaseUrl: signatureApiBaseUrl.trim() || undefined,
+        signatureApiKey: signatureApiKey || undefined,
+      });
+      setImapPassword('');
+      setSignatureApiKey('');
+      showToast('Paramètres workspace enregistrés.', 'success');
+      await load();
+    } catch (saveError) {
+      showToast(saveError instanceof Error ? saveError.message : 'Enregistrement impossible.', 'error');
+    }
   }
 
   return (
@@ -124,14 +197,31 @@ export default function WorkspaceSettingsPage() {
               placeholder="Nom du workspace"
               className="rounded border border-[var(--line)] px-3 py-2 text-sm"
             />
+            <select
+              value={newWorkspaceAssociatedSocietyId}
+              onChange={(e) => setNewWorkspaceAssociatedSocietyId(e.target.value)}
+              className="rounded border border-[var(--line)] px-3 py-2 text-sm"
+            >
+              <option value="">Société associée (liste)</option>
+              {allSocieties.map((society) => (
+                <option key={society.id} value={society.id}>
+                  {society.name}
+                </option>
+              ))}
+            </select>
             <div className="flex gap-2">
-              <button onClick={onCreateWorkspace} className="rounded bg-[var(--brand)] px-3 py-2 text-xs text-white">
+              <button
+                onClick={onCreateWorkspace}
+                disabled={!newWorkspaceName.trim() || !newWorkspaceAssociatedSocietyId}
+                className="rounded bg-[var(--brand)] px-3 py-2 text-xs text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 Créer
               </button>
               <button
                 onClick={() => {
                   setShowCreateWorkspace(false);
                   setNewWorkspaceName('');
+                  setNewWorkspaceAssociatedSocietyId('');
                 }}
                 className="rounded border border-[var(--line)] px-3 py-2 text-xs"
               >
@@ -143,13 +233,69 @@ export default function WorkspaceSettingsPage() {
 
         <ul className="mt-3 grid gap-2 text-sm">
           {workspaces.map((item) => (
-            <li key={item.workspace.id} className="flex items-center justify-between gap-2 rounded border border-[var(--line)] px-3 py-2">
-              <span>
-                {item.workspace.name} ({item.role}){item.isDefault ? ' - Defaut' : ''}
-              </span>
-              <button onClick={() => void onSwitch(item.workspace.id)} className="rounded border border-[var(--line)] px-2 py-1 text-xs">
-                Switch
-              </button>
+            <li key={item.workspace.id} className="rounded border border-[var(--line)] px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <span>
+                  {item.workspace.name} ({item.role}){item.isDefault ? ' - Defaut' : ''}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => void onSwitch(item.workspace.id)} className="rounded border border-[var(--line)] px-2 py-1 text-xs">
+                    Switch
+                  </button>
+                  <button
+                    onClick={() => onStartEdit(item.workspace.id, item.workspace.name)}
+                    className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    onClick={() => void onDeleteWorkspace(item.workspace.id)}
+                    className="rounded border border-red-300 px-2 py-1 text-xs text-red-700"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+              {editingWorkspaceId === item.workspace.id ? (
+                <div className="mt-3 grid gap-2 lg:grid-cols-3">
+                  <input
+                    value={editingWorkspaceName}
+                    onChange={(e) => setEditingWorkspaceName(e.target.value)}
+                    placeholder="Nom du workspace"
+                    className="rounded border border-[var(--line)] px-3 py-2 text-sm"
+                  />
+                  <select
+                    value={editingAssociatedSocietyId}
+                    onChange={(e) => setEditingAssociatedSocietyId(e.target.value)}
+                    className="rounded border border-[var(--line)] px-3 py-2 text-sm"
+                  >
+                    <option value="">Société associée inchangée</option>
+                    {allSocieties.map((society) => (
+                      <option key={society.id} value={society.id}>
+                        {society.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => void onSaveWorkspaceEdit()}
+                      className="rounded bg-[var(--brand)] px-3 py-2 text-xs text-white"
+                    >
+                      Enregistrer
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingWorkspaceId(null);
+                        setEditingWorkspaceName('');
+                        setEditingAssociatedSocietyId('');
+                      }}
+                      className="rounded border border-[var(--line)] px-3 py-2 text-xs"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -161,6 +307,15 @@ export default function WorkspaceSettingsPage() {
           <input value={imapHost} onChange={(e) => setImapHost(e.target.value)} placeholder="IMAP host" className="rounded border border-[var(--line)] px-3 py-2" />
           <input type="number" value={imapPort} onChange={(e) => setImapPort(Number(e.target.value))} placeholder="IMAP port" className="rounded border border-[var(--line)] px-3 py-2" />
           <input value={imapUser} onChange={(e) => setImapUser(e.target.value)} placeholder="IMAP user" className="rounded border border-[var(--line)] px-3 py-2" />
+          <input value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Nom du workspace" className="rounded border border-[var(--line)] px-3 py-2" />
+          <select value={associatedSocietyId} onChange={(e) => setAssociatedSocietyId(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
+            <option value="">Société associée au workspace</option>
+            {societies.map((society) => (
+              <option key={society.id} value={society.id}>
+                {society.name}
+              </option>
+            ))}
+          </select>
           <input value={imapPassword} onChange={(e) => setImapPassword(e.target.value)} placeholder="IMAP password (optional update)" type="password" className="rounded border border-[var(--line)] px-3 py-2" />
           <select value={signatureProvider} onChange={(e) => setSignatureProvider(e.target.value as 'MOCK' | 'YOUSIGN' | 'DOCUSIGN')} className="rounded border border-[var(--line)] px-3 py-2">
             <option value="MOCK">MOCK</option>

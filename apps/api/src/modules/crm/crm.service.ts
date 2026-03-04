@@ -47,6 +47,20 @@ export class CrmService {
     });
   }
 
+  async listSocietiesAll(userId: string) {
+    const memberships = await this.prisma.userWorkspaceRole.findMany({
+      where: { userId },
+      select: { workspaceId: true },
+    });
+    const workspaceIds = memberships.map((item) => item.workspaceId);
+    if (workspaceIds.length === 0) return [];
+    return this.prisma.society.findMany({
+      where: { workspaceId: { in: workspaceIds } },
+      orderBy: { createdAt: 'desc' },
+      include: { contacts: true },
+    });
+  }
+
   createContact(workspaceId: string, dto: CreateContactDto) {
     return this.prisma.contact.create({ data: { workspaceId, ...dto } });
   }
@@ -77,6 +91,20 @@ export class CrmService {
   listContacts(workspaceId: string) {
     return this.prisma.contact.findMany({
       where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+      include: { society: true },
+    });
+  }
+
+  async listContactsAll(userId: string) {
+    const memberships = await this.prisma.userWorkspaceRole.findMany({
+      where: { userId },
+      select: { workspaceId: true },
+    });
+    const workspaceIds = memberships.map((item) => item.workspaceId);
+    if (workspaceIds.length === 0) return [];
+    return this.prisma.contact.findMany({
+      where: { workspaceId: { in: workspaceIds } },
       orderBy: { createdAt: 'desc' },
       include: { society: true },
     });

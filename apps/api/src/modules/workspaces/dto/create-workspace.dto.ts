@@ -4,4 +4,7 @@ export class CreateWorkspaceDto {
   @IsString()
   @MinLength(2)
   name!: string;
+
+  @IsString()
+  associatedSocietyId!: string;
 }

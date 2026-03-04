@@ -49,7 +49,14 @@ export class DocumentStorageService {
   ): Promise<StoredFile> {
     const extension = extname(originalName) || '.bin';
     const key = `${workspaceId}/${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
+    return this.storeByKey(key, contentType, buffer);
+  }
 
+  async storeByKey(
+    key: string,
+    contentType: string,
+    buffer: Buffer,
+  ): Promise<StoredFile> {
     if (this.driver === 's3' && this.s3Client && this.s3Bucket) {
       await this.s3Client.send(
         new PutObjectCommand({

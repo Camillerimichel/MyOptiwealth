@@ -43,6 +43,9 @@ let DocumentStorageService = class DocumentStorageService {
     async store(workspaceId, originalName, contentType, buffer) {
         const extension = (0, path_1.extname)(originalName) || '.bin';
         const key = `${workspaceId}/${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
+        return this.storeByKey(key, contentType, buffer);
+    }
+    async storeByKey(key, contentType, buffer) {
         if (this.driver === 's3' && this.s3Client && this.s3Bucket) {
             await this.s3Client.send(new client_s3_1.PutObjectCommand({
                 Bucket: this.s3Bucket,

@@ -11,7 +11,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [totpCode, setTotpCode] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -19,12 +18,13 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const response = await apiClient.login(email, password, totpCode);
+      const response = await apiClient.login(email, password);
       localStorage.setItem('mw_access_token', response.tokens.accessToken);
+      localStorage.setItem('mw_active_workspace_id', response.activeWorkspaceId);
       showToast('Connexion réussie.', 'success');
       router.push('/dashboard');
     } catch {
-      setError('Connexion impossible. Vérifie les identifiants et le code 2FA.');
+      setError('Connexion impossible. Vérifie les identifiants.');
     }
   }
 
@@ -32,12 +32,11 @@ export default function LoginPage() {
     <main className="grid min-h-screen place-items-center px-4">
       <form onSubmit={onSubmit} className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-white p-8 shadow-panel">
         <h1 className="text-3xl font-semibold text-[var(--brand)]">MyOptiwealth</h1>
-        <p className="mt-2 text-sm text-[#5b5952]">Connexion sécurisée (JWT + 2FA)</p>
+        <p className="mt-2 text-sm text-[#5b5952]">Connexion sécurisée (JWT)</p>
 
         <div className="mt-6 grid gap-4">
           <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email" className="rounded-md border border-[var(--line)] px-3 py-2" />
           <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" type="password" className="rounded-md border border-[var(--line)] px-3 py-2" />
-          <input value={totpCode} onChange={(event) => setTotpCode(event.target.value)} placeholder="Code 2FA" className="rounded-md border border-[var(--line)] px-3 py-2" />
           {error ? <p className="text-sm text-red-700">{error}</p> : null}
           <Button type="submit">Se connecter</Button>
         </div>

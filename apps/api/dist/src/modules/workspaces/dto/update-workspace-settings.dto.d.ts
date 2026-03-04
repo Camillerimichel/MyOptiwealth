@@ -7,4 +7,6 @@ export declare class UpdateWorkspaceSettingsDto {
     signatureApiBaseUrl?: string;
     signatureApiKey?: string;
     projectTypologies?: string[];
+    associatedSocietyId?: string;
+    workspaceName?: string;
 }

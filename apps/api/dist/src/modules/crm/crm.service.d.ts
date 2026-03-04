@@ -77,6 +77,34 @@ export declare class CrmService {
         city: string | null;
         country: string | null;
     })[]>;
+    listSocietiesAll(userId: string): Promise<({
+        contacts: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            email: string | null;
+            firstName: string;
+            lastName: string;
+            updatedAt: Date;
+            role: import(".prisma/client").$Enums.ContactRole | null;
+            societyId: string | null;
+            phone: string | null;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        name: string;
+        updatedAt: Date;
+        legalForm: string | null;
+        siren: string | null;
+        siret: string | null;
+        addressLine1: string | null;
+        addressLine2: string | null;
+        postalCode: string | null;
+        city: string | null;
+        country: string | null;
+    })[]>;
     createContact(workspaceId: string, dto: CreateContactDto): import(".prisma/client").Prisma.Prisma__ContactClient<{
         id: string;
         createdAt: Date;
@@ -118,6 +146,34 @@ export declare class CrmService {
         phone: string | null;
     }) | null>;
     listContacts(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<({
+        society: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            name: string;
+            updatedAt: Date;
+            legalForm: string | null;
+            siren: string | null;
+            siret: string | null;
+            addressLine1: string | null;
+            addressLine2: string | null;
+            postalCode: string | null;
+            city: string | null;
+            country: string | null;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        email: string | null;
+        firstName: string;
+        lastName: string;
+        updatedAt: Date;
+        role: import(".prisma/client").$Enums.ContactRole | null;
+        societyId: string | null;
+        phone: string | null;
+    })[]>;
+    listContactsAll(userId: string): Promise<({
         society: {
             id: string;
             createdAt: Date;

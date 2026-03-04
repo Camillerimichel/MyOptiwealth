@@ -19,6 +19,7 @@ const workspace_roles_decorator_1 = require("../../common/decorators/workspace-r
 const jwt_auth_guard_1 = require("../../common/guards/jwt-auth.guard");
 const workspace_role_guard_1 = require("../../common/guards/workspace-role.guard");
 const client_1 = require("@prisma/client");
+const link_global_email_dto_1 = require("./dto/link-global-email.dto");
 const link_email_dto_1 = require("./dto/link-email.dto");
 const emails_service_1 = require("./emails.service");
 let EmailsController = class EmailsController {
@@ -28,8 +29,20 @@ let EmailsController = class EmailsController {
     list(user) {
         return this.emailsService.list(user.activeWorkspaceId);
     }
+    listUnassigned(user) {
+        return this.emailsService.listUnassignedForUser(user.sub);
+    }
+    listCatalog(user) {
+        return this.emailsService.listLinkCatalogForUser(user.sub);
+    }
+    getContent(user, emailId) {
+        return this.emailsService.getEmailContent(user.sub, emailId);
+    }
     linkEmail(user, dto) {
         return this.emailsService.upsertMetadata(user.activeWorkspaceId, dto);
+    }
+    linkEmailFromInbox(user, dto) {
+        return this.emailsService.upsertMetadataGlobal(user.sub, dto);
     }
     sync(user) {
         return this.emailsService.syncFromImap(user.activeWorkspaceId);
@@ -44,6 +57,28 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], EmailsController.prototype, "list", null);
 __decorate([
+    (0, common_1.Get)('inbox/unassigned'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "listUnassigned", null);
+__decorate([
+    (0, common_1.Get)('inbox/catalog'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "listCatalog", null);
+__decorate([
+    (0, common_1.Get)(':emailId/content'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('emailId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "getContent", null);
+__decorate([
     (0, common_1.Post)('link'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
@@ -52,6 +87,14 @@ __decorate([
     __metadata("design:paramtypes", [Object, link_email_dto_1.LinkEmailDto]),
     __metadata("design:returntype", void 0)
 ], EmailsController.prototype, "linkEmail", null);
+__decorate([
+    (0, common_1.Post)('inbox/link'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, link_global_email_dto_1.LinkGlobalEmailDto]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "linkEmailFromInbox", null);
 __decorate([
     (0, common_1.Post)('sync'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),

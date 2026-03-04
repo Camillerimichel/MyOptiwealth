@@ -147,16 +147,23 @@ async function uploadWithAuth<T>(
 
 export const apiClient = {
   register(email: string, password: string, workspaceName: string) {
-    return request<{ tokens: AuthTokens; twoFactorProvisioning: { otpauth: string } }>('/auth/register', {
+    return request<{ tokens: AuthTokens; workspace: { id: string; name: string }; twoFactorProvisioning: { otpauth: string } }>('/auth/register', {
       method: 'POST',
       body: { email, password, workspaceName },
     });
   },
 
-  login(email: string, password: string, totpCode: string) {
+  login(email: string, password: string) {
     return request<{ tokens: AuthTokens; activeWorkspaceId: string }>('/auth/login', {
       method: 'POST',
-      body: { email, password, totpCode },
+      body: { email, password },
+    });
+  },
+
+  logout(token: string) {
+    return request<{ success: boolean }>('/auth/logout', {
+      method: 'POST',
+      token,
     });
   },
 
@@ -169,6 +176,7 @@ export const apiClient = {
       Array<{
         id: string;
         name: string;
+        createdAt?: string;
         legalForm?: string | null;
         siren?: string | null;
         siret?: string | null;
@@ -179,6 +187,24 @@ export const apiClient = {
         country?: string | null;
       }>
     >('/crm/societies', { token });
+  },
+
+  listSocietiesAll(token: string) {
+    return request<
+      Array<{
+        id: string;
+        name: string;
+        createdAt?: string;
+        legalForm?: string | null;
+        siren?: string | null;
+        siret?: string | null;
+        addressLine1?: string | null;
+        addressLine2?: string | null;
+        postalCode?: string | null;
+        city?: string | null;
+        country?: string | null;
+      }>
+    >('/crm/societies/all', { token });
   },
 
   createSociety(
@@ -232,6 +258,22 @@ export const apiClient = {
     });
   },
 
+  listContactsAll(token: string) {
+    return request<
+      Array<{
+        id: string;
+        firstName: string;
+        lastName: string;
+        email?: string | null;
+        phone?: string | null;
+        role?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null;
+        society?: { id: string; name: string } | null;
+      }>
+    >('/crm/contacts/all', {
+      token,
+    });
+  },
+
   createContact(
     token: string,
     payload: {
@@ -262,7 +304,16 @@ export const apiClient = {
   },
 
   listProjects(token: string) {
-    return request<Array<{ id: string; name: string; progressPercent: number; missionType?: string | null }>>('/projects', { token });
+    return request<
+      Array<{
+        id: string;
+        name: string;
+        progressPercent: number;
+        missionType?: string | null;
+        societyId?: string;
+        society?: { id: string; name: string } | null;
+      }>
+    >('/projects', { token });
   },
 
   createProject(
@@ -288,10 +339,51 @@ export const apiClient = {
     return request(`/projects/${projectId}`, { method: 'PATCH', token, body: payload });
   },
 
+  listProjectContacts(token: string, projectId: string) {
+    return request<
+      Array<{
+        projectId: string;
+        contactId: string;
+        projectRole?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null;
+        contact: {
+          id: string;
+          firstName: string;
+          lastName: string;
+          email?: string | null;
+          phone?: string | null;
+          role?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null;
+          society?: { id: string; name: string } | null;
+        };
+      }>
+    >(`/projects/${projectId}/contacts`, { token });
+  },
+
+  addProjectContact(
+    token: string,
+    projectId: string,
+    payload: { contactId: string; projectRole?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' },
+  ) {
+    return request(`/projects/${projectId}/contacts`, { method: 'POST', token, body: payload });
+  },
+
+  updateProjectContact(
+    token: string,
+    projectId: string,
+    contactId: string,
+    payload: { projectRole?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' },
+  ) {
+    return request(`/projects/${projectId}/contacts/${contactId}`, { method: 'PATCH', token, body: payload });
+  },
+
+  removeProjectContact(token: string, projectId: string, contactId: string) {
+    return request<{ success: boolean }>(`/projects/${projectId}/contacts/${contactId}`, { method: 'DELETE', token });
+  },
+
   listKanban(token: string) {
     return request<
       Array<{
         id: string;
+        projectId: string;
         description: string;
         privateComment?: string | null;
         startDate?: string | null;
@@ -300,6 +392,15 @@ export const apiClient = {
         status: string;
         priority: number;
         orderNumber: number;
+        project?: { id: string; name: string } | null;
+        linkedEmails?: Array<{
+          email: {
+            id: string;
+            subject: string;
+            fromAddress: string;
+            receivedAt: string;
+          };
+        }>;
         assignee?: { id: string; email: string } | null;
         companyOwnerContact?: { id: string; firstName: string; lastName: string; society?: { name: string } | null } | null;
       }>
@@ -370,6 +471,8 @@ export const apiClient = {
         end: string;
         allDay: boolean;
         source: 'EVENT' | 'TASK' | 'TIMESHEET' | string;
+        taskStatus?: string;
+        url: string;
         workspaceId: string;
         workspaceName: string;
       }>;
@@ -395,7 +498,65 @@ export const apiClient = {
   },
 
   listEmails(token: string) {
-    return request<Array<{ id: string; subject: string; fromAddress: string; receivedAt: string }>>('/emails', { token });
+    return request<
+      Array<{
+        id: string;
+        externalMessageId: string;
+        subject: string;
+        fromAddress: string;
+        toAddresses: string[];
+        receivedAt: string;
+        metadata?: { preview?: string } | null;
+        project?: { id: string; name: string } | null;
+        tasks: Array<{ taskId: string }>;
+      }>
+    >('/emails', { token });
+  },
+
+  listUnassignedInboxEmails(token: string) {
+    return request<
+      Array<{
+        id: string;
+        externalMessageId: string;
+        subject: string;
+        fromAddress: string;
+        toAddresses: string[];
+        receivedAt: string;
+        metadata?: { preview?: string } | null;
+        workspace: { id: string; name: string };
+      }>
+    >('/emails/inbox/unassigned', { token });
+  },
+
+  getEmailContent(token: string, emailId: string) {
+    return request<{
+      subject: string;
+      fromAddress: string;
+      toAddresses: string[];
+      receivedAt: string;
+      text: string;
+      attachments: Array<{
+        filename: string;
+        contentType: string;
+        size: number;
+      }>;
+    }>(`/emails/${emailId}/content`, { token });
+  },
+
+  listInboxCatalog(
+    token: string,
+  ) {
+    return request<
+      Array<{
+        id: string;
+        name: string;
+        projects: Array<{
+          id: string;
+          name: string;
+          tasks: Array<{ id: string; description: string }>;
+        }>;
+      }>
+    >('/emails/inbox/catalog', { token });
   },
 
   linkEmail(
@@ -406,9 +567,26 @@ export const apiClient = {
       toAddresses: string[];
       subject: string;
       projectId?: string;
+      taskId?: string;
     },
   ) {
     return request('/emails/link', { method: 'POST', token, body: payload });
+  },
+
+  linkInboxEmail(
+    token: string,
+    payload: {
+      emailId: string;
+      workspaceId: string;
+      projectId: string;
+      taskId: string;
+      externalMessageId: string;
+      fromAddress: string;
+      toAddresses: string[];
+      subject: string;
+    },
+  ) {
+    return request('/emails/inbox/link', { method: 'POST', token, body: payload });
   },
 
   syncEmails(token: string) {
@@ -416,7 +594,15 @@ export const apiClient = {
   },
 
   listDocuments(token: string) {
-    return request<Array<{ id: string; title: string; status: string; storagePath: string }>>('/documents', { token });
+    return request<
+      Array<{
+        id: string;
+        title: string;
+        status: string;
+        storagePath: string;
+        project?: { id: string; name: string } | null;
+      }>
+    >('/documents', { token });
   },
 
   createDocument(
@@ -462,7 +648,16 @@ export const apiClient = {
   },
 
   listFinanceDocuments(token: string) {
-    return request<Array<{ id: string; reference: string; type: string; amount: string; status: string }>>('/finance/documents', {
+    return request<
+      Array<{
+        id: string;
+        reference: string;
+        type: string;
+        amount: string;
+        status: string;
+        project?: { id: string; name: string } | null;
+      }>
+    >('/finance/documents', {
       token,
     });
   },
@@ -475,7 +670,7 @@ export const apiClient = {
   },
 
   listTimesheet(token: string) {
-    return request<Array<{ id: string; minutesSpent: number; entryDate: string; project: { name: string } }>>('/timesheet', { token });
+    return request<Array<{ id: string; minutesSpent: number; entryDate: string; taskId?: string | null; project: { id: string; name: string } }>>('/timesheet', { token });
   },
 
   timesheetTotals(token: string) {
@@ -495,7 +690,7 @@ export const apiClient = {
     return request<Array<{ workspace: { id: string; name: string }; role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER'; isDefault: boolean }>>('/workspaces', { token });
   },
 
-  createWorkspace(token: string, payload: { name: string }) {
+  createWorkspace(token: string, payload: { name: string; associatedSocietyId: string }) {
     return request<{ id: string; name: string }>('/workspaces', { method: 'POST', token, body: payload });
   },
 
@@ -506,8 +701,33 @@ export const apiClient = {
     });
   },
 
+  updateWorkspace(
+    token: string,
+    workspaceId: string,
+    payload: { name?: string; associatedSocietyId?: string },
+  ) {
+    return request<{ workspace: { id: string; name: string } | null; associatedSocietyId: string | null }>(
+      `/workspaces/${workspaceId}`,
+      {
+        method: 'PATCH',
+        token,
+        body: payload,
+      },
+    );
+  },
+
+  deleteWorkspace(token: string, workspaceId: string, confirmation = 'SUPPRESSION') {
+    return request<{ deleted: boolean; workspaceId: string }>(`/workspaces/${workspaceId}/delete`, {
+      method: 'POST',
+      token,
+      body: { confirmation },
+    });
+  },
+
   getWorkspaceSettings(token: string) {
     return request<{
+      associatedSocietyId?: string | null;
+      workspaceName?: string | null;
       imapHost?: string | null;
       imapPort?: number | null;
       imapUser?: string | null;
@@ -525,6 +745,8 @@ export const apiClient = {
       imapUser?: string;
       imapPassword?: string;
       projectTypologies?: string[];
+      associatedSocietyId?: string;
+      workspaceName?: string;
       signatureProvider?: 'YOUSIGN' | 'DOCUSIGN' | 'MOCK';
       signatureApiBaseUrl?: string;
       signatureApiKey?: string;

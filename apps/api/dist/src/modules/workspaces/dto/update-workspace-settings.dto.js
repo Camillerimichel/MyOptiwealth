@@ -57,4 +57,14 @@ __decorate([
     (0, class_validator_1.IsString)({ each: true }),
     __metadata("design:type", Array)
 ], UpdateWorkspaceSettingsDto.prototype, "projectTypologies", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateWorkspaceSettingsDto.prototype, "associatedSocietyId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateWorkspaceSettingsDto.prototype, "workspaceName", void 0);
 //# sourceMappingURL=update-workspace-settings.dto.js.map

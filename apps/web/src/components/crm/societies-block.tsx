@@ -45,7 +45,7 @@ export function SocietiesBlock() {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.listSocieties(token);
+      const data = await apiClient.listSocietiesAll(token);
       setSocieties(data);
     } catch {
       setError('Chargement des societes impossible.');

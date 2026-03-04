@@ -49,6 +49,20 @@ let CrmService = class CrmService {
             include: { contacts: true },
         });
     }
+    async listSocietiesAll(userId) {
+        const memberships = await this.prisma.userWorkspaceRole.findMany({
+            where: { userId },
+            select: { workspaceId: true },
+        });
+        const workspaceIds = memberships.map((item) => item.workspaceId);
+        if (workspaceIds.length === 0)
+            return [];
+        return this.prisma.society.findMany({
+            where: { workspaceId: { in: workspaceIds } },
+            orderBy: { createdAt: 'desc' },
+            include: { contacts: true },
+        });
+    }
     createContact(workspaceId, dto) {
         return this.prisma.contact.create({ data: { workspaceId, ...dto } });
     }
@@ -75,6 +89,20 @@ let CrmService = class CrmService {
     listContacts(workspaceId) {
         return this.prisma.contact.findMany({
             where: { workspaceId },
+            orderBy: { createdAt: 'desc' },
+            include: { society: true },
+        });
+    }
+    async listContactsAll(userId) {
+        const memberships = await this.prisma.userWorkspaceRole.findMany({
+            where: { userId },
+            select: { workspaceId: true },
+        });
+        const workspaceIds = memberships.map((item) => item.workspaceId);
+        if (workspaceIds.length === 0)
+            return [];
+        return this.prisma.contact.findMany({
+            where: { workspaceId: { in: workspaceIds } },
             orderBy: { createdAt: 'desc' },
             include: { society: true },
         });

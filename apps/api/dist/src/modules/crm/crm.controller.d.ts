@@ -4,12 +4,41 @@ import { CrmService } from './crm.service';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { UpdateSocietyDto } from './dto/update-society.dto';
 interface AuthUser {
+    sub: string;
     activeWorkspaceId: string;
 }
 export declare class CrmController {
     private readonly crmService;
     constructor(crmService: CrmService);
     listSocieties(user: AuthUser): import(".prisma/client").Prisma.PrismaPromise<({
+        contacts: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            email: string | null;
+            firstName: string;
+            lastName: string;
+            updatedAt: Date;
+            role: import(".prisma/client").$Enums.ContactRole | null;
+            societyId: string | null;
+            phone: string | null;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        name: string;
+        updatedAt: Date;
+        legalForm: string | null;
+        siren: string | null;
+        siret: string | null;
+        addressLine1: string | null;
+        addressLine2: string | null;
+        postalCode: string | null;
+        city: string | null;
+        country: string | null;
+    })[]>;
+    listSocietiesAll(user: AuthUser): Promise<({
         contacts: {
             id: string;
             createdAt: Date;
@@ -81,6 +110,34 @@ export declare class CrmController {
         country: string | null;
     }) | null>;
     listContacts(user: AuthUser): import(".prisma/client").Prisma.PrismaPromise<({
+        society: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            name: string;
+            updatedAt: Date;
+            legalForm: string | null;
+            siren: string | null;
+            siret: string | null;
+            addressLine1: string | null;
+            addressLine2: string | null;
+            postalCode: string | null;
+            city: string | null;
+            country: string | null;
+        } | null;
+    } & {
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        email: string | null;
+        firstName: string;
+        lastName: string;
+        updatedAt: Date;
+        role: import(".prisma/client").$Enums.ContactRole | null;
+        societyId: string | null;
+        phone: string | null;
+    })[]>;
+    listContactsAll(user: AuthUser): Promise<({
         society: {
             id: string;
             createdAt: Date;

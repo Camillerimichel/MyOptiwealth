@@ -85,8 +85,10 @@ let CalendarService = class CalendarService {
                     end: this.addOneDay(day),
                     allDay: true,
                     source: 'TASK',
+                    url: '/tasks',
                     workspaceId: task.workspaceId,
                     workspaceName,
+                    taskStatus: task.status,
                 });
             }
             if (task.dueDate) {
@@ -98,8 +100,10 @@ let CalendarService = class CalendarService {
                     end: this.addOneDay(day),
                     allDay: true,
                     source: 'TASK',
+                    url: '/tasks',
                     workspaceId: task.workspaceId,
                     workspaceName,
+                    taskStatus: task.status,
                 });
             }
             if (task.expectedEndDate) {
@@ -111,8 +115,10 @@ let CalendarService = class CalendarService {
                     end: this.addOneDay(day),
                     allDay: true,
                     source: 'TASK',
+                    url: '/tasks',
                     workspaceId: task.workspaceId,
                     workspaceName,
+                    taskStatus: task.status,
                 });
             }
             if (task.actualEndDate) {
@@ -124,8 +130,10 @@ let CalendarService = class CalendarService {
                     end: this.addOneDay(day),
                     allDay: true,
                     source: 'TASK',
+                    url: '/tasks',
                     workspaceId: task.workspaceId,
                     workspaceName,
+                    taskStatus: task.status,
                 });
             }
             return result;
@@ -140,6 +148,7 @@ let CalendarService = class CalendarService {
                 end: this.addOneDay(date),
                 allDay: true,
                 source: 'TIMESHEET',
+                url: '/timesheet',
                 workspaceId: entry.workspaceId,
                 workspaceName,
             };
@@ -151,6 +160,7 @@ let CalendarService = class CalendarService {
             end: event.endAt.toISOString(),
             allDay: false,
             source: 'EVENT',
+            url: '/calendar',
             workspaceId: event.workspaceId,
             workspaceName: workspaceById.get(event.workspaceId) ?? 'Workspace',
         }));

@@ -42,6 +42,7 @@ export declare class CalendarService {
             end: string;
             allDay: boolean;
             source: string;
+            url: string;
             workspaceId: string;
             workspaceName: string;
         }[];

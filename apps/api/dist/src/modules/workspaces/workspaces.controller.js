@@ -22,6 +22,8 @@ const workspace_role_guard_1 = require("../../common/guards/workspace-role.guard
 const client_1 = require("@prisma/client");
 const auth_service_1 = require("../auth/auth.service");
 const create_workspace_dto_1 = require("./dto/create-workspace.dto");
+const delete_workspace_dto_1 = require("./dto/delete-workspace.dto");
+const update_workspace_dto_1 = require("./dto/update-workspace.dto");
 const update_workspace_settings_dto_1 = require("./dto/update-workspace-settings.dto");
 const workspaces_service_1 = require("./workspaces.service");
 let WorkspacesController = class WorkspacesController {
@@ -41,6 +43,12 @@ let WorkspacesController = class WorkspacesController {
     }
     create(user, dto) {
         return this.workspacesService.createByPlatformAdmin(user.sub, user.isPlatformAdmin, dto);
+    }
+    updateWorkspace(user, workspaceId, dto) {
+        return this.workspacesService.updateWorkspace(user.sub, workspaceId, dto);
+    }
+    deleteWorkspace(user, workspaceId, dto) {
+        return this.workspacesService.deleteWorkspace(user.sub, workspaceId, dto.confirmation);
     }
     async switch(user, workspaceId, response) {
         const switched = await this.workspacesService.switchWorkspace(user.sub, workspaceId);
@@ -77,6 +85,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, create_workspace_dto_1.CreateWorkspaceDto]),
     __metadata("design:returntype", void 0)
 ], WorkspacesController.prototype, "create", null);
+__decorate([
+    (0, common_1.Patch)(':workspaceId'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('workspaceId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, update_workspace_dto_1.UpdateWorkspaceDto]),
+    __metadata("design:returntype", void 0)
+], WorkspacesController.prototype, "updateWorkspace", null);
+__decorate([
+    (0, common_1.Post)(':workspaceId/delete'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('workspaceId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, delete_workspace_dto_1.DeleteWorkspaceDto]),
+    __metadata("design:returntype", void 0)
+], WorkspacesController.prototype, "deleteWorkspace", null);
 __decorate([
     (0, common_1.Post)(':workspaceId/switch'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR, client_1.WorkspaceRole.VIEWER),

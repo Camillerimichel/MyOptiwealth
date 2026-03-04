@@ -31,6 +31,9 @@ let CrmController = class CrmController {
     listSocieties(user) {
         return this.crmService.listSocieties(user.activeWorkspaceId);
     }
+    listSocietiesAll(user) {
+        return this.crmService.listSocietiesAll(user.sub);
+    }
     createSociety(user, dto) {
         return this.crmService.createSociety(user.activeWorkspaceId, dto);
     }
@@ -39,6 +42,9 @@ let CrmController = class CrmController {
     }
     listContacts(user) {
         return this.crmService.listContacts(user.activeWorkspaceId);
+    }
+    listContactsAll(user) {
+        return this.crmService.listContactsAll(user.sub);
     }
     createContact(user, dto) {
         return this.crmService.createContact(user.activeWorkspaceId, dto);
@@ -55,6 +61,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], CrmController.prototype, "listSocieties", null);
+__decorate([
+    (0, common_1.Get)('societies/all'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CrmController.prototype, "listSocietiesAll", null);
 __decorate([
     (0, common_1.Post)('societies'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
@@ -81,6 +94,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], CrmController.prototype, "listContacts", null);
+__decorate([
+    (0, common_1.Get)('contacts/all'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CrmController.prototype, "listContactsAll", null);
 __decorate([
     (0, common_1.Post)('contacts'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),

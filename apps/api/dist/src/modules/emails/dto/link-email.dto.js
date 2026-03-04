@@ -36,4 +36,9 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], LinkEmailDto.prototype, "projectId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], LinkEmailDto.prototype, "taskId", void 0);
 //# sourceMappingURL=link-email.dto.js.map

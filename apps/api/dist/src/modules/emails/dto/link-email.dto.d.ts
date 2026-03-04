@@ -4,4 +4,5 @@ export declare class LinkEmailDto {
     toAddresses: string[];
     subject: string;
     projectId?: string;
+    taskId?: string;
 }

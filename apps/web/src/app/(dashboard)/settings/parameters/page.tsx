@@ -81,7 +81,7 @@ export default function SettingsParametersPage() {
 
         <div className="mt-3 grid gap-2">
           {projectTypologies.map((item, index) => (
-            <div key={`${item}-${index}`} className="grid gap-2 lg:grid-cols-[1fr_auto]">
+            <div key={index} className="grid gap-2 lg:grid-cols-[1fr_auto]">
               <input
                 value={item}
                 onChange={(e) => updateTypology(index, e.target.value)}

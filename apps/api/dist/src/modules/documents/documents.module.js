@@ -23,6 +23,7 @@ exports.DocumentsModule = DocumentsModule = __decorate([
         imports: [audit_module_1.AuditModule],
         controllers: [documents_controller_1.DocumentsController, documents_webhook_controller_1.DocumentsWebhookController],
         providers: [documents_service_1.DocumentsService, storage_service_1.DocumentStorageService, signature_service_1.SignatureService, encryption_service_1.EncryptionService],
+        exports: [storage_service_1.DocumentStorageService],
     })
 ], DocumentsModule);
 //# sourceMappingURL=documents.module.js.map

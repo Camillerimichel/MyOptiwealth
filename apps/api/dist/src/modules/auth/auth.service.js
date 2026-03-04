@@ -74,6 +74,16 @@ let AuthService = class AuthService {
                     },
                 },
             });
+            const associatedSociety = await tx.society.create({
+                data: {
+                    workspaceId: workspace.id,
+                    name: dto.workspaceName,
+                },
+            });
+            await tx.workspaceSettings.update({
+                where: { workspaceId: workspace.id },
+                data: { associatedSocietyId: associatedSociety.id },
+            });
             await tx.userWorkspaceRole.create({
                 data: {
                     userId: user.id,
@@ -126,21 +136,6 @@ let AuthService = class AuthService {
         const validPassword = await bcrypt.compare(dto.password, user.passwordHash);
         if (!validPassword) {
             throw new common_1.UnauthorizedException('Invalid credentials');
-        }
-        const encryptedSecret = user.twoFactorSecret;
-        if (!encryptedSecret) {
-            throw new common_1.UnauthorizedException('2FA not configured');
-        }
-        const secret = this.encryptionService.decrypt(encryptedSecret);
-        const validTotp = otplib_1.authenticator.verify({ token: dto.totpCode, secret });
-        if (!validTotp) {
-            throw new common_1.UnauthorizedException('Invalid 2FA code');
-        }
-        if (!user.twoFactorEnabled) {
-            await this.prisma.user.update({
-                where: { id: user.id },
-                data: { twoFactorEnabled: true },
-            });
         }
         const membership = user.workspaceRoles[0];
         if (!membership) {

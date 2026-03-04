@@ -19,10 +19,7 @@ export default function SettingsUsersPage() {
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
   const [newRole, setNewRole] = useState<'ADMIN' | 'COLLABORATOR' | 'VIEWER'>('COLLABORATOR');
-  const [provisioning, setProvisioning] = useState<{ email: string; secret: string; otpauth: string } | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [selected2fa, setSelected2fa] = useState<{ email: string; twoFactorEnabled: boolean; secret: string; otpauth: string } | null>(null);
-  const [selected2faLoading, setSelected2faLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,19 +100,13 @@ export default function SettingsUsersPage() {
     const token = getAccessToken();
     if (!token || !newEmail || !newPassword) return;
 
-    const created = await apiClient.createUser(token, {
+    await apiClient.createUser(token, {
       email: newEmail,
       password: newPassword,
       firstName: newFirstName || undefined,
       lastName: newLastName || undefined,
       role: newRole,
     });
-
-    setProvisioning(
-      created.twoFactorProvisioning
-        ? { email: created.user.email, secret: created.twoFactorProvisioning.secret, otpauth: created.twoFactorProvisioning.otpauth }
-        : null,
-    );
     setNewEmail('');
     setNewPassword('');
     setNewFirstName('');
@@ -126,22 +117,7 @@ export default function SettingsUsersPage() {
   }
 
   async function onSelectUser(userId: string): Promise<void> {
-    const token = getAccessToken();
-    if (!token) return;
     setSelectedUserId(userId);
-    setSelected2fa(null);
-    setSelected2faLoading(true);
-    try {
-      const twoFactor = await apiClient.getUserTwoFactorProvisioning(token, userId);
-      setSelected2fa({
-        email: twoFactor.email,
-        twoFactorEnabled: twoFactor.twoFactorEnabled,
-        secret: twoFactor.secret,
-        otpauth: twoFactor.otpauth,
-      });
-    } finally {
-      setSelected2faLoading(false);
-    }
   }
 
   return (
@@ -200,13 +176,6 @@ export default function SettingsUsersPage() {
               Créer
             </button>
           </div>
-          {provisioning ? (
-            <div className="rounded border border-[var(--line)] bg-[#f8f4ea] p-2 text-xs text-[#4f4d45]">
-              <p className="font-medium">2FA initial pour {provisioning.email}</p>
-              <p>Secret: {provisioning.secret}</p>
-              <p className="break-all">URI: {provisioning.otpauth}</p>
-            </div>
-          ) : null}
         </div>
         <div className="mt-3 grid gap-2 text-sm">
           {users.map((item) => {
@@ -264,17 +233,6 @@ export default function SettingsUsersPage() {
                         Enregistrer
                       </button>
                     </div>
-
-                    {selected2faLoading ? <p className="text-xs text-[#5b5952]">Chargement 2FA...</p> : null}
-                    {selected2fa ? (
-                      <div className="rounded border border-[var(--line)] bg-white p-2 text-xs text-[#4f4d45]">
-                        <p className="font-medium">Données 2FA</p>
-                        <p>Email: {selected2fa.email}</p>
-                        <p>2FA activé: {selected2fa.twoFactorEnabled ? 'Oui' : 'Non'}</p>
-                        <p>Secret: {selected2fa.secret}</p>
-                        <p className="break-all">URI: {selected2fa.otpauth}</p>
-                      </div>
-                    ) : null}
                   </div>
                 ) : null}
               </div>

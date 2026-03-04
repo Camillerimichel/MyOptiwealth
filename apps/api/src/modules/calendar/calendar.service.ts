@@ -75,8 +75,10 @@ export class CalendarService {
         end: string;
         allDay: boolean;
         source: string;
+        url: string;
         workspaceId: string;
         workspaceName: string;
+        taskStatus?: string;
       }> = [];
 
       const workspaceName = workspaceById.get(task.workspaceId) ?? 'Workspace';
@@ -92,8 +94,10 @@ export class CalendarService {
           end: this.addOneDay(day),
           allDay: true,
           source: 'TASK',
+          url: '/tasks',
           workspaceId: task.workspaceId,
           workspaceName,
+          taskStatus: task.status,
         });
       }
       if (task.dueDate) {
@@ -105,8 +109,10 @@ export class CalendarService {
           end: this.addOneDay(day),
           allDay: true,
           source: 'TASK',
+          url: '/tasks',
           workspaceId: task.workspaceId,
           workspaceName,
+          taskStatus: task.status,
         });
       }
       if (task.expectedEndDate) {
@@ -118,8 +124,10 @@ export class CalendarService {
           end: this.addOneDay(day),
           allDay: true,
           source: 'TASK',
+          url: '/tasks',
           workspaceId: task.workspaceId,
           workspaceName,
+          taskStatus: task.status,
         });
       }
       if (task.actualEndDate) {
@@ -131,8 +139,10 @@ export class CalendarService {
           end: this.addOneDay(day),
           allDay: true,
           source: 'TASK',
+          url: '/tasks',
           workspaceId: task.workspaceId,
           workspaceName,
+          taskStatus: task.status,
         });
       }
       return result;
@@ -148,6 +158,7 @@ export class CalendarService {
         end: this.addOneDay(date),
         allDay: true,
         source: 'TIMESHEET',
+        url: '/timesheet',
         workspaceId: entry.workspaceId,
         workspaceName,
       };
@@ -160,6 +171,7 @@ export class CalendarService {
       end: event.endAt.toISOString(),
       allDay: false,
       source: 'EVENT',
+      url: '/calendar',
       workspaceId: event.workspaceId,
       workspaceName: workspaceById.get(event.workspaceId) ?? 'Workspace',
     }));

@@ -35,4 +35,12 @@ export class UpdateWorkspaceSettingsDto {
   @IsArray()
   @IsString({ each: true })
   projectTypologies?: string[];
+
+  @IsOptional()
+  @IsString()
+  associatedSocietyId?: string;
+
+  @IsOptional()
+  @IsString()
+  workspaceName?: string;
 }

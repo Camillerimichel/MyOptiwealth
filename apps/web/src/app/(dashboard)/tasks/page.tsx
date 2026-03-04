@@ -2,11 +2,20 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import {
+  clearActiveProjectContext,
+  clearActiveTaskContext,
+  getActiveProjectContext,
+  getActiveTaskContext,
+  setActiveProjectContext,
+  setActiveTaskContext,
+} from '@/lib/active-task';
 import { getAccessToken } from '@/lib/auth';
 import { showToast } from '@/lib/toast';
 
 type Task = {
   id: string;
+  projectId: string;
   description: string;
   privateComment?: string | null;
   startDate?: string | null;
@@ -15,12 +24,54 @@ type Task = {
   status: string;
   priority: number;
   orderNumber: number;
+  project?: { id: string; name: string } | null;
+  linkedEmails?: Array<{
+    email: {
+      id: string;
+      subject: string;
+      fromAddress: string;
+      receivedAt: string;
+    };
+  }>;
   assignee?: { id: string; email: string } | null;
   companyOwnerContact?: { id: string; firstName: string; lastName: string; society?: { name: string } | null } | null;
 };
-type Project = { id: string; name: string; progressPercent: number };
+type Project = { id: string; name: string; progressPercent: number; missionType?: string | null };
 type UserOption = { user: { id: string; email: string; firstName?: string | null; lastName?: string | null }; role: string };
 type ContactOption = { id: string; firstName: string; lastName: string; society?: { id: string; name: string } | null };
+const LEGACY_MISSION_LABELS: Record<string, string> = {
+  WEALTH_STRATEGY: 'Strategie patrimoniale',
+  SUCCESSION: 'Succession',
+  CORPORATE_FINANCE: 'Finance d entreprise',
+};
+
+function taskStatusLabel(status: string): string {
+  switch (status) {
+    case 'TODO':
+      return 'À faire';
+    case 'IN_PROGRESS':
+      return 'En cours';
+    case 'WAITING':
+      return 'En attente';
+    case 'DONE':
+      return 'Fait';
+    default:
+      return status;
+  }
+}
+
+function taskStatusBadgeClass(status: string): string {
+  switch (status) {
+    case 'DONE':
+      return 'inline-flex rounded px-2 py-0.5 text-xs font-semibold text-white bg-black';
+    case 'IN_PROGRESS':
+      return 'inline-flex rounded px-2 py-0.5 text-xs font-semibold text-white bg-green-600';
+    case 'WAITING':
+      return 'inline-flex rounded px-2 py-0.5 text-xs font-semibold text-white bg-orange-500';
+    default:
+      return 'inline-flex rounded px-2 py-0.5 text-xs font-semibold bg-[#f3f2ef] text-[#3f3c33]';
+  }
+}
 
 function toDateInputValue(value?: string | null): string {
   if (!value) return '';
@@ -54,8 +105,17 @@ export default function TasksPage() {
   const [assigneeId, setAssigneeId] = useState('');
   const [companyOwnerContactId, setCompanyOwnerContactId] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'rank' | 'priority'>('rank');
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [projectFilterId, setProjectFilterId] = useState('');
+  const [sortBy, setSortBy] = useState<
+    'status' | 'rank' | 'priority' | 'description' | 'startDate' | 'expectedEndDate' | 'actualEndDate'
+  >('rank');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeProjectTitle, setActiveProjectTitle] = useState<string | null>(null);
+  const [activeProjectTypology, setActiveProjectTypology] = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [activeTaskLabel, setActiveTaskLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,7 +139,38 @@ export default function TasksPage() {
       setProjects(projectsData);
       setUsers(usersData);
       setContacts(contactsData);
-      setProjectId((current) => current || projectsData[0]?.id || '');
+      const activeProject = getActiveProjectContext();
+      if (activeProject && projectsData.some((project) => project.id === activeProject.projectId)) {
+        const selectedProject = projectsData.find((project) => project.id === activeProject.projectId);
+        setActiveProjectId(activeProject.projectId);
+        setActiveProjectTitle(activeProject.projectTitle);
+        setActiveProjectTypology(
+          activeProject.projectTypology
+            ?? (selectedProject?.missionType ? (LEGACY_MISSION_LABELS[selectedProject.missionType] ?? selectedProject.missionType) : null),
+        );
+        setProjectId(activeProject.projectId);
+        setProjectFilterId(activeProject.projectId);
+      } else {
+        setActiveProjectId(null);
+        setActiveProjectTitle(null);
+        setActiveProjectTypology(null);
+        setProjectFilterId('');
+      }
+      const activeTask = getActiveTaskContext();
+      if (activeTask) {
+        const exists = tasksData.some((task) => task.id === activeTask.taskId);
+        if (exists && (!activeProject || activeTask.projectId === activeProject.projectId)) {
+          setActiveTaskId(activeTask.taskId);
+          setActiveTaskLabel(activeTask.taskDescription);
+        } else {
+          setActiveTaskId(null);
+          setActiveTaskLabel(null);
+          clearActiveTaskContext();
+        }
+      } else {
+        setActiveTaskId(null);
+        setActiveTaskLabel(null);
+      }
     } catch {
       setError('Chargement impossible.');
     } finally {
@@ -91,13 +182,29 @@ export default function TasksPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const onProjectChanged = (): void => {
+      void load();
+    };
+    const onTaskChanged = (): void => {
+      void load();
+    };
+    window.addEventListener('mw_active_project_changed', onProjectChanged);
+    window.addEventListener('mw_active_task_changed', onTaskChanged);
+    return () => {
+      window.removeEventListener('mw_active_project_changed', onProjectChanged);
+      window.removeEventListener('mw_active_task_changed', onTaskChanged);
+    };
+  }, [load]);
+
   async function onCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const token = getAccessToken();
-    if (!token || !description || !projectId) return;
+    const targetProjectId = activeProjectId ?? projectId;
+    if (!token || !description || !targetProjectId) return;
     if (editingTaskId) {
       await apiClient.updateTask(token, editingTaskId, {
-        projectId,
+        projectId: targetProjectId,
         description,
         privateComment: privateComment || null,
         startDate: toApiDateValue(startDate) ?? null,
@@ -112,7 +219,7 @@ export default function TasksPage() {
       showToast('Tâche mise à jour.', 'success');
     } else {
       await apiClient.createTask(token, {
-        projectId,
+        projectId: targetProjectId,
         description,
         privateComment: privateComment || undefined,
         startDate: toApiDateValue(startDate),
@@ -139,10 +246,16 @@ export default function TasksPage() {
     setActualEndDate('');
     setAssigneeId('');
     setCompanyOwnerContactId('');
+    setShowTaskForm(false);
     await load();
   }
 
   function onEdit(task: Task): void {
+    const workspaceId =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem('mw_active_workspace_id') ?? undefined
+        : undefined;
+    setShowTaskForm(true);
     setEditingTaskId(task.id);
     setDescription(task.description);
     setPrivateComment(task.privateComment ?? '');
@@ -154,6 +267,46 @@ export default function TasksPage() {
     setActualEndDate(toDateInputValue(task.actualEndDate));
     setAssigneeId(task.assignee?.id ?? '');
     setCompanyOwnerContactId(task.companyOwnerContact?.id ?? '');
+    setActiveTaskId(task.id);
+    setActiveTaskLabel(task.description);
+    setActiveTaskContext({
+      taskId: task.id,
+      projectId: task.projectId,
+      taskDescription: task.description,
+      workspaceId,
+    });
+  }
+
+  function onSelectTask(task: Task): void {
+    const workspaceId =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem('mw_active_workspace_id') ?? undefined
+        : undefined;
+
+    if (!activeProjectId || activeProjectId !== task.projectId) {
+      const project = projects.find((item) => item.id === task.projectId);
+      if (project) {
+        setActiveProjectContext({
+          projectId: project.id,
+          projectTitle: project.name,
+          projectTypology: project.missionType ? (LEGACY_MISSION_LABELS[project.missionType] ?? project.missionType) : null,
+          workspaceId,
+        });
+        setActiveProjectId(project.id);
+        setActiveProjectTitle(project.name);
+        setActiveProjectTypology(project.missionType ? (LEGACY_MISSION_LABELS[project.missionType] ?? project.missionType) : null);
+      }
+    }
+
+    setActiveTaskId(task.id);
+    setActiveTaskLabel(task.description);
+    setActiveTaskContext({
+      taskId: task.id,
+      projectId: task.projectId,
+      taskDescription: task.description,
+      workspaceId,
+    });
+    showToast('Tâche active mise à jour.', 'success');
   }
 
   function onCancelEdit(): void {
@@ -168,17 +321,89 @@ export default function TasksPage() {
     setActualEndDate('');
     setAssigneeId('');
     setCompanyOwnerContactId('');
+    setShowTaskForm(false);
+  }
+
+  function statusSortValue(taskStatus: string): number {
+    switch (taskStatus) {
+      case 'TODO':
+        return 1;
+      case 'IN_PROGRESS':
+        return 2;
+      case 'WAITING':
+        return 3;
+      case 'DONE':
+        return 4;
+      default:
+        return 99;
+    }
+  }
+
+  function dateSortValue(value?: string | null): number {
+    if (!value) return Number.MAX_SAFE_INTEGER;
+    const timestamp = new Date(value).getTime();
+    return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
   }
 
   const sortedTasks = useMemo(() => {
-    const sorted = [...tasks].sort((a, b) => {
-      const left = sortBy === 'rank' ? a.orderNumber : a.priority;
-      const right = sortBy === 'rank' ? b.orderNumber : b.priority;
+    const effectiveProjectFilterId = activeProjectId ?? projectFilterId;
+    const filtered = effectiveProjectFilterId
+      ? tasks.filter((task) => task.project?.id === effectiveProjectFilterId || task.projectId === effectiveProjectFilterId)
+      : [];
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortBy === 'status') {
+        const left = statusSortValue(a.status);
+        const right = statusSortValue(b.status);
+        if (left === right) return a.orderNumber - b.orderNumber;
+        return sortDirection === 'asc' ? left - right : right - left;
+      }
+      if (sortBy === 'rank') {
+        if (a.orderNumber === b.orderNumber) return a.priority - b.priority;
+        return sortDirection === 'asc' ? a.orderNumber - b.orderNumber : b.orderNumber - a.orderNumber;
+      }
+      if (sortBy === 'priority') {
+        if (a.priority === b.priority) return a.orderNumber - b.orderNumber;
+        return sortDirection === 'asc' ? a.priority - b.priority : b.priority - a.priority;
+      }
+      if (sortBy === 'description') {
+        const cmp = a.description.localeCompare(b.description, 'fr', { sensitivity: 'base' });
+        if (cmp === 0) return a.orderNumber - b.orderNumber;
+        return sortDirection === 'asc' ? cmp : -cmp;
+      }
+      if (sortBy === 'startDate') {
+        const left = dateSortValue(a.startDate);
+        const right = dateSortValue(b.startDate);
+        if (left === right) return a.orderNumber - b.orderNumber;
+        return sortDirection === 'asc' ? left - right : right - left;
+      }
+      if (sortBy === 'expectedEndDate') {
+        const left = dateSortValue(a.expectedEndDate);
+        const right = dateSortValue(b.expectedEndDate);
+        if (left === right) return a.orderNumber - b.orderNumber;
+        return sortDirection === 'asc' ? left - right : right - left;
+      }
+
+      const left = dateSortValue(a.actualEndDate);
+      const right = dateSortValue(b.actualEndDate);
       if (left === right) return a.orderNumber - b.orderNumber;
       return sortDirection === 'asc' ? left - right : right - left;
     });
     return sorted;
-  }, [tasks, sortBy, sortDirection]);
+  }, [tasks, activeProjectId, projectFilterId, sortBy, sortDirection]);
+
+  function onSort(column: 'status' | 'rank' | 'priority' | 'description' | 'startDate' | 'expectedEndDate' | 'actualEndDate'): void {
+    if (sortBy === column) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortBy(column);
+    setSortDirection('asc');
+  }
+
+  function sortIndicator(column: 'status' | 'rank' | 'priority' | 'description' | 'startDate' | 'expectedEndDate' | 'actualEndDate'): string {
+    if (sortBy !== column) return '';
+    return sortDirection === 'asc' ? ' ▲' : ' ▼';
+  }
 
   async function onDeleteTask(taskId: string): Promise<void> {
     const token = getAccessToken();
@@ -187,6 +412,11 @@ export default function TasksPage() {
     if (editingTaskId === taskId) {
       onCancelEdit();
     }
+    if (activeTaskId === taskId) {
+      setActiveTaskId(null);
+      setActiveTaskLabel(null);
+      clearActiveTaskContext();
+    }
     showToast('Tâche supprimée.', 'success');
     await load();
   }
@@ -194,14 +424,39 @@ export default function TasksPage() {
   return (
     <section className="grid gap-6">
       <h1 className="text-2xl font-semibold text-[var(--brand)]">Tasks Kanban</h1>
+      <div className="rounded-lg border-2 border-[var(--brand)] bg-[#efe7d4] px-4 py-3 text-base font-bold text-[#2f2b23]">
+        Projet: {activeProjectTitle ?? 'Aucun'}{activeProjectTypology ? ` (${activeProjectTypology})` : ''}
+        {activeTaskLabel ? ` | Tâche: ${activeTaskLabel}` : ''}
+        {activeProjectId ? (
+          <button
+            type="button"
+            onClick={() => {
+              clearActiveProjectContext();
+              setActiveProjectId(null);
+              setActiveProjectTitle(null);
+              setActiveTaskId(null);
+              setActiveTaskLabel(null);
+              clearActiveTaskContext();
+            }}
+            className="ml-2 text-sm font-semibold underline underline-offset-2"
+          >
+            Retirer
+          </button>
+        ) : null}
+      </div>
       {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {!activeProjectId ? (
+        <p className="text-sm text-[#5b5952]">Sélectionne d abord un contexte projet dans Projects.</p>
+      ) : null}
+      {showTaskForm || editingTaskId ? (
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
         <form onSubmit={onCreate} className="grid gap-4">
           <div className="grid gap-3 lg:grid-cols-12">
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
+              disabled={!!activeProjectId}
               className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-4"
             >
               <option value="">Projet</option>
@@ -238,10 +493,10 @@ export default function TasksPage() {
               onChange={(e) => setStatus(e.target.value)}
               className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-2"
             >
-              <option value="TODO">TODO</option>
-              <option value="IN_PROGRESS">IN_PROGRESS</option>
-              <option value="WAITING">WAITING</option>
-              <option value="DONE">DONE</option>
+              <option value="TODO">À faire</option>
+              <option value="IN_PROGRESS">En cours</option>
+              <option value="WAITING">En attente</option>
+              <option value="DONE">Fait</option>
             </select>
             <select
               value={assigneeId}
@@ -327,51 +582,141 @@ export default function TasksPage() {
           </div>
         </form>
       </article>
+      ) : null}
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-          <p className="font-medium text-[#4f4d45]">Tâches triables</p>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'rank' | 'priority')}
-            className="rounded border border-[var(--line)] px-2 py-1"
-          >
-            <option value="rank">Trier par rang</option>
-            <option value="priority">Trier par priorité</option>
-          </select>
-          <select
-            value={sortDirection}
-            onChange={(e) => setSortDirection(e.target.value as 'asc' | 'desc')}
-            className="rounded border border-[var(--line)] px-2 py-1"
-          >
-            <option value="asc">Ascendant</option>
-            <option value="desc">Descendant</option>
-          </select>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-[#4f4d45]">Tâches triables (clic sur les colonnes)</p>
+            <select
+              value={activeProjectId ?? projectFilterId}
+              onChange={(e) => setProjectFilterId(e.target.value)}
+              disabled={!!activeProjectId}
+              className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+            >
+              <option value="">Tous les projets</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingTaskId(null);
+                setDescription('');
+                setPrivateComment('');
+                setPriority(2);
+                setOrderNumber(1);
+                setStatus('TODO');
+                setStartDate('');
+                setExpectedEndDate('');
+                setActualEndDate('');
+                setAssigneeId('');
+                setCompanyOwnerContactId('');
+                setShowTaskForm(true);
+              }}
+              disabled={!activeProjectId}
+              className="rounded bg-[var(--brand)] px-3 py-2 text-xs text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Créer tâche
+            </button>
+            {showTaskForm || editingTaskId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingTaskId(null);
+                  setShowTaskForm(false);
+                }}
+                className="rounded border border-[var(--line)] px-3 py-2 text-xs text-[#4f4d45]"
+              >
+                Masquer
+              </button>
+            ) : null}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--line)] text-left text-[#5b5952]">
-                <th className="px-2 py-2">Etat</th>
-                <th className="px-2 py-2">Rang</th>
-                <th className="px-2 py-2">Priorité</th>
-                <th className="px-2 py-2">Description</th>
-                <th className="px-2 py-2">Début</th>
-                <th className="px-2 py-2">Fin attendue</th>
-                <th className="px-2 py-2">Fin réelle</th>
+                <th className="px-2 py-2">
+                  <button type="button" onClick={() => onSort('status')} className="font-semibold hover:underline">
+                    Etat{sortIndicator('status')}
+                  </button>
+                </th>
+                <th className="px-2 py-2">
+                  <button type="button" onClick={() => onSort('rank')} className="font-semibold hover:underline">
+                    Rang{sortIndicator('rank')}
+                  </button>
+                </th>
+                <th className="px-2 py-2">
+                  <button type="button" onClick={() => onSort('priority')} className="font-semibold hover:underline">
+                    Priorité{sortIndicator('priority')}
+                  </button>
+                </th>
+                <th className="px-2 py-2">
+                  <button type="button" onClick={() => onSort('description')} className="font-semibold hover:underline">
+                    Description{sortIndicator('description')}
+                  </button>
+                </th>
+                <th className="px-2 py-2">Projet</th>
+                <th className="px-2 py-2">
+                  <button type="button" onClick={() => onSort('startDate')} className="font-semibold hover:underline">
+                    Début{sortIndicator('startDate')}
+                  </button>
+                </th>
+                <th className="px-2 py-2">
+                  <button type="button" onClick={() => onSort('expectedEndDate')} className="font-semibold hover:underline">
+                    Fin attendue{sortIndicator('expectedEndDate')}
+                  </button>
+                </th>
+                <th className="px-2 py-2">
+                  <button type="button" onClick={() => onSort('actualEndDate')} className="font-semibold hover:underline">
+                    Fin réelle{sortIndicator('actualEndDate')}
+                  </button>
+                </th>
                 <th className="px-2 py-2">Action</th>
               </tr>
             </thead>
             <tbody>
               {sortedTasks.map((task) => (
-                <tr key={task.id} className="border-b border-[var(--line)]">
-                  <td className="px-2 py-2">{task.status}</td>
+                <tr
+                  key={task.id}
+                  className={task.id === activeTaskId ? 'border-b border-[var(--line)] bg-[#f7f3e8]' : 'border-b border-[var(--line)]'}
+                >
+                  <td className="px-2 py-2">
+                    <span className={taskStatusBadgeClass(task.status)}>
+                      {taskStatusLabel(task.status)}
+                    </span>
+                  </td>
                   <td className="px-2 py-2 font-medium">N{task.orderNumber}</td>
                   <td className="px-2 py-2">P{task.priority}</td>
-                  <td className="px-2 py-2">{task.description}</td>
+                  <td
+                    className="cursor-pointer px-2 py-2 hover:bg-[#f7f3e8]"
+                    onClick={() => onSelectTask(task)}
+                    title="Cliquer pour sélectionner cette tâche"
+                  >
+                    <div>{task.description}</div>
+                    {task.linkedEmails && task.linkedEmails.length > 0 ? (
+                      <div className="mt-1 text-xs text-[#4f4d45]">
+                        Emails liés: {task.linkedEmails.length}
+                      </div>
+                    ) : null}
+                  </td>
+                  <td className="px-2 py-2">{task.project?.name ?? '-'}</td>
                   <td className="px-2 py-2">{toDateInputValue(task.startDate) || '-'}</td>
                   <td className="px-2 py-2">{toDateInputValue(task.expectedEndDate) || '-'}</td>
                   <td className="px-2 py-2">{toDateInputValue(task.actualEndDate) || '-'}</td>
                   <td className="px-2 py-2">
+                    <button
+                      type="button"
+                      onClick={() => onSelectTask(task)}
+                      className="mr-3 text-[#2f2b23] underline-offset-2 hover:underline"
+                    >
+                      Sélectionner
+                    </button>
                     <button
                       type="button"
                       onClick={() => onEdit(task)}

@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmailsModule = void 0;
 const common_1 = require("@nestjs/common");
 const encryption_service_1 = require("../../common/crypto/encryption.service");
+const documents_module_1 = require("../documents/documents.module");
 const emails_controller_1 = require("./emails.controller");
 const emails_service_1 = require("./emails.service");
 let EmailsModule = class EmailsModule {
@@ -16,6 +17,7 @@ let EmailsModule = class EmailsModule {
 exports.EmailsModule = EmailsModule;
 exports.EmailsModule = EmailsModule = __decorate([
     (0, common_1.Module)({
+        imports: [documents_module_1.DocumentsModule],
         controllers: [emails_controller_1.EmailsController],
         providers: [emails_service_1.EmailsService, encryption_service_1.EncryptionService],
     })

@@ -7,10 +7,11 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import frLocale from '@fullcalendar/core/locales/fr';
-import { EventInput } from '@fullcalendar/core';
+import { EventClickArg, EventInput } from '@fullcalendar/core';
 import { apiClient } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/auth';
 import { showToast } from '@/lib/toast';
+import { useRouter } from 'next/navigation';
 
 type FeedItem = {
   id: string;
@@ -19,17 +20,34 @@ type FeedItem = {
   end: string;
   allDay: boolean;
   source: 'EVENT' | 'TASK' | 'TIMESHEET' | string;
+  taskStatus?: string;
+  url: string;
   workspaceId: string;
   workspaceName: string;
 };
 
+function taskStatusCalendarColors(status?: string): { backgroundColor: string; borderColor: string; textColor: string } {
+  switch (status) {
+    case 'DONE':
+      return { backgroundColor: '#111111', borderColor: '#111111', textColor: '#ffffff' };
+    case 'IN_PROGRESS':
+      return { backgroundColor: '#16a34a', borderColor: '#16a34a', textColor: '#ffffff' };
+    case 'WAITING':
+      return { backgroundColor: '#f97316', borderColor: '#f97316', textColor: '#ffffff' };
+    default:
+      return { backgroundColor: '#f3f2ef', borderColor: '#d8d3c8', textColor: '#3f3c33' };
+  }
+}
+
 export default function CalendarPage() {
+  const router = useRouter();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
   const [title, setTitle] = useState('');
   const [eventType, setEventType] = useState('MEETING');
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
+  const [selectedEvent, setSelectedEvent] = useState<FeedItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +107,24 @@ export default function CalendarPage() {
 
   const calendarEvents = useMemo<EventInput[]>(() => {
     return items.map((item) => {
+      if (item.source === 'TASK') {
+        const taskColors = taskStatusCalendarColors(item.taskStatus);
+        return {
+          id: item.id,
+          title: `[${item.workspaceName}] ${item.title}`,
+          start: item.start,
+          end: item.end,
+          allDay: item.allDay,
+          backgroundColor: taskColors.backgroundColor,
+          borderColor: taskColors.borderColor,
+          textColor: taskColors.textColor,
+          extendedProps: {
+            source: item.source,
+            workspaceName: item.workspaceName,
+            sourceUrl: item.url,
+          },
+        };
+      }
       const isActiveWorkspace = item.workspaceId === activeWorkspaceId;
       return {
         id: item.id,
@@ -102,10 +138,17 @@ export default function CalendarPage() {
         extendedProps: {
           source: item.source,
           workspaceName: item.workspaceName,
+          sourceUrl: item.url,
         },
       };
     });
   }, [activeWorkspaceId, items]);
+
+  function onEventClick(arg: EventClickArg): void {
+    const item = items.find((entry) => entry.id === arg.event.id);
+    if (!item) return;
+    setSelectedEvent(item);
+  }
 
   return (
     <section className="grid gap-6">
@@ -145,6 +188,7 @@ export default function CalendarPage() {
           plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
           locale={frLocale}
           initialView="dayGridMonth"
+          weekends={false}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
@@ -159,10 +203,45 @@ export default function CalendarPage() {
           }}
           height="auto"
           events={calendarEvents}
+          eventClick={onEventClick}
           eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
+          slotMinTime="08:00:00"
+          slotMaxTime="19:00:00"
           dayMaxEvents={true}
         />
       </article>
+
+      {selectedEvent ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+            <h2 className="text-lg font-semibold text-[var(--brand)]">{selectedEvent.title}</h2>
+            <div className="mt-3 grid gap-1 text-sm text-[#4f4d45]">
+              <p>Workspace: {selectedEvent.workspaceName}</p>
+              <p>Type: {selectedEvent.source}</p>
+              <p>Début: {new Date(selectedEvent.start).toLocaleString('fr-FR')}</p>
+              <p>Fin: {new Date(selectedEvent.end).toLocaleString('fr-FR')}</p>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  router.push(selectedEvent.url);
+                }}
+                className="rounded bg-[var(--brand)] px-3 py-2 text-white"
+              >
+                Ouvrir URL
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedEvent(null)}
+                className="rounded border border-[var(--line)] px-3 py-2"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

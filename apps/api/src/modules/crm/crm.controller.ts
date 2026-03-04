@@ -11,6 +11,7 @@ import { UpdateContactDto } from './dto/update-contact.dto';
 import { UpdateSocietyDto } from './dto/update-society.dto';
 
 interface AuthUser {
+  sub: string;
   activeWorkspaceId: string;
 }
 
@@ -22,6 +23,11 @@ export class CrmController {
   @Get('societies')
   listSocieties(@CurrentUser() user: AuthUser) {
     return this.crmService.listSocieties(user.activeWorkspaceId);
+  }
+
+  @Get('societies/all')
+  listSocietiesAll(@CurrentUser() user: AuthUser) {
+    return this.crmService.listSocietiesAll(user.sub);
   }
 
   @Post('societies')
@@ -43,6 +49,11 @@ export class CrmController {
   @Get('contacts')
   listContacts(@CurrentUser() user: AuthUser) {
     return this.crmService.listContacts(user.activeWorkspaceId);
+  }
+
+  @Get('contacts/all')
+  listContactsAll(@CurrentUser() user: AuthUser) {
+    return this.crmService.listContactsAll(user.sub);
   }
 
   @Post('contacts')

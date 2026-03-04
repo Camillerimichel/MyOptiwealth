@@ -17,4 +17,8 @@ export class LinkEmailDto {
   @IsOptional()
   @IsString()
   projectId?: string;
+
+  @IsOptional()
+  @IsString()
+  taskId?: string;
 }

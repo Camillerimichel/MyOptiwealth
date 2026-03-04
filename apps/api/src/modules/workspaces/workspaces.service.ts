@@ -4,6 +4,7 @@ import { EncryptionService } from '../../common/crypto/encryption.service';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateWorkspaceSettingsDto } from './dto/update-workspace-settings.dto';
 
 const DEFAULT_PROJECT_TYPOLOGIES = [
@@ -30,22 +31,105 @@ export class WorkspacesService {
     });
   }
 
-  async createByPlatformAdmin(userId: string, _isPlatformAdmin: boolean, dto: CreateWorkspaceDto) {
-    const workspace = await this.prisma.workspace.create({
-      data: {
-        name: dto.name,
-        settings: { create: {} },
-        members: {
-          create: {
-            userId,
-            role: WorkspaceRole.ADMIN,
-            isDefault: false,
-          },
-        },
+  private async getGlobalProjectTypologies(): Promise<string[]> {
+    const recentSettings = await this.prisma.workspaceSettings.findMany({
+      select: {
+        projectTypologies: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+      take: 50,
+    });
+
+    const firstNonEmpty = recentSettings.find((setting) => {
+      const values = setting.projectTypologies;
+      return Array.isArray(values) && values.some((item) => typeof item === 'string' && item.trim().length > 0);
+    });
+    const values = Array.isArray(firstNonEmpty?.projectTypologies)
+      ? firstNonEmpty.projectTypologies.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : [];
+
+    return values.length > 0 ? values : DEFAULT_PROJECT_TYPOLOGIES;
+  }
+
+  private async requireAdminMembership(userId: string, workspaceId: string) {
+    const membership = await this.prisma.userWorkspaceRole.findUnique({
+      where: {
+        userId_workspaceId: { userId, workspaceId },
+      },
+      select: {
+        role: true,
+        isDefault: true,
       },
     });
 
-    await this.auditService.log(workspace.id, 'WORKSPACE_CREATED', { name: dto.name }, userId);
+    if (!membership || membership.role !== WorkspaceRole.ADMIN) {
+      throw new ForbiddenException('Action réservée à un ADMIN du workspace');
+    }
+
+    return membership;
+  }
+
+  async createByPlatformAdmin(userId: string, _isPlatformAdmin: boolean, dto: CreateWorkspaceDto) {
+    const memberships = await this.prisma.userWorkspaceRole.findMany({
+      where: { userId },
+      select: { workspaceId: true },
+    });
+    const allowedWorkspaceIds = memberships.map((item) => item.workspaceId);
+    const sourceSociety = await this.prisma.society.findFirst({
+      where: {
+        id: dto.associatedSocietyId,
+        workspaceId: { in: allowedWorkspaceIds },
+      },
+    });
+    if (!sourceSociety) {
+      throw new ForbiddenException('Societe associée invalide');
+    }
+
+    const workspace = await this.prisma.$transaction(async (tx) => {
+      const createdWorkspace = await tx.workspace.create({
+        data: {
+          name: dto.name,
+          settings: { create: {} },
+          members: {
+            create: {
+              userId,
+              role: WorkspaceRole.ADMIN,
+              isDefault: false,
+            },
+          },
+        },
+      });
+
+      const clonedSociety = await tx.society.create({
+        data: {
+          workspaceId: createdWorkspace.id,
+          name: sourceSociety.name,
+          legalForm: sourceSociety.legalForm,
+          siren: sourceSociety.siren,
+          siret: sourceSociety.siret,
+          addressLine1: sourceSociety.addressLine1,
+          addressLine2: sourceSociety.addressLine2,
+          postalCode: sourceSociety.postalCode,
+          city: sourceSociety.city,
+          country: sourceSociety.country,
+        },
+      });
+      await tx.workspaceSettings.update({
+        where: { workspaceId: createdWorkspace.id },
+        data: { associatedSocietyId: clonedSociety.id },
+      });
+
+      return createdWorkspace;
+    });
+
+    await this.auditService.log(
+      workspace.id,
+      'WORKSPACE_CREATED',
+      { name: dto.name, associatedSocietyId: dto.associatedSocietyId },
+      userId,
+    );
 
     return workspace;
   }
@@ -76,36 +160,166 @@ export class WorkspacesService {
     return { activeWorkspaceId: workspaceId };
   }
 
+  async updateWorkspace(userId: string, workspaceId: string, dto: UpdateWorkspaceDto) {
+    await this.requireAdminMembership(userId, workspaceId);
+
+    const name = dto.name?.trim();
+    const associatedSocietyId = dto.associatedSocietyId?.trim();
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      let nextAssociatedSocietyId: string | undefined;
+      if (associatedSocietyId) {
+        const sourceSociety = await tx.society.findUnique({
+          where: { id: associatedSocietyId },
+        });
+
+        if (!sourceSociety) {
+          throw new ForbiddenException('Societe associée invalide');
+        }
+
+        const sourceMembership = await tx.userWorkspaceRole.findUnique({
+          where: {
+            userId_workspaceId: {
+              userId,
+              workspaceId: sourceSociety.workspaceId,
+            },
+          },
+          select: { id: true },
+        });
+
+        if (!sourceMembership) {
+          throw new ForbiddenException('Societe associée invalide');
+        }
+
+        if (sourceSociety.workspaceId === workspaceId) {
+          nextAssociatedSocietyId = sourceSociety.id;
+        } else {
+          const clonedSociety = await tx.society.create({
+            data: {
+              workspaceId,
+              name: sourceSociety.name,
+              legalForm: sourceSociety.legalForm,
+              siren: sourceSociety.siren,
+              siret: sourceSociety.siret,
+              addressLine1: sourceSociety.addressLine1,
+              addressLine2: sourceSociety.addressLine2,
+              postalCode: sourceSociety.postalCode,
+              city: sourceSociety.city,
+              country: sourceSociety.country,
+            },
+            select: { id: true },
+          });
+          nextAssociatedSocietyId = clonedSociety.id;
+        }
+      }
+
+      if (name) {
+        await tx.workspace.update({
+          where: { id: workspaceId },
+          data: { name },
+        });
+      }
+
+      if (nextAssociatedSocietyId) {
+        await tx.workspaceSettings.upsert({
+          where: { workspaceId },
+          update: { associatedSocietyId: nextAssociatedSocietyId },
+          create: { workspaceId, associatedSocietyId: nextAssociatedSocietyId },
+        });
+      }
+
+      const workspace = await tx.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { id: true, name: true },
+      });
+      const settings = await tx.workspaceSettings.findUnique({
+        where: { workspaceId },
+        select: { associatedSocietyId: true },
+      });
+
+      return {
+        workspace,
+        associatedSocietyId: settings?.associatedSocietyId ?? null,
+      };
+    });
+
+    await this.auditService.log(
+      workspaceId,
+      'WORKSPACE_UPDATED',
+      {
+        updatedFields: Object.keys(dto),
+      },
+      userId,
+    );
+
+    return updated;
+  }
+
+  async deleteWorkspace(userId: string, workspaceId: string, confirmation: string) {
+    if (confirmation !== 'SUPPRESSION') {
+      throw new ForbiddenException('Confirmation invalide');
+    }
+
+    const membership = await this.requireAdminMembership(userId, workspaceId);
+    if (membership.isDefault) {
+      throw new ForbiddenException('Passe d abord sur un autre workspace avant suppression');
+    }
+
+    const membershipCount = await this.prisma.userWorkspaceRole.count({
+      where: { userId },
+    });
+    if (membershipCount <= 1) {
+      throw new ForbiddenException('Au moins un workspace doit rester actif');
+    }
+
+    await this.prisma.workspace.delete({
+      where: { id: workspaceId },
+    });
+
+    return { deleted: true, workspaceId };
+  }
+
   async getSettings(workspaceId: string) {
+    const globalProjectTypologies = await this.getGlobalProjectTypologies();
+    const platformSettings = await this.prisma.platformSettings.findUnique({
+      where: { singletonKey: 'GLOBAL' },
+      select: { imapHost: true, imapPort: true, imapUser: true },
+    });
     const settings = await this.prisma.workspaceSettings.findUnique({
       where: { workspaceId },
       select: {
         id: true,
         workspaceId: true,
-        imapHost: true,
-        imapPort: true,
-        imapUser: true,
         projectTypologies: true,
+        associatedSocietyId: true,
         signatureProvider: true,
         signatureApiBaseUrl: true,
         createdAt: true,
         updatedAt: true,
       },
     });
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { name: true },
+    });
 
     if (!settings) {
       return {
-        projectTypologies: DEFAULT_PROJECT_TYPOLOGIES,
+        workspaceName: workspace?.name ?? '',
+        imapHost: platformSettings?.imapHost ?? null,
+        imapPort: platformSettings?.imapPort ?? null,
+        imapUser: platformSettings?.imapUser ?? null,
+        projectTypologies: globalProjectTypologies,
       };
     }
 
-    const typologies = Array.isArray(settings.projectTypologies)
-      ? settings.projectTypologies.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-      : DEFAULT_PROJECT_TYPOLOGIES;
-
     return {
       ...settings,
-      projectTypologies: typologies.length > 0 ? typologies : DEFAULT_PROJECT_TYPOLOGIES,
+      imapHost: platformSettings?.imapHost ?? null,
+      imapPort: platformSettings?.imapPort ?? null,
+      imapUser: platformSettings?.imapUser ?? null,
+      workspaceName: workspace?.name ?? '',
+      projectTypologies: globalProjectTypologies,
     };
   }
 
@@ -128,26 +342,72 @@ export class WorkspacesService {
     const normalizedProjectTypologies = projectTypologies
       ? (projectTypologies.length > 0 ? projectTypologies : DEFAULT_PROJECT_TYPOLOGIES)
       : undefined;
+    const associatedSocietyId = dto.associatedSocietyId?.trim()
+      ? dto.associatedSocietyId.trim()
+      : undefined;
+    if (associatedSocietyId) {
+      const society = await this.prisma.society.findFirst({
+        where: {
+          id: associatedSocietyId,
+          workspaceId,
+        },
+        select: { id: true },
+      });
+      if (!society) {
+        throw new ForbiddenException('Societe associée invalide pour ce workspace');
+      }
+    }
+    const workspaceName = dto.workspaceName?.trim();
+    if (workspaceName) {
+      await this.prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { name: workspaceName },
+      });
+    }
+
+    if (dto.imapHost !== undefined || dto.imapPort !== undefined || dto.imapUser !== undefined || imapPasswordEncrypted) {
+      const platformUpdateData: {
+        imapHost?: string;
+        imapPort?: number;
+        imapUser?: string;
+        imapPasswordEncrypted?: string;
+      } = {};
+      if (dto.imapHost !== undefined) {
+        platformUpdateData.imapHost = dto.imapHost;
+      }
+      if (dto.imapPort !== undefined) {
+        platformUpdateData.imapPort = dto.imapPort;
+      }
+      if (dto.imapUser !== undefined) {
+        platformUpdateData.imapUser = dto.imapUser;
+      }
+      if (imapPasswordEncrypted) {
+        platformUpdateData.imapPasswordEncrypted = imapPasswordEncrypted;
+      }
+
+      await this.prisma.platformSettings.upsert({
+        where: { singletonKey: 'GLOBAL' },
+        update: platformUpdateData,
+        create: {
+          singletonKey: 'GLOBAL',
+          ...platformUpdateData,
+        },
+      });
+    }
 
     const settings = await this.prisma.workspaceSettings.upsert({
       where: { workspaceId },
       update: {
-        imapHost: dto.imapHost,
-        imapPort: dto.imapPort,
-        imapUser: dto.imapUser,
-        ...(imapPasswordEncrypted ? { imapPasswordEncrypted } : {}),
         ...(normalizedProjectTypologies ? { projectTypologies: normalizedProjectTypologies } : {}),
+        ...(associatedSocietyId ? { associatedSocietyId } : {}),
         signatureProvider: dto.signatureProvider,
         signatureApiBaseUrl: dto.signatureApiBaseUrl,
         ...(signatureApiKeyEncrypted ? { signatureApiKeyEncrypted } : {}),
       },
       create: {
         workspaceId,
-        imapHost: dto.imapHost,
-        imapPort: dto.imapPort,
-        imapUser: dto.imapUser,
-        imapPasswordEncrypted,
         projectTypologies: normalizedProjectTypologies ?? DEFAULT_PROJECT_TYPOLOGIES,
+        associatedSocietyId,
         signatureProvider: dto.signatureProvider,
         signatureApiBaseUrl: dto.signatureApiBaseUrl,
         signatureApiKeyEncrypted,
@@ -155,10 +415,8 @@ export class WorkspacesService {
       select: {
         id: true,
         workspaceId: true,
-        imapHost: true,
-        imapPort: true,
-        imapUser: true,
         projectTypologies: true,
+        associatedSocietyId: true,
         signatureProvider: true,
         signatureApiBaseUrl: true,
         createdAt: true,
@@ -175,6 +433,24 @@ export class WorkspacesService {
       userId,
     );
 
-    return settings;
+    if (normalizedProjectTypologies) {
+      await this.prisma.workspaceSettings.updateMany({
+        data: {
+          projectTypologies: normalizedProjectTypologies,
+        },
+      });
+    }
+
+    const platformSettings = await this.prisma.platformSettings.findUnique({
+      where: { singletonKey: 'GLOBAL' },
+      select: { imapHost: true, imapPort: true, imapUser: true },
+    });
+
+    return {
+      ...settings,
+      imapHost: platformSettings?.imapHost ?? null,
+      imapPort: platformSettings?.imapPort ?? null,
+      imapUser: platformSettings?.imapUser ?? null,
+    };
   }
 }

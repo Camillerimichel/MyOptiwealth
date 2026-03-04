@@ -1,6 +1,8 @@
 import { CreateProjectDto } from './dto/create-project.dto';
 import { ProjectsService } from './projects.service';
+import { LinkProjectContactDto } from './dto/link-project-contact.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { UpdateProjectContactDto } from './dto/update-project-contact.dto';
 interface AuthUser {
     sub: string;
     activeWorkspaceId: string;
@@ -115,5 +117,113 @@ export declare class ProjectsController {
         collectedAmount: import("@prisma/client/runtime/library").Decimal;
         estimatedMargin: import("@prisma/client/runtime/library").Decimal;
     }) | null>;
+    listProjectContacts(user: AuthUser, projectId: string): Promise<({
+        contact: {
+            society: {
+                id: string;
+                createdAt: Date;
+                workspaceId: string;
+                name: string;
+                updatedAt: Date;
+                legalForm: string | null;
+                siren: string | null;
+                siret: string | null;
+                addressLine1: string | null;
+                addressLine2: string | null;
+                postalCode: string | null;
+                city: string | null;
+                country: string | null;
+            } | null;
+        } & {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            email: string | null;
+            firstName: string;
+            lastName: string;
+            updatedAt: Date;
+            role: import(".prisma/client").$Enums.ContactRole | null;
+            societyId: string | null;
+            phone: string | null;
+        };
+    } & {
+        createdAt: Date;
+        projectId: string;
+        contactId: string;
+        projectRole: import(".prisma/client").$Enums.ContactRole | null;
+    })[]>;
+    addProjectContact(user: AuthUser, projectId: string, dto: LinkProjectContactDto): Promise<{
+        contact: {
+            society: {
+                id: string;
+                createdAt: Date;
+                workspaceId: string;
+                name: string;
+                updatedAt: Date;
+                legalForm: string | null;
+                siren: string | null;
+                siret: string | null;
+                addressLine1: string | null;
+                addressLine2: string | null;
+                postalCode: string | null;
+                city: string | null;
+                country: string | null;
+            } | null;
+        } & {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            email: string | null;
+            firstName: string;
+            lastName: string;
+            updatedAt: Date;
+            role: import(".prisma/client").$Enums.ContactRole | null;
+            societyId: string | null;
+            phone: string | null;
+        };
+    } & {
+        createdAt: Date;
+        projectId: string;
+        contactId: string;
+        projectRole: import(".prisma/client").$Enums.ContactRole | null;
+    }>;
+    updateProjectContact(user: AuthUser, projectId: string, contactId: string, dto: UpdateProjectContactDto): Promise<{
+        contact: {
+            society: {
+                id: string;
+                createdAt: Date;
+                workspaceId: string;
+                name: string;
+                updatedAt: Date;
+                legalForm: string | null;
+                siren: string | null;
+                siret: string | null;
+                addressLine1: string | null;
+                addressLine2: string | null;
+                postalCode: string | null;
+                city: string | null;
+                country: string | null;
+            } | null;
+        } & {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            email: string | null;
+            firstName: string;
+            lastName: string;
+            updatedAt: Date;
+            role: import(".prisma/client").$Enums.ContactRole | null;
+            societyId: string | null;
+            phone: string | null;
+        };
+    } & {
+        createdAt: Date;
+        projectId: string;
+        contactId: string;
+        projectRole: import(".prisma/client").$Enums.ContactRole | null;
+    }>;
+    removeProjectContact(user: AuthUser, projectId: string, contactId: string): Promise<{
+        success: boolean;
+    }>;
 }
 export {};
