@@ -13,6 +13,7 @@ type WorkspaceMembership = {
 type Society = { id: string; name: string };
 
 export default function WorkspaceSettingsPage() {
+  const [activeSubmenu, setActiveSubmenu] = useState<'workspaces' | 'imap'>('workspaces');
   const [workspaces, setWorkspaces] = useState<WorkspaceMembership[]>([]);
   const [allSocieties, setAllSocieties] = useState<Society[]>([]);
   const [societies, setSocieties] = useState<Society[]>([]);
@@ -176,6 +177,24 @@ export default function WorkspaceSettingsPage() {
       {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveSubmenu('workspaces')}
+          className={`rounded px-3 py-2 text-sm ${activeSubmenu === 'workspaces' ? 'bg-[var(--brand)] text-white' : 'border border-[var(--line)]'}`}
+        >
+          Workspaces
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSubmenu('imap')}
+          className={`rounded px-3 py-2 text-sm ${activeSubmenu === 'imap' ? 'bg-[var(--brand)] text-white' : 'border border-[var(--line)]'}`}
+        >
+          IMAP
+        </button>
+      </div>
+
+      {activeSubmenu === 'workspaces' ? (
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-semibold">Workspaces</h2>
@@ -300,22 +319,15 @@ export default function WorkspaceSettingsPage() {
           ))}
         </ul>
       </article>
+      ) : null}
 
+      {activeSubmenu === 'imap' ? (
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <h2 className="font-semibold">Workspace settings (IMAP / Signature)</h2>
+        <h2 className="font-semibold">Parametrage IMAP (recuperation des mails)</h2>
         <div className="mt-3 grid gap-2 lg:grid-cols-3">
           <input value={imapHost} onChange={(e) => setImapHost(e.target.value)} placeholder="IMAP host" className="rounded border border-[var(--line)] px-3 py-2" />
           <input type="number" value={imapPort} onChange={(e) => setImapPort(Number(e.target.value))} placeholder="IMAP port" className="rounded border border-[var(--line)] px-3 py-2" />
           <input value={imapUser} onChange={(e) => setImapUser(e.target.value)} placeholder="IMAP user" className="rounded border border-[var(--line)] px-3 py-2" />
-          <input value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="Nom du workspace" className="rounded border border-[var(--line)] px-3 py-2" />
-          <select value={associatedSocietyId} onChange={(e) => setAssociatedSocietyId(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
-            <option value="">Société associée au workspace</option>
-            {societies.map((society) => (
-              <option key={society.id} value={society.id}>
-                {society.name}
-              </option>
-            ))}
-          </select>
           <input value={imapPassword} onChange={(e) => setImapPassword(e.target.value)} placeholder="IMAP password (optional update)" type="password" className="rounded border border-[var(--line)] px-3 py-2" />
           <select value={signatureProvider} onChange={(e) => setSignatureProvider(e.target.value as 'MOCK' | 'YOUSIGN' | 'DOCUSIGN')} className="rounded border border-[var(--line)] px-3 py-2">
             <option value="MOCK">MOCK</option>
@@ -329,6 +341,7 @@ export default function WorkspaceSettingsPage() {
           Enregistrer settings
         </button>
       </article>
+      ) : null}
 
     </>
   );
