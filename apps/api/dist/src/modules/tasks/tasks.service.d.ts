@@ -38,10 +38,17 @@ export declare class TasksService {
         description: string;
         projectId: string;
         projectPhaseId: string | null;
+        startsAfterTaskId: string | null;
         privateComment: string | null;
         startDate: Date | null;
         expectedEndDate: Date | null;
         actualEndDate: Date | null;
+        planningStartDate: Date | null;
+        plannedDurationDays: number | null;
+        overrunDays: number;
+        planningEndDate: Date | null;
+        progressPercent: number;
+        fte: number;
         orderNumber: number;
         priority: number;
         status: import(".prisma/client").$Enums.TaskStatus;
@@ -81,10 +88,17 @@ export declare class TasksService {
         description: string;
         projectId: string;
         projectPhaseId: string | null;
+        startsAfterTaskId: string | null;
         privateComment: string | null;
         startDate: Date | null;
         expectedEndDate: Date | null;
         actualEndDate: Date | null;
+        planningStartDate: Date | null;
+        plannedDurationDays: number | null;
+        overrunDays: number;
+        planningEndDate: Date | null;
+        progressPercent: number;
+        fte: number;
         orderNumber: number;
         priority: number;
         status: import(".prisma/client").$Enums.TaskStatus;
@@ -103,10 +117,10 @@ export declare class TasksService {
             workspaceId: string;
             name: string;
             updatedAt: Date;
+            progressPercent: number;
             societyId: string;
             missionType: string | null;
             currentPhase: import(".prisma/client").$Enums.ProjectPhaseCode;
-            progressPercent: number;
             estimatedFees: Prisma.Decimal;
             invoicedAmount: Prisma.Decimal;
             collectedAmount: Prisma.Decimal;
@@ -121,6 +135,10 @@ export declare class TasksService {
             title: string;
             projectId: string;
             position: number;
+        } | null;
+        startsAfterTask: {
+            id: string;
+            description: string;
         } | null;
         assignee: {
             id: string;
@@ -154,10 +172,17 @@ export declare class TasksService {
         description: string;
         projectId: string;
         projectPhaseId: string | null;
+        startsAfterTaskId: string | null;
         privateComment: string | null;
         startDate: Date | null;
         expectedEndDate: Date | null;
         actualEndDate: Date | null;
+        planningStartDate: Date | null;
+        plannedDurationDays: number | null;
+        overrunDays: number;
+        planningEndDate: Date | null;
+        progressPercent: number;
+        fte: number;
         orderNumber: number;
         priority: number;
         status: import(".prisma/client").$Enums.TaskStatus;

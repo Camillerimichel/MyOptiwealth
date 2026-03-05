@@ -7,6 +7,13 @@ export declare class CreateTaskDto {
     startDate?: Date;
     expectedEndDate?: Date;
     actualEndDate?: Date;
+    startsAfterTaskId?: string;
+    planningStartDate?: Date;
+    plannedDurationDays?: number;
+    overrunDays?: number;
+    planningEndDate?: Date;
+    progressPercent?: number;
+    fte?: number;
     priority: number;
     orderNumber?: number;
     status?: TaskStatus;

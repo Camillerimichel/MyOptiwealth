@@ -422,6 +422,13 @@ export const apiClient = {
         startDate?: string | null;
         expectedEndDate?: string | null;
         actualEndDate?: string | null;
+        startsAfterTaskId?: string | null;
+        planningStartDate?: string | null;
+        plannedDurationDays?: number | null;
+        overrunDays?: number;
+        planningEndDate?: string | null;
+        progressPercent?: number;
+        fte?: number;
         status: string;
         priority: number;
         orderNumber: number;
@@ -436,6 +443,7 @@ export const apiClient = {
         }>;
         assignee?: { id: string; email: string } | null;
         companyOwnerContact?: { id: string; firstName: string; lastName: string; society?: { name: string } | null } | null;
+        startsAfterTask?: { id: string; description: string } | null;
       }>
     >('/tasks/kanban', { token });
   },
@@ -472,6 +480,13 @@ export const apiClient = {
       startDate?: string | null;
       expectedEndDate?: string | null;
       actualEndDate?: string | null;
+      startsAfterTaskId?: string | null;
+      planningStartDate?: string | null;
+      plannedDurationDays?: number | null;
+      overrunDays?: number;
+      planningEndDate?: string | null;
+      progressPercent?: number;
+      fte?: number;
       priority?: number;
       orderNumber?: number;
       status?: string;

@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsInt,
   IsOptional,
+  IsNumber,
   IsString,
   Max,
   Min,
@@ -41,6 +42,43 @@ export class CreateTaskDto {
   @Type(() => Date)
   @IsDate()
   actualEndDate?: Date;
+
+  @IsOptional()
+  @IsString()
+  startsAfterTaskId?: string;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  planningStartDate?: Date;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  plannedDurationDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  overrunDays?: number;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  planningEndDate?: Date;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  progressPercent?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.1)
+  @Max(10)
+  fte?: number;
 
   @IsInt()
   @Min(1)

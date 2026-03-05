@@ -19,9 +19,6 @@ type Task = {
   projectId: string;
   description: string;
   privateComment?: string | null;
-  startDate?: string | null;
-  expectedEndDate?: string | null;
-  actualEndDate?: string | null;
   status: string;
   priority: number;
   orderNumber: number;
@@ -74,16 +71,6 @@ function taskStatusBadgeClass(status: string): string {
   }
 }
 
-function toDateInputValue(value?: string | null): string {
-  if (!value) return '';
-  return value.slice(0, 10);
-}
-
-function toApiDateValue(value: string): string | undefined {
-  if (!value) return undefined;
-  return `${value}T00:00:00.000Z`;
-}
-
 function userDisplayName(user: { email: string; firstName?: string | null; lastName?: string | null }): string {
   const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
   return fullName || user.email;
@@ -101,17 +88,12 @@ export default function TasksPage() {
   const [priority, setPriority] = useState(2);
   const [orderNumber, setOrderNumber] = useState(1);
   const [status, setStatus] = useState('TODO');
-  const [startDate, setStartDate] = useState('');
-  const [expectedEndDate, setExpectedEndDate] = useState('');
-  const [actualEndDate, setActualEndDate] = useState('');
   const [assigneeId, setAssigneeId] = useState('');
   const [companyOwnerContactId, setCompanyOwnerContactId] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [projectFilterId, setProjectFilterId] = useState('');
-  const [sortBy, setSortBy] = useState<
-    'status' | 'rank' | 'priority' | 'description' | 'startDate' | 'expectedEndDate' | 'actualEndDate'
-  >('rank');
+  const [sortBy, setSortBy] = useState<'status' | 'rank' | 'priority' | 'description'>('rank');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeProjectTitle, setActiveProjectTitle] = useState<string | null>(null);
@@ -222,9 +204,6 @@ export default function TasksPage() {
         projectId: targetProjectId,
         description,
         privateComment: privateComment || null,
-        startDate: toApiDateValue(startDate) ?? null,
-        expectedEndDate: toApiDateValue(expectedEndDate) ?? null,
-        actualEndDate: toApiDateValue(actualEndDate) ?? null,
         priority,
         orderNumber,
         status,
@@ -237,9 +216,6 @@ export default function TasksPage() {
         projectId: targetProjectId,
         description,
         privateComment: privateComment || undefined,
-        startDate: toApiDateValue(startDate),
-        expectedEndDate: toApiDateValue(expectedEndDate),
-        actualEndDate: toApiDateValue(actualEndDate),
         priority,
         orderNumber,
         status: 'TODO',
@@ -256,9 +232,6 @@ export default function TasksPage() {
     setPriority(2);
     setOrderNumber(1);
     setStatus('TODO');
-    setStartDate('');
-    setExpectedEndDate('');
-    setActualEndDate('');
     setAssigneeId('');
     setCompanyOwnerContactId('');
     setShowTaskForm(false);
@@ -277,9 +250,6 @@ export default function TasksPage() {
     setPriority(task.priority);
     setOrderNumber(task.orderNumber);
     setStatus(task.status);
-    setStartDate(toDateInputValue(task.startDate));
-    setExpectedEndDate(toDateInputValue(task.expectedEndDate));
-    setActualEndDate(toDateInputValue(task.actualEndDate));
     setAssigneeId(task.assignee?.id ?? '');
     setCompanyOwnerContactId(task.companyOwnerContact?.id ?? '');
     setActiveTaskId(task.id);
@@ -334,9 +304,6 @@ export default function TasksPage() {
     setPriority(2);
     setOrderNumber(1);
     setStatus('TODO');
-    setStartDate('');
-    setExpectedEndDate('');
-    setActualEndDate('');
     setAssigneeId('');
     setCompanyOwnerContactId('');
     setShowTaskForm(false);
@@ -355,12 +322,6 @@ export default function TasksPage() {
       default:
         return 99;
     }
-  }
-
-  function dateSortValue(value?: string | null): number {
-    if (!value) return Number.MAX_SAFE_INTEGER;
-    const timestamp = new Date(value).getTime();
-    return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp;
   }
 
   const sortedTasks = useMemo(() => {
@@ -388,28 +349,12 @@ export default function TasksPage() {
         if (cmp === 0) return a.orderNumber - b.orderNumber;
         return sortDirection === 'asc' ? cmp : -cmp;
       }
-      if (sortBy === 'startDate') {
-        const left = dateSortValue(a.startDate);
-        const right = dateSortValue(b.startDate);
-        if (left === right) return a.orderNumber - b.orderNumber;
-        return sortDirection === 'asc' ? left - right : right - left;
-      }
-      if (sortBy === 'expectedEndDate') {
-        const left = dateSortValue(a.expectedEndDate);
-        const right = dateSortValue(b.expectedEndDate);
-        if (left === right) return a.orderNumber - b.orderNumber;
-        return sortDirection === 'asc' ? left - right : right - left;
-      }
-
-      const left = dateSortValue(a.actualEndDate);
-      const right = dateSortValue(b.actualEndDate);
-      if (left === right) return a.orderNumber - b.orderNumber;
-      return sortDirection === 'asc' ? left - right : right - left;
+      return a.orderNumber - b.orderNumber;
     });
     return sorted;
   }, [tasks, activeProjectId, projectFilterId, sortBy, sortDirection]);
 
-  function onSort(column: 'status' | 'rank' | 'priority' | 'description' | 'startDate' | 'expectedEndDate' | 'actualEndDate'): void {
+  function onSort(column: 'status' | 'rank' | 'priority' | 'description'): void {
     if (sortBy === column) {
       setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
       return;
@@ -418,7 +363,7 @@ export default function TasksPage() {
     setSortDirection('asc');
   }
 
-  function sortIndicator(column: 'status' | 'rank' | 'priority' | 'description' | 'startDate' | 'expectedEndDate' | 'actualEndDate'): string {
+  function sortIndicator(column: 'status' | 'rank' | 'priority' | 'description'): string {
     if (sortBy !== column) return '';
     return sortDirection === 'asc' ? ' ▲' : ' ▼';
   }
@@ -545,39 +490,6 @@ export default function TasksPage() {
             </select>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-            <label className="grid gap-1 text-sm text-[#4f4d45] lg:col-span-4">
-              Date de début
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="rounded border border-[var(--line)] px-3 py-2"
-                aria-label="Date de début"
-              />
-            </label>
-            <label className="grid gap-1 text-sm text-[#4f4d45] lg:col-span-4">
-              Date de fin attendue
-              <input
-                type="date"
-                value={expectedEndDate}
-                onChange={(e) => setExpectedEndDate(e.target.value)}
-                className="rounded border border-[var(--line)] px-3 py-2"
-                aria-label="Date de fin attendue"
-              />
-            </label>
-            <label className="grid gap-1 text-sm text-[#4f4d45] lg:col-span-4">
-              Date de fin réelle
-              <input
-                type="date"
-                value={actualEndDate}
-                onChange={(e) => setActualEndDate(e.target.value)}
-                className="rounded border border-[var(--line)] px-3 py-2"
-                aria-label="Date de fin réelle"
-              />
-            </label>
-          </div>
-
           <div className="grid gap-3 lg:grid-cols-12">
             <textarea
               value={privateComment}
@@ -632,9 +544,6 @@ export default function TasksPage() {
                 setPriority(2);
                 setOrderNumber(1);
                 setStatus('TODO');
-                setStartDate('');
-                setExpectedEndDate('');
-                setActualEndDate('');
                 setAssigneeId('');
                 setCompanyOwnerContactId('');
                 setShowTaskForm(true);
@@ -683,21 +592,6 @@ export default function TasksPage() {
                   </button>
                 </th>
                 <th className="px-2 py-2">Projet</th>
-                <th className="px-2 py-2">
-                  <button type="button" onClick={() => onSort('startDate')} className="font-semibold hover:underline">
-                    Début{sortIndicator('startDate')}
-                  </button>
-                </th>
-                <th className="px-2 py-2">
-                  <button type="button" onClick={() => onSort('expectedEndDate')} className="font-semibold hover:underline">
-                    Fin attendue{sortIndicator('expectedEndDate')}
-                  </button>
-                </th>
-                <th className="px-2 py-2">
-                  <button type="button" onClick={() => onSort('actualEndDate')} className="font-semibold hover:underline">
-                    Fin réelle{sortIndicator('actualEndDate')}
-                  </button>
-                </th>
                 <th className="px-2 py-2">Action</th>
               </tr>
             </thead>
@@ -727,9 +621,6 @@ export default function TasksPage() {
                     ) : null}
                   </td>
                   <td className="px-2 py-2">{task.project?.name ?? '-'}</td>
-                  <td className="px-2 py-2">{toDateInputValue(task.startDate) || '-'}</td>
-                  <td className="px-2 py-2">{toDateInputValue(task.expectedEndDate) || '-'}</td>
-                  <td className="px-2 py-2">{toDateInputValue(task.actualEndDate) || '-'}</td>
                   <td className="px-2 py-2">
                     <button
                       type="button"

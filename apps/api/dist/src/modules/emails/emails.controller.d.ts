@@ -15,10 +15,10 @@ export declare class EmailsController {
             workspaceId: string;
             name: string;
             updatedAt: Date;
+            progressPercent: number;
             societyId: string;
             missionType: string | null;
             currentPhase: import(".prisma/client").$Enums.ProjectPhaseCode;
-            progressPercent: number;
             estimatedFees: import("@prisma/client/runtime/library").Decimal;
             invoicedAmount: import("@prisma/client/runtime/library").Decimal;
             collectedAmount: import("@prisma/client/runtime/library").Decimal;

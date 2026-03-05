@@ -264,11 +264,18 @@ model Task {
   workspaceId     String
   projectId       String
   projectPhaseId  String?
+  startsAfterTaskId String?
   description     String
   privateComment  String?
   startDate       DateTime?
   expectedEndDate DateTime?
   actualEndDate   DateTime?
+  planningStartDate DateTime?
+  plannedDurationDays Int?
+  overrunDays     Int         @default(0)
+  planningEndDate DateTime?
+  progressPercent Int         @default(0)
+  fte             Float       @default(1)
   orderNumber     Int         @default(1)
   priority        Int
   status          TaskStatus  @default(TODO)
@@ -281,6 +288,8 @@ model Task {
   workspace       Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project         Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   phase           ProjectPhase? @relation(fields: [projectPhaseId], references: [id], onDelete: SetNull)
+  startsAfterTask Task?       @relation("TaskDependency", fields: [startsAfterTaskId], references: [id], onDelete: SetNull)
+  dependentTasks  Task[]      @relation("TaskDependency")
   assignee        User?       @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   companyOwnerContact Contact? @relation("TaskCompanyOwner", fields: [companyOwnerContactId], references: [id], onDelete: SetNull)
   contacts        TaskContact[]
@@ -289,6 +298,7 @@ model Task {
 
   @@index([workspaceId])
   @@index([projectId])
+  @@index([startsAfterTaskId])
   @@index([assigneeId])
   @@index([companyOwnerContactId])
   @@index([workspaceId, status, orderNumber])

@@ -21,8 +21,8 @@ const links = [
   { href: '/tasks', label: 'Tasks' },
   { href: '/emails', label: 'Emails' },
   { href: '/documents', label: 'Documents' },
-  { href: '/finance', label: 'Finance' },
   { href: '/timesheet', label: 'Timesheet' },
+  { href: '/finance', label: 'Finance' },
   { href: '/boite-mail', label: 'Boite mail' },
   {
     href: '/settings',

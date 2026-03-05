@@ -56,6 +56,50 @@ __decorate([
 ], UpdateTaskDto.prototype, "actualEndDate", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", Object)
+], UpdateTaskDto.prototype, "startsAfterTaskId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Date),
+    (0, class_validator_1.IsDate)(),
+    __metadata("design:type", Object)
+], UpdateTaskDto.prototype, "planningStartDate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Object)
+], UpdateTaskDto.prototype, "plannedDurationDays", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    __metadata("design:type", Number)
+], UpdateTaskDto.prototype, "overrunDays", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Date),
+    (0, class_validator_1.IsDate)(),
+    __metadata("design:type", Object)
+], UpdateTaskDto.prototype, "planningEndDate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(0),
+    (0, class_validator_1.Max)(100),
+    __metadata("design:type", Number)
+], UpdateTaskDto.prototype, "progressPercent", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(0.1),
+    (0, class_validator_1.Max)(10),
+    __metadata("design:type", Number)
+], UpdateTaskDto.prototype, "fte", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsInt)(),
     (0, class_validator_1.Min)(1),
     (0, class_validator_1.Max)(3),

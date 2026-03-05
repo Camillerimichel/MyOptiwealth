@@ -16,10 +16,10 @@ export declare class EmailsService {
             workspaceId: string;
             name: string;
             updatedAt: Date;
+            progressPercent: number;
             societyId: string;
             missionType: string | null;
             currentPhase: import(".prisma/client").$Enums.ProjectPhaseCode;
-            progressPercent: number;
             estimatedFees: Prisma.Decimal;
             invoicedAmount: Prisma.Decimal;
             collectedAmount: Prisma.Decimal;

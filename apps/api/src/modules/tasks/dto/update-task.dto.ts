@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsInt,
   IsOptional,
+  IsNumber,
   IsString,
   Max,
   Min,
@@ -42,6 +43,43 @@ export class UpdateTaskDto {
   @Type(() => Date)
   @IsDate()
   actualEndDate?: Date | null;
+
+  @IsOptional()
+  @IsString()
+  startsAfterTaskId?: string | null;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  planningStartDate?: Date | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  plannedDurationDays?: number | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  overrunDays?: number;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  planningEndDate?: Date | null;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  progressPercent?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.1)
+  @Max(10)
+  fte?: number;
 
   @IsOptional()
   @IsInt()
