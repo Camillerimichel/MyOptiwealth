@@ -1,7 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { FinancialDocumentType } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { PrismaService } from '../prisma.service';
-import { CreateFinanceDocumentDto } from './dto/create-finance-document.dto';
+import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { CreateQuoteDto } from './dto/create-quote.dto';
+import { UpdateFinanceDocumentDto } from './dto/update-finance-document.dto';
 
 @Injectable()
 export class FinanceService {
@@ -10,27 +13,134 @@ export class FinanceService {
     private readonly auditService: AuditService,
   ) {}
 
-  async createDocument(workspaceId: string, userId: string, dto: CreateFinanceDocumentDto) {
+  async createQuote(workspaceId: string, userId: string, dto: CreateQuoteDto) {
+    const project = await this.prisma.project.findFirst({
+      where: { id: dto.projectId, workspaceId },
+      select: { id: true, name: true },
+    });
+    if (!project) {
+      throw new BadRequestException('Projet invalide pour ce workspace.');
+    }
+
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { name: true },
+    });
+    if (!workspace) {
+      throw new NotFoundException('Workspace introuvable.');
+    }
+
+    const nextIndex = await this.nextQuoteIndex(workspaceId, project.id);
+    const generatedReference = this.buildQuoteReference(
+      workspace.name,
+      project.name,
+      nextIndex,
+    );
+
     const doc = await this.prisma.financeDocument.create({
       data: {
         workspaceId,
-        projectId: dto.projectId,
-        type: dto.type,
-        reference: dto.reference,
+        projectId: project.id,
+        type: FinancialDocumentType.QUOTE,
+        name: `Devis ${workspace.name} - ${project.name} (${nextIndex})`,
+        reference: generatedReference,
         amount: dto.amount,
+        issuedAt: dto.issuedAt ?? new Date(),
         dueDate: dto.dueDate,
-        status: dto.status,
+        status: 'OPEN',
       },
     });
 
     await this.auditService.log(
       workspaceId,
       'FINANCIAL_CHANGE',
-      { financeDocumentId: doc.id, type: dto.type, amount: dto.amount },
+      { financeDocumentId: doc.id, type: 'QUOTE', amount: dto.amount, reference: doc.reference },
       userId,
     );
 
     return doc;
+  }
+
+  async createInvoice(workspaceId: string, userId: string, dto: CreateInvoiceDto) {
+    const quote = await this.prisma.financeDocument.findFirst({
+      where: {
+        id: dto.quoteId,
+        workspaceId,
+        type: FinancialDocumentType.QUOTE,
+      },
+      include: { project: { select: { id: true, name: true } } },
+    });
+    if (!quote) {
+      throw new BadRequestException('Devis introuvable dans ce workspace.');
+    }
+
+    const maxInvoice = await this.prisma.financeDocument.aggregate({
+      where: { quoteId: quote.id, type: FinancialDocumentType.INVOICE },
+      _max: { invoiceIndex: true },
+    });
+    const invoiceIndex = (maxInvoice._max.invoiceIndex ?? 0) + 1;
+    const status = dto.status ?? 'PENDING';
+
+    const doc = await this.prisma.financeDocument.create({
+      data: {
+        workspaceId,
+        projectId: quote.projectId,
+        quoteId: quote.id,
+        invoiceIndex,
+        type: FinancialDocumentType.INVOICE,
+        name: `Facture ${invoiceIndex} - ${quote.project.name}`,
+        reference: `${quote.reference}-F-${invoiceIndex}`,
+        accountingRef: dto.accountingRef ?? null,
+        amount: dto.amount,
+        issuedAt: dto.issuedAt ?? new Date(),
+        dueDate: dto.dueDate,
+        status,
+        paidAt: status === 'PAID' ? (dto.issuedAt ?? new Date()) : null,
+      },
+    });
+
+    await this.auditService.log(
+      workspaceId,
+      'FINANCIAL_CHANGE',
+      { financeDocumentId: doc.id, type: 'INVOICE', amount: dto.amount, quoteId: quote.id, reference: doc.reference },
+      userId,
+    );
+
+    return doc;
+  }
+
+  async updateDocument(workspaceId: string, userId: string, documentId: string, dto: UpdateFinanceDocumentDto) {
+    const existing = await this.prisma.financeDocument.findFirst({
+      where: { id: documentId, workspaceId },
+      select: { id: true, type: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Document financier introuvable.');
+    }
+
+    const normalizedStatus = this.normalizeStatusForDocumentType(existing.type, dto.status);
+
+    const updated = await this.prisma.financeDocument.update({
+      where: { id: documentId },
+      data: {
+        name: dto.name ?? undefined,
+        amount: dto.amount ?? undefined,
+        issuedAt: dto.issuedAt ?? undefined,
+        dueDate: dto.dueDate === null ? null : dto.dueDate ?? undefined,
+        status: normalizedStatus ?? undefined,
+        paidAt: dto.paidAt === null ? null : dto.paidAt ?? undefined,
+        accountingRef: dto.accountingRef === null ? null : dto.accountingRef ?? undefined,
+      },
+    });
+
+    await this.auditService.log(
+      workspaceId,
+      'FINANCIAL_CHANGE',
+      { financeDocumentId: updated.id, type: existing.type, status: updated.status, amount: updated.amount },
+      userId,
+    );
+
+    return updated;
   }
 
   listByWorkspace(workspaceId: string) {
@@ -41,29 +151,163 @@ export class FinanceService {
     });
   }
 
-  async kpis(workspaceId: string) {
-    const projects = await this.prisma.project.findMany({
-      where: { workspaceId },
-      select: {
-        invoicedAmount: true,
-        collectedAmount: true,
-        estimatedMargin: true,
+  async overview(workspaceId: string, projectId?: string) {
+    const where = {
+      workspaceId,
+      type: FinancialDocumentType.QUOTE,
+      ...(projectId ? { projectId } : {}),
+    };
+    const quotes = await this.prisma.financeDocument.findMany({
+      where,
+      include: {
+        project: true,
+        invoices: {
+          where: { type: FinancialDocumentType.INVOICE },
+          orderBy: [{ invoiceIndex: 'asc' }, { createdAt: 'asc' }],
+        },
       },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const totals = projects.reduce(
-      (acc, project) => ({
-        invoiced: acc.invoiced + Number(project.invoicedAmount),
-        collected: acc.collected + Number(project.collectedAmount),
-        margin: acc.margin + Number(project.estimatedMargin),
+    return quotes.map((quote) => {
+      const paidInvoicesTotal = quote.invoices
+        .filter((invoice) => invoice.status === 'PAID')
+        .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+      const pendingInvoicesTotal = quote.invoices
+        .filter((invoice) => invoice.status !== 'PAID')
+        .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+
+      return {
+        quote: {
+          id: quote.id,
+          projectId: quote.projectId,
+          projectName: quote.project.name,
+          name: quote.name,
+          reference: quote.reference,
+          accountingRef: quote.accountingRef,
+          amount: Number(quote.amount),
+          status: quote.status,
+          issuedAt: quote.issuedAt,
+          dueDate: quote.dueDate,
+        },
+        totals: {
+          paidInvoicesTotal,
+          pendingInvoicesTotal,
+        },
+        invoices: quote.invoices.map((invoice) => ({
+          id: invoice.id,
+          name: invoice.name,
+          reference: invoice.reference,
+          accountingRef: invoice.accountingRef,
+          amount: Number(invoice.amount),
+          status: invoice.status,
+          invoiceIndex: invoice.invoiceIndex,
+          issuedAt: invoice.issuedAt,
+          dueDate: invoice.dueDate,
+          paidAt: invoice.paidAt,
+        })),
+      };
+    });
+  }
+
+  async kpis(workspaceId: string, projectId?: string) {
+    const [quotes, invoices] = await Promise.all([
+      this.prisma.financeDocument.findMany({
+        where: {
+          workspaceId,
+          type: FinancialDocumentType.QUOTE,
+          ...(projectId ? { projectId } : {}),
+        },
+        select: {
+          amount: true,
+          status: true,
+        },
       }),
-      { invoiced: 0, collected: 0, margin: 0 },
+      this.prisma.financeDocument.findMany({
+      where: {
+        workspaceId,
+        type: FinancialDocumentType.INVOICE,
+        ...(projectId ? { projectId } : {}),
+      },
+      select: {
+        amount: true,
+        status: true,
+      },
+      }),
+    ]);
+
+    const billedRevenue = quotes
+      .filter((quote) => (quote.status || '').toUpperCase() !== 'CANCELLED')
+      .reduce((sum, quote) => sum + Number(quote.amount), 0);
+
+    const invoiceTotals = invoices.reduce(
+      (acc, invoice) => {
+        const amount = Number(invoice.amount);
+        const status = (invoice.status || '').toUpperCase();
+        if (status === 'PAID') {
+          acc.collected += amount;
+          return acc;
+        }
+        return acc;
+      },
+      { collected: 0 },
     );
 
+    const pendingRevenue = Math.max(0, billedRevenue - invoiceTotals.collected);
+
     return {
-      billedRevenue: totals.invoiced,
-      collectedRevenue: totals.collected,
-      estimatedMargin: totals.margin,
+      billedRevenue,
+      collectedRevenue: invoiceTotals.collected,
+      pendingRevenue,
+      estimatedMargin: 0,
     };
+  }
+
+  private async nextQuoteIndex(workspaceId: string, projectId: string): Promise<number> {
+    const count = await this.prisma.financeDocument.count({
+      where: {
+        workspaceId,
+        projectId,
+        type: FinancialDocumentType.QUOTE,
+      },
+    });
+    return count + 1;
+  }
+
+  private buildQuoteReference(workspaceName: string, projectName: string, index: number): string {
+    const workspaceToken = this.toReferenceToken(workspaceName);
+    const projectToken = this.toReferenceToken(projectName);
+    return `${workspaceToken}-${projectToken}-TEMPO-${index}`;
+  }
+
+  private toReferenceToken(value: string): string {
+    const normalized = value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 40);
+    return normalized || 'NA';
+  }
+
+  private normalizeStatusForDocumentType(type: FinancialDocumentType, rawStatus?: string): string | null {
+    if (!rawStatus) return null;
+    const normalized = rawStatus
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toUpperCase();
+
+    if (type === FinancialDocumentType.QUOTE) {
+      if (normalized === 'OPEN' || normalized === 'OUVERT') return 'OPEN';
+      if (normalized === 'CANCELLED' || normalized === 'ANNULE' || normalized === 'ANNULEE') return 'CANCELLED';
+      throw new BadRequestException('Pour un devis, le statut doit etre OPEN ou CANCELLED.');
+    }
+
+    if (normalized === 'PENDING' || normalized === 'EN ATTENTE' || normalized === 'EN_ATTENTE') return 'PENDING';
+    if (normalized === 'PAID' || normalized === 'PAYE' || normalized === 'PAYEE') return 'PAID';
+    if (normalized === 'CANCELLED' || normalized === 'ANNULE' || normalized === 'ANNULEE') return 'CANCELLED';
+    throw new BadRequestException('Pour une facture, le statut doit etre PENDING, PAID ou CANCELLED.');
   }
 }

@@ -400,18 +400,27 @@ model FinanceDocument {
   id                  String               @id @default(cuid())
   workspaceId         String
   projectId           String
+  quoteId             String?
+  invoiceIndex        Int?
   type                FinancialDocumentType
+  name                String
   reference           String
+  accountingRef       String?
   amount              Decimal
+  issuedAt            DateTime
   dueDate             DateTime?
+  paidAt              DateTime?
   status              String
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   workspace           Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  quote               FinanceDocument?     @relation("QuoteInvoices", fields: [quoteId], references: [id], onDelete: SetNull)
+  invoices            FinanceDocument[]    @relation("QuoteInvoices")
 
   @@index([workspaceId])
   @@index([projectId])
+  @@index([quoteId])
 }
 
 model Payment {

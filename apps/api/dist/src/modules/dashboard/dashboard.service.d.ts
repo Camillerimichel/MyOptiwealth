@@ -44,6 +44,7 @@ export declare class DashboardService {
         globalKpis: {
             billedRevenue: number;
             collectedRevenue: number;
+            pendingRevenue: number;
             estimatedMargin: number;
         };
         calendarPreview: {

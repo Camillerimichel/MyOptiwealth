@@ -1,4 +1,6 @@
-import { CreateFinanceDocumentDto } from './dto/create-finance-document.dto';
+import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { CreateQuoteDto } from './dto/create-quote.dto';
+import { UpdateFinanceDocumentDto } from './dto/update-finance-document.dto';
 import { FinanceService } from './finance.service';
 interface AuthUser {
     sub: string;
@@ -27,29 +29,108 @@ export declare class FinanceController {
         id: string;
         createdAt: Date;
         workspaceId: string;
+        name: string;
         updatedAt: Date;
         projectId: string;
         status: string;
         dueDate: Date | null;
+        quoteId: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        accountingRef: string | null;
+        paidAt: Date | null;
+        invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
-        amount: import("@prisma/client/runtime/library").Decimal;
     })[]>;
-    create(user: AuthUser, dto: CreateFinanceDocumentDto): Promise<{
+    overview(user: AuthUser, projectId?: string): Promise<{
+        quote: {
+            id: string;
+            projectId: string;
+            projectName: string;
+            name: string;
+            reference: string;
+            accountingRef: string | null;
+            amount: number;
+            status: string;
+            issuedAt: Date;
+            dueDate: Date | null;
+        };
+        totals: {
+            paidInvoicesTotal: number;
+            pendingInvoicesTotal: number;
+        };
+        invoices: {
+            id: string;
+            name: string;
+            reference: string;
+            accountingRef: string | null;
+            amount: number;
+            status: string;
+            invoiceIndex: number | null;
+            issuedAt: Date;
+            dueDate: Date | null;
+            paidAt: Date | null;
+        }[];
+    }[]>;
+    createQuote(user: AuthUser, dto: CreateQuoteDto): Promise<{
         id: string;
         createdAt: Date;
         workspaceId: string;
+        name: string;
         updatedAt: Date;
         projectId: string;
         status: string;
         dueDate: Date | null;
+        quoteId: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        accountingRef: string | null;
+        paidAt: Date | null;
+        invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
-        amount: import("@prisma/client/runtime/library").Decimal;
     }>;
-    kpis(user: AuthUser): Promise<{
+    createInvoice(user: AuthUser, dto: CreateInvoiceDto): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        name: string;
+        updatedAt: Date;
+        projectId: string;
+        status: string;
+        dueDate: Date | null;
+        quoteId: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        accountingRef: string | null;
+        paidAt: Date | null;
+        invoiceIndex: number | null;
+        type: import(".prisma/client").$Enums.FinancialDocumentType;
+        reference: string;
+    }>;
+    updateDocument(user: AuthUser, documentId: string, dto: UpdateFinanceDocumentDto): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        name: string;
+        updatedAt: Date;
+        projectId: string;
+        status: string;
+        dueDate: Date | null;
+        quoteId: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        accountingRef: string | null;
+        paidAt: Date | null;
+        invoiceIndex: number | null;
+        type: import(".prisma/client").$Enums.FinancialDocumentType;
+        reference: string;
+    }>;
+    kpis(user: AuthUser, projectId?: string): Promise<{
         billedRevenue: number;
         collectedRevenue: number;
+        pendingRevenue: number;
         estimatedMargin: number;
     }>;
 }

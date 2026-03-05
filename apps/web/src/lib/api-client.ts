@@ -730,8 +730,9 @@ export const apiClient = {
     return fetchBlobWithAuth(`/documents/${id}/view`, token);
   },
 
-  financeKpis(token: string) {
-    return request<{ billedRevenue: number; collectedRevenue: number; estimatedMargin: number }>('/finance/kpis', { token });
+  financeKpis(token: string, projectId?: string) {
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    return request<{ billedRevenue: number; collectedRevenue: number; pendingRevenue: number; estimatedMargin: number }>(`/finance/kpis${query}`, { token });
   },
 
   listFinanceDocuments(token: string) {
@@ -749,11 +750,77 @@ export const apiClient = {
     });
   },
 
-  createFinanceDocument(
+  financeOverview(token: string, projectId?: string) {
+    const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : '';
+    return request<
+      Array<{
+        quote: {
+          id: string;
+          projectId: string;
+          projectName: string;
+          name: string;
+          reference: string;
+          accountingRef?: string | null;
+          amount: number;
+          status: string;
+          issuedAt: string;
+          dueDate?: string | null;
+        };
+        totals: {
+          paidInvoicesTotal: number;
+          pendingInvoicesTotal: number;
+        };
+        invoices: Array<{
+          id: string;
+          name: string;
+          reference: string;
+          accountingRef?: string | null;
+          amount: number;
+          status: string;
+          invoiceIndex?: number | null;
+          issuedAt: string;
+          dueDate?: string | null;
+          paidAt?: string | null;
+        }>;
+      }>
+    >(`/finance/overview${query}`, { token });
+  },
+
+  createQuote(
     token: string,
-    payload: { projectId: string; type: 'QUOTE' | 'INVOICE'; reference: string; amount: string; status: string; dueDate?: string },
+    payload: { projectId: string; amount: string; issuedAt?: string; dueDate?: string },
   ) {
-    return request('/finance/documents', { method: 'POST', token, body: payload });
+    return request('/finance/quotes', { method: 'POST', token, body: payload });
+  },
+
+  createInvoice(
+    token: string,
+    payload: {
+      quoteId: string;
+      amount: string;
+      issuedAt?: string;
+      dueDate?: string;
+      status?: 'PENDING' | 'PAID';
+      accountingRef?: string;
+    },
+  ) {
+    return request('/finance/invoices', { method: 'POST', token, body: payload });
+  },
+
+  updateFinanceDocument(
+    token: string,
+    documentId: string,
+    payload: {
+      name?: string;
+      amount?: string;
+      issuedAt?: string;
+      dueDate?: string | null;
+      status?: 'OPEN' | 'PENDING' | 'PAID' | 'CANCELLED';
+      paidAt?: string | null;
+      accountingRef?: string | null;
+    },
+  ) {
+    return request(`/finance/documents/${documentId}`, { method: 'PATCH', token, body: payload });
   },
 
   listTimesheet(token: string) {
