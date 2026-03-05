@@ -24,6 +24,9 @@ let DashboardController = class DashboardController {
     homepage(user) {
         return this.dashboardService.homepage(user.activeWorkspaceId);
     }
+    workspacesOverview(user) {
+        return this.dashboardService.workspacesOverview(user.sub);
+    }
 };
 exports.DashboardController = DashboardController;
 __decorate([
@@ -33,6 +36,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], DashboardController.prototype, "homepage", null);
+__decorate([
+    (0, common_1.Get)('workspaces-overview'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], DashboardController.prototype, "workspacesOverview", null);
 exports.DashboardController = DashboardController = __decorate([
     (0, common_1.Controller)('dashboard'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),

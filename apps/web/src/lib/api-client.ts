@@ -1,4 +1,4 @@
-import { DashboardPayload } from '@/types/api';
+import { DashboardPayload, WorkspaceDashboardOverviewPayload } from '@/types/api';
 import { showToast } from '@/lib/toast';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:7000/api';
@@ -202,6 +202,10 @@ export const apiClient = {
 
   dashboard(token: string) {
     return request<DashboardPayload>('/dashboard/homepage', { token });
+  },
+
+  dashboardWorkspacesOverview(token: string) {
+    return request<WorkspaceDashboardOverviewPayload>('/dashboard/workspaces-overview', { token });
   },
 
   listSocieties(token: string) {

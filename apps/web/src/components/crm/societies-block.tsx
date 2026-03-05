@@ -259,11 +259,11 @@ export function SocietiesBlock() {
       <ul className="mt-4 grid gap-2 text-sm">
         {dedupedSocieties.map((society) => (
           <li key={society.id} className="rounded border border-[var(--line)] bg-[#fbfaf7] px-3 py-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="grid grid-cols-[1fr_auto] items-center gap-2">
               <button
                 type="button"
                 onClick={() => router.push(`/crm/contacts?societyKey=${encodeURIComponent(societyKeyFromName(society.name))}`)}
-                className="font-medium text-[var(--brand)] underline-offset-2 hover:underline"
+                className="mx-auto w-fit max-w-full text-center font-medium text-[var(--brand)] underline-offset-2 hover:underline"
                 title="Voir les contacts de cette societe"
               >
                 {society.name}
@@ -271,7 +271,7 @@ export function SocietiesBlock() {
               <button
                 type="button"
                 onClick={() => onEditSociety(society)}
-                className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                className="justify-self-end rounded border border-[var(--line)] px-2 py-1 text-xs"
               >
                 Voir/Modifier
               </button>

@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
 
 interface AuthUser {
+  sub: string;
   activeWorkspaceId: string;
 }
 
@@ -15,5 +16,10 @@ export class DashboardController {
   @Get('homepage')
   homepage(@CurrentUser() user: AuthUser) {
     return this.dashboardService.homepage(user.activeWorkspaceId);
+  }
+
+  @Get('workspaces-overview')
+  workspacesOverview(@CurrentUser() user: AuthUser) {
+    return this.dashboardService.workspacesOverview(user.sub);
   }
 }

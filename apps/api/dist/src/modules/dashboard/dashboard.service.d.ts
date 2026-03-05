@@ -70,4 +70,46 @@ export declare class DashboardService {
             alertMinutes: number | null;
         }[];
     }>;
+    workspacesOverview(userId: string): Promise<{
+        summary: {
+            billedRevenue: number;
+            collectedRevenue: number;
+            remainingRevenue: number;
+        };
+        upcomingTasks: {
+            id: string;
+            description: string;
+            dueDate: Date | null;
+            priority: number;
+            status: import(".prisma/client").$Enums.TaskStatus;
+            workspace: {
+                id: string;
+                name: string;
+            };
+            project: {
+                id: string;
+                name: string;
+            };
+        }[];
+        workspaces: {
+            workspace: {
+                id: string;
+                name: string;
+            };
+            projectCount: number;
+            progressPercent: number;
+            taskStats: {
+                todo: number;
+                inProgress: number;
+                waiting: number;
+                done: number;
+                total: number;
+            };
+            finance: {
+                billedRevenue: number;
+                collectedRevenue: number;
+                remainingRevenue: number;
+            };
+        }[];
+    }>;
 }

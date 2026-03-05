@@ -2,10 +2,24 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
-import { DashboardPayload } from '@/types/api';
+import { WorkspaceDashboardOverviewPayload } from '@/types/api';
+
+function euro(value: number): string {
+  const formatted = new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+  return `${formatted.replace(/\u202f|\u00a0/g, ' ')} €`;
+}
+
+function progressColor(percent: number): string {
+  if (percent >= 75) return '#16a34a';
+  if (percent >= 40) return '#d97706';
+  return '#dc2626';
+}
 
 export default function DashboardPage() {
-  const [data, setData] = useState<DashboardPayload | null>(null);
+  const [data, setData] = useState<WorkspaceDashboardOverviewPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const token = useMemo(
     () => (typeof window === 'undefined' ? null : localStorage.getItem('mw_access_token')),
@@ -13,12 +27,9 @@ export default function DashboardPage() {
   );
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
-
+    if (!token) return;
     void apiClient
-      .dashboard(token)
+      .dashboardWorkspacesOverview(token)
       .then((payload) => setData(payload))
       .catch(() => setError('Impossible de charger le dashboard.'));
   }, [token]);
@@ -26,35 +37,157 @@ export default function DashboardPage() {
   if (!token) {
     return <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Aucun token détecté.</p>;
   }
-
   if (error) {
     return <p className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>;
   }
-
   if (!data) {
     return <p className="text-sm text-[#5b5952]">Chargement du dashboard...</p>;
   }
 
   return (
-    <section className="grid gap-4">
-      <div className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <h1 className="text-xl font-semibold text-[var(--brand)]">Tâches du jour</h1>
-        <p className="mt-2 text-sm text-[#5b5952]">{data.tasksToday.length} tâches prioritaires.</p>
+    <section className="grid gap-5">
+      <h1 className="text-2xl font-semibold text-[var(--brand)]">Dashboard</h1>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+          <h2 className="mb-3 text-base font-semibold text-[var(--brand)]">Synthèse Finance</h2>
+          <div className="grid gap-2 text-sm">
+            <div className="flex items-center justify-between rounded border border-[var(--line)] bg-[#f9f7f2] px-3 py-2">
+              <span className="text-[#5b5952]">CA facturé</span>
+              <span className="font-semibold">{euro(data.summary.billedRevenue)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded border border-[var(--line)] bg-[#f9f7f2] px-3 py-2">
+              <span className="text-[#5b5952]">CA encaissé</span>
+              <span className="font-semibold">{euro(data.summary.collectedRevenue)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded border border-[var(--line)] bg-[#f9f7f2] px-3 py-2">
+              <span className="text-[#5b5952]">Restant à percevoir</span>
+              <span className="font-semibold">{euro(data.summary.remainingRevenue)}</span>
+            </div>
+          </div>
+        </article>
+
+        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+          <h2 className="mb-3 text-base font-semibold text-[var(--brand)]">
+            Alertes :{' '}
+            {data.upcomingTasks.length === 0 ? 'Aucune' : data.upcomingTasks.length} tâche{data.upcomingTasks.length > 1 ? 's' : ''}{' '}
+            à venir
+          </h2>
+          {data.upcomingTasks.length === 0 ? (
+            <p className="text-sm text-[#5b5952]">Aucune tâche à venir.</p>
+          ) : (
+            <div className="max-h-64 overflow-auto rounded-lg border border-[var(--line)]">
+              <table className="min-w-full table-fixed border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-[var(--line)] bg-[#f9f7f2] text-left text-[#6a6861]">
+                    <th className="w-28 px-2 py-2">Échéance</th>
+                    <th className="px-2 py-2">Tâche</th>
+                    <th className="w-32 px-2 py-2">Workspace</th>
+                    <th className="w-10 px-2 py-2">P</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.upcomingTasks.map((task) => (
+                    <tr key={task.id} className="border-b border-[var(--line)]">
+                      <td className="px-2 py-2">{task.dueDate ? task.dueDate.slice(0, 10) : '-'}</td>
+                      <td className="px-2 py-2">
+                        <span className="block truncate" title={task.description}>
+                          {task.description}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2">
+                        <span className="block truncate" title={task.workspace.name}>
+                          {task.workspace.name}
+                        </span>
+                      </td>
+                      <td className="px-2 py-2 font-semibold">P{task.priority}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </article>
       </div>
-      <div className="grid gap-4 lg:grid-cols-3">
-        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-          <h2 className="text-sm uppercase text-[#66645f]">CA facturé</h2>
-          <p className="mt-1 text-2xl font-semibold">{data.globalKpis.billedRevenue.toLocaleString()} €</p>
-        </article>
-        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-          <h2 className="text-sm uppercase text-[#66645f]">CA encaissé</h2>
-          <p className="mt-1 text-2xl font-semibold">{data.globalKpis.collectedRevenue.toLocaleString()} €</p>
-        </article>
-        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-          <h2 className="text-sm uppercase text-[#66645f]">Marge estimée</h2>
-          <p className="mt-1 text-2xl font-semibold">{data.globalKpis.estimatedMargin.toLocaleString()} €</p>
-        </article>
-      </div>
+
+      {data.workspaces.map((item) => {
+        const totalTasks = item.taskStats.total || 1;
+        const segments = [
+          { label: 'À faire', value: item.taskStats.todo, color: '#d1d5db' },
+          { label: 'En cours', value: item.taskStats.inProgress, color: '#22c55e' },
+          { label: 'En attente', value: item.taskStats.waiting, color: '#f59e0b' },
+          { label: 'Fait', value: item.taskStats.done, color: '#111827' },
+        ];
+
+        return (
+          <article key={item.workspace.id} className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-[var(--brand)]">{item.workspace.name}</h2>
+              <p className="text-sm text-[#5b5952]">{item.projectCount} projets • {item.taskStats.total} tâches</p>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-3">
+              <div className="rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4">
+                <p className="mb-2 text-xs uppercase tracking-[0.08em] text-[#6a6861]">Avancement</p>
+                <div className="h-3 overflow-hidden rounded-full bg-[#e8e5dd]">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, item.progressPercent))}%`,
+                      backgroundColor: progressColor(item.progressPercent),
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-right text-xl font-semibold text-[#2f2b23]">{item.progressPercent}%</p>
+              </div>
+
+              <div className="rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4">
+                <p className="mb-2 text-xs uppercase tracking-[0.08em] text-[#6a6861]">Graphique des tâches</p>
+                <div className="mb-2 flex h-5 overflow-hidden rounded">
+                  {segments.map((segment) => (
+                    <div
+                      key={segment.label}
+                      style={{ width: `${(segment.value / totalTasks) * 100}%`, backgroundColor: segment.color }}
+                      title={`${segment.label}: ${segment.value}`}
+                    />
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-[#4f4d45]">
+                  {segments.map((segment) => (
+                    <div key={`legend-${segment.label}`} className="flex items-center justify-between">
+                      <span className="inline-flex items-center gap-1">
+                        <span className="inline-block h-2.5 w-2.5 rounded" style={{ backgroundColor: segment.color }} />
+                        {segment.label}
+                      </span>
+                      <span className="font-semibold">{segment.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4">
+                <p className="mb-2 text-xs uppercase tracking-[0.08em] text-[#6a6861]">Finances</p>
+                <table className="w-full border-collapse text-sm">
+                  <tbody>
+                    <tr className="border-b border-[var(--line)]">
+                      <th className="px-2 py-2 text-left font-medium text-[#5b5952]">CA facturé</th>
+                      <td className="px-2 py-2 text-right font-semibold">{euro(item.finance.billedRevenue)}</td>
+                    </tr>
+                    <tr className="border-b border-[var(--line)]">
+                      <th className="px-2 py-2 text-left font-medium text-[#5b5952]">CA encaissé</th>
+                      <td className="px-2 py-2 text-right font-semibold">{euro(item.finance.collectedRevenue)}</td>
+                    </tr>
+                    <tr>
+                      <th className="px-2 py-2 text-left font-medium text-[#5b5952]">Restant à percevoir</th>
+                      <td className="px-2 py-2 text-right font-semibold">{euro(item.finance.remainingRevenue)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+        );
+      })}
     </section>
   );
 }
