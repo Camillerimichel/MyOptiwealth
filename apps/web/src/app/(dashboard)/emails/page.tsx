@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   clearActiveProjectContext,
@@ -7,7 +8,7 @@ import {
   getActiveProjectContext,
   getActiveTaskContext,
 } from '@/lib/active-task';
-import { apiClient } from '@/lib/api-client';
+import { ApiError, apiClient } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/auth';
 import { showToast } from '@/lib/toast';
 
@@ -18,12 +19,26 @@ type EmailMessage = {
   fromAddress: string;
   toAddresses: string[];
   receivedAt: string;
-  metadata?: { preview?: string } | null;
+  metadata?: {
+    preview?: string;
+    attachments?: Array<{ filename?: string; contentType?: string; size?: number }>;
+    documentsSaved?: boolean;
+  } | null;
   project?: { id: string; name: string } | null;
   tasks: Array<{ taskId: string }>;
 };
 
 type Project = { id: string; name: string; missionType?: string | null };
+type CatalogWorkspace = {
+  id: string;
+  name: string;
+  projects: Array<{
+    id: string;
+    name: string;
+    tasks: Array<{ id: string; description: string }>;
+  }>;
+};
+type LinkSelection = { workspaceId: string; projectId: string; taskId: string };
 type EmailContent = {
   text: string;
   attachments: Array<{ filename: string; contentType: string; size: number }>;
@@ -37,10 +52,18 @@ const LEGACY_MISSION_LABELS: Record<string, string> = {
 };
 
 export default function EmailsPage() {
+  const router = useRouter();
   const [emails, setEmails] = useState<EmailMessage[]>([]);
+  const [catalog, setCatalog] = useState<CatalogWorkspace[]>([]);
+  const [linkSelectionByEmail, setLinkSelectionByEmail] = useState<Record<string, LinkSelection>>({});
   const [openedPreviewEmailId, setOpenedPreviewEmailId] = useState<string | null>(null);
+  const [reassignEmailId, setReassignEmailId] = useState<string | null>(null);
+  const [reassignStatus, setReassignStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [reassignMessage, setReassignMessage] = useState<string | null>(null);
+  const [savingAttachmentsByEmailId, setSavingAttachmentsByEmailId] = useState<Record<string, boolean>>({});
   const [emailContentById, setEmailContentById] = useState<Record<string, EmailContent>>({});
   const [loadingContentEmailId, setLoadingContentEmailId] = useState<string | null>(null);
+  const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
   const [activeProjectTitle, setActiveProjectTitle] = useState<string | null>(null);
   const [activeProjectTypology, setActiveProjectTypology] = useState<string | null>(null);
   const [activeTaskLabel, setActiveTaskLabel] = useState<string | null>(null);
@@ -58,10 +81,18 @@ export default function EmailsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [emailsData, projectsData] = await Promise.all([
+      const [emailsData, projectsData, catalogData, workspacesData] = await Promise.all([
         apiClient.listEmails(token),
         apiClient.listProjects(token),
+        apiClient.listInboxCatalog(token),
+        apiClient.listWorkspaces(token),
       ]);
+      const workspaceId =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('mw_active_workspace_id')
+          : null;
+      const workspaceName = workspacesData.find((item) => item.workspace.id === workspaceId)?.workspace.name ?? null;
+      setActiveWorkspaceName(workspaceName);
 
       const activeProject = getActiveProjectContext();
       const activeTask = getActiveTaskContext();
@@ -90,6 +121,26 @@ export default function EmailsPage() {
       });
 
       setEmails(filtered);
+      setCatalog(catalogData);
+      setLinkSelectionByEmail((prev) => {
+        const next: Record<string, LinkSelection> = {};
+        for (const email of filtered) {
+          const existing = prev[email.id];
+          if (existing) {
+            next[email.id] = existing;
+            continue;
+          }
+          const workspaceForProject = catalogData.find((workspace) =>
+            workspace.projects.some((project) => project.id === email.project?.id),
+          );
+          next[email.id] = {
+            workspaceId: workspaceForProject?.id ?? '',
+            projectId: email.project?.id ?? '',
+            taskId: email.tasks[0]?.taskId ?? '',
+          };
+        }
+        return next;
+      });
     } catch {
       setError('Chargement impossible.');
     } finally {
@@ -127,6 +178,106 @@ export default function EmailsPage() {
     const result = await apiClient.syncEmails(token);
     showToast(`Synchronisation IMAP terminée (${result.synced} emails).`, 'success');
     await load();
+  }
+
+  function onWorkspaceSelection(emailId: string, workspaceId: string): void {
+    setLinkSelectionByEmail((prev) => ({
+      ...prev,
+      [emailId]: {
+        workspaceId,
+        projectId: '',
+        taskId: '',
+      },
+    }));
+  }
+
+  function onProjectSelection(emailId: string, projectId: string): void {
+    setLinkSelectionByEmail((prev) => {
+      const current = prev[emailId] ?? { workspaceId: '', projectId: '', taskId: '' };
+      return {
+        ...prev,
+        [emailId]: {
+          workspaceId: current.workspaceId,
+          projectId,
+          taskId: '',
+        },
+      };
+    });
+  }
+
+  function onTaskSelection(emailId: string, taskId: string): void {
+    setLinkSelectionByEmail((prev) => {
+      const current = prev[emailId];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [emailId]: {
+          ...current,
+          taskId,
+        },
+      };
+    });
+  }
+
+  function openReassignModal(email: EmailMessage): void {
+    const existing = linkSelectionByEmail[email.id] ?? { workspaceId: '', projectId: '', taskId: '' };
+    setLinkSelectionByEmail((prev) => ({
+      ...prev,
+      [email.id]: existing,
+    }));
+    setReassignEmailId(email.id);
+    setReassignStatus('idle');
+    setReassignMessage(null);
+  }
+
+  function closeReassignModal(): void {
+    if (reassignStatus === 'submitting') return;
+    setReassignEmailId(null);
+    setReassignStatus('idle');
+    setReassignMessage(null);
+  }
+
+  async function onReassignFromModal(): Promise<void> {
+    if (!reassignEmailId) return;
+    const email = emails.find((item) => item.id === reassignEmailId);
+    if (!email) {
+      setReassignStatus('error');
+      setReassignMessage('Email introuvable dans la liste.');
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) return;
+
+    const selection = linkSelectionByEmail[email.id];
+    if (!selection?.workspaceId || !selection?.projectId || !selection?.taskId) {
+      setReassignStatus('error');
+      setReassignMessage('Sélectionne workspace, projet et tâche.');
+      return;
+    }
+
+    setReassignStatus('submitting');
+    setReassignMessage('Réaffectation en cours...');
+
+    try {
+      await apiClient.linkInboxEmail(token, {
+        emailId: email.id,
+        workspaceId: selection.workspaceId,
+        externalMessageId: email.externalMessageId,
+        fromAddress: email.fromAddress,
+        toAddresses: email.toAddresses,
+        subject: email.subject,
+        projectId: selection.projectId,
+        taskId: selection.taskId,
+      });
+      await load();
+      setReassignStatus('success');
+      setReassignMessage('Email réaffecté avec succès.');
+      showToast('Email réaffecté.', 'success');
+    } catch (error) {
+      setReassignStatus('error');
+      setReassignMessage(error instanceof ApiError ? error.message : 'Erreur pendant la réaffectation.');
+    }
   }
 
   async function onTogglePreview(email: EmailMessage): Promise<void> {
@@ -178,12 +329,42 @@ export default function EmailsPage() {
     }
   }
 
+  async function onSaveAttachments(email: EmailMessage): Promise<void> {
+    const token = getAccessToken();
+    if (!token) return;
+    const attachmentCount = Array.isArray(email.metadata?.attachments) ? email.metadata.attachments.length : 0;
+    if (attachmentCount === 0) return;
+    if (email.metadata?.documentsSaved) return;
+
+    setSavingAttachmentsByEmailId((prev) => ({ ...prev, [email.id]: true }));
+    try {
+      const result = await apiClient.saveEmailAttachments(token, email.id);
+      showToast(
+        result.alreadySaved
+          ? 'Documents déjà sauvegardés.'
+          : `Pièces jointes sauvegardées (${result.importedCount}).`,
+        'success',
+      );
+      await load();
+      router.push('/documents');
+    } catch {
+      // erreur déjà notifiée par apiClient
+    } finally {
+      setSavingAttachmentsByEmailId((prev) => ({ ...prev, [email.id]: false }));
+    }
+  }
+
+  const attachmentProcessRunning = Object.values(savingAttachmentsByEmailId).some(Boolean);
+
   return (
     <section className="grid gap-6">
       <h1 className="text-2xl font-semibold text-[var(--brand)]">Emails</h1>
       <div className="rounded-lg border-2 border-[var(--brand)] bg-[#efe7d4] px-4 py-3 text-base font-bold text-[#2f2b23]">
-        Projet: {activeProjectTitle ?? 'Aucun'}{activeProjectTypology ? ` (${activeProjectTypology})` : ''}
-        {activeTaskLabel ? ` | Tâche: ${activeTaskLabel}` : ''}
+        <p>Workspace: {activeWorkspaceName ?? 'Aucun'}</p>
+        <p className="pl-6">
+          Projet: {activeProjectTitle ?? 'Aucun'}{activeProjectTypology ? ` (${activeProjectTypology})` : ''}
+        </p>
+        <p className="pl-12">Tâche: {activeTaskLabel ?? 'Aucune'}</p>
         {(activeProjectTitle || activeTaskLabel) ? (
           <button
             type="button"
@@ -214,14 +395,16 @@ export default function EmailsPage() {
                 <th className="px-2 py-2">A</th>
                 <th className="px-2 py-2">Objet</th>
                 <th className="px-2 py-2">Aperçu</th>
+                <th className="px-2 py-2">Action</th>
               </tr>
             </thead>
             <tbody>
               {emails.map((email) => {
                 const previewText = (email.metadata?.preview || email.subject || '').trim();
                 const isPreviewOpen = openedPreviewEmailId === email.id;
-                const fullContent = emailContentById[email.id];
-                const fullText = fullContent?.text || previewText;
+                const attachmentCount = Array.isArray(email.metadata?.attachments) ? email.metadata.attachments.length : 0;
+                const documentsSaved = Boolean(email.metadata?.documentsSaved);
+                const savingAttachments = Boolean(savingAttachmentsByEmailId[email.id]);
                 return (
                   <tr key={email.id} className="border-b border-[var(--line)] align-top">
                     <td className="px-2 py-2 whitespace-nowrap">{new Date(email.receivedAt).toLocaleString('fr-FR')}</td>
@@ -241,6 +424,27 @@ export default function EmailsPage() {
                           {isPreviewOpen ? 'Masquer' : 'Voir'}
                         </button>
                       </div>
+                    </td>
+                    <td className="px-2 py-2">
+                      {attachmentCount > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void onSaveAttachments(email);
+                          }}
+                          disabled={documentsSaved || savingAttachments}
+                          className="mr-2 rounded border border-[var(--line)] px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {documentsSaved ? 'Documents sauvegardés' : savingAttachments ? 'Sauvegarde...' : 'Pièces jointes'}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => openReassignModal(email)}
+                        className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                      >
+                        Réaffectation
+                      </button>
                     </td>
                   </tr>
                 );
@@ -288,6 +492,120 @@ export default function EmailsPage() {
           </div>
         );
       })() : null}
+      {reassignEmailId ? (() => {
+        const email = emails.find((item) => item.id === reassignEmailId);
+        if (!email) return null;
+        const selection = linkSelectionByEmail[email.id] ?? { workspaceId: '', projectId: '', taskId: '' };
+        const workspaceOption = catalog.find((workspace) => workspace.id === selection.workspaceId);
+        const projectOptions = workspaceOption?.projects ?? [];
+        const projectOption = projectOptions.find((project) => project.id === selection.projectId);
+        const taskOptions = projectOption?.tasks ?? [];
+        const canSubmit = Boolean(selection.workspaceId && selection.projectId && selection.taskId) && reassignStatus !== 'submitting';
+
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/45 p-4">
+            <div className="w-[min(760px,96vw)] rounded-xl border border-[var(--line)] bg-white p-5 shadow-2xl">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <p className="text-base font-semibold text-[var(--brand)]">Réaffectation</p>
+                <button
+                  type="button"
+                  onClick={closeReassignModal}
+                  disabled={reassignStatus === 'submitting'}
+                  className="rounded border border-[var(--line)] px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Fermer
+                </button>
+              </div>
+
+              <div className="mb-4 rounded border border-[var(--line)] bg-[#faf9f6] p-3 text-sm">
+                <p className="font-medium">{email.subject}</p>
+                <p className="mt-1 text-xs text-[#5b5952]">De: {email.fromAddress}</p>
+                <p className="mt-1 text-xs text-[#5b5952]">A: {email.toAddresses.join(', ') || '-'}</p>
+              </div>
+
+              <div className="grid gap-3 lg:grid-cols-3">
+                <select
+                  value={selection.workspaceId}
+                  onChange={(e) => onWorkspaceSelection(email.id, e.target.value)}
+                  disabled={reassignStatus === 'submitting'}
+                  className="rounded border border-[var(--line)] px-3 py-2 text-sm"
+                >
+                  <option value="">Workspace</option>
+                  {catalog.map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selection.projectId}
+                  onChange={(e) => onProjectSelection(email.id, e.target.value)}
+                  disabled={!selection.workspaceId || reassignStatus === 'submitting'}
+                  className="rounded border border-[var(--line)] px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">Projet</option>
+                  {projectOptions.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selection.taskId}
+                  onChange={(e) => onTaskSelection(email.id, e.target.value)}
+                  disabled={!selection.workspaceId || !selection.projectId || reassignStatus === 'submitting'}
+                  className="rounded border border-[var(--line)] px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">Tâche</option>
+                  {taskOptions.map((task) => (
+                    <option key={task.id} value={task.id}>
+                      {task.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="min-h-5 text-sm">
+                  {reassignMessage ? (
+                    <span
+                      className={
+                        reassignStatus === 'error'
+                          ? 'text-red-700'
+                          : reassignStatus === 'success'
+                            ? 'text-green-700'
+                            : 'text-[#5b5952]'
+                      }
+                    >
+                      {reassignMessage}
+                    </span>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onReassignFromModal();
+                  }}
+                  disabled={!canSubmit}
+                  className="rounded bg-[var(--brand)] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {reassignStatus === 'submitting' ? 'Réaffectation...' : 'Réaffecter'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })() : null}
+      {attachmentProcessRunning ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 p-4">
+          <div className="w-[min(520px,92vw)] rounded-xl border border-[var(--line)] bg-white p-5 shadow-2xl">
+            <p className="text-base font-semibold text-[var(--brand)]">Traitement des pièces jointes</p>
+            <p className="mt-2 text-sm text-[#4f4d45]">
+              Import en cours vers Documents. Merci de patienter jusqu à la fin du process.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

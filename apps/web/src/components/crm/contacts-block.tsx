@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/auth';
 import { showToast } from '@/lib/toast';
@@ -16,7 +17,22 @@ type Contact = {
   society?: Society | null;
 };
 
-export function ContactsBlock() {
+function societyKeyFromName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+export function ContactsBlock({
+  selectedSocietyId,
+  selectedSocietyKey,
+}: {
+  selectedSocietyId?: string;
+  selectedSocietyKey?: string;
+}) {
+  const router = useRouter();
   const [societies, setSocieties] = useState<Society[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [firstName, setFirstName] = useState('');
@@ -29,6 +45,8 @@ export function ContactsBlock() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const activeSocietyId = selectedSocietyId ?? '';
+  const activeSocietyKey = selectedSocietyKey ?? '';
 
   const load = useCallback(async (): Promise<void> => {
     const token = getAccessToken();
@@ -126,7 +144,7 @@ export function ContactsBlock() {
     setEmail('');
     setPhone('');
     setRole('');
-    setSocietyId('');
+    setSocietyId(activeSocietyId || '');
   }
 
   function formatRole(value?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null): string {
@@ -135,6 +153,31 @@ export function ContactsBlock() {
     if (value === 'OPERATIONNEL') return 'Operationnel';
     return '-';
   }
+
+  const selectedSociety = activeSocietyId
+    ? societies.find((society) => society.id === activeSocietyId) ?? null
+    : (
+      activeSocietyKey
+        ? societies.find((society) => societyKeyFromName(society.name) === activeSocietyKey) ?? null
+        : null
+    );
+
+  const filteredContacts = activeSocietyId
+    ? contacts.filter((contact) => contact.society?.id === activeSocietyId)
+    : (
+      activeSocietyKey
+        ? contacts.filter((contact) => {
+          const name = contact.society?.name ?? '';
+          return name.length > 0 && societyKeyFromName(name) === activeSocietyKey;
+        })
+        : contacts
+    );
+  const uniqueSocieties = societies.reduce<Society[]>((acc, society) => {
+    const key = societyKeyFromName(society.name);
+    const exists = acc.some((item) => societyKeyFromName(item.name) === key);
+    if (!exists) acc.push(society);
+    return acc;
+  }, []);
 
   return (
     <article id="contacts" className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
@@ -153,6 +196,20 @@ export function ContactsBlock() {
 
       {loading ? <p className="mt-2 text-sm text-[#5b5952]">Chargement...</p> : null}
       {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
+      {selectedSociety ? (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded border border-[var(--line)] bg-[#f7f3e8] px-3 py-2 text-sm">
+          <p>
+            Filtre societe actif: <span className="font-semibold">{selectedSociety.name}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push('/crm/contacts')}
+            className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+          >
+            Retirer filtre
+          </button>
+        </div>
+      ) : null}
 
       {isFormOpen ? (
         <form onSubmit={onCreateContact} className="mt-4 grid gap-2">
@@ -206,7 +263,7 @@ export function ContactsBlock() {
               className="h-10 rounded border border-[var(--line)] bg-white px-3"
             >
               <option value="">Aucune societe</option>
-              {societies.map((society) => (
+              {uniqueSocieties.map((society) => (
                 <option key={society.id} value={society.id}>
                   {society.name}
                 </option>
@@ -241,7 +298,7 @@ export function ContactsBlock() {
             </tr>
           </thead>
           <tbody>
-            {contacts.map((contact) => (
+            {filteredContacts.map((contact) => (
               <tr key={contact.id} className="border-b border-[var(--line)] bg-[#fbfaf7]">
                 <td className="px-2 py-2">
                   <button

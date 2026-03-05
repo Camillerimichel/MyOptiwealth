@@ -1,10 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Res,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -15,6 +18,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { WorkspaceRole } from '@prisma/client';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { SendSignatureRequestDto } from './dto/send-signature-request.dto';
 import { SignDocumentDto } from './dto/sign-document.dto';
@@ -69,6 +73,19 @@ export class DocumentsController {
     return this.documentsService.sendForSignature(user.activeWorkspaceId, user.sub, id, dto);
   }
 
+  @Get(':id/view')
+  view(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    return this.documentsService.getDocumentBinary(user.activeWorkspaceId, id).then((file) => {
+      response.setHeader('Content-Type', file.contentType);
+      response.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+      return new StreamableFile(file.buffer);
+    });
+  }
+
   @Patch(':id/sign')
   @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR)
   sign(
@@ -77,5 +94,23 @@ export class DocumentsController {
     @Body() body: SignDocumentDto,
   ) {
     return this.documentsService.markSigned(user.activeWorkspaceId, user.sub, id, body.certificate);
+  }
+
+  @Patch(':id/archive')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR)
+  archive(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.documentsService.markArchived(user.activeWorkspaceId, user.sub, id);
+  }
+
+  @Delete(':id')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR)
+  remove(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    return this.documentsService.deleteDocument(user.activeWorkspaceId, user.sub, id);
   }
 }

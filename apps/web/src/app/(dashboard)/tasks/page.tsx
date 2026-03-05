@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import {
   clearActiveProjectContext,
@@ -89,6 +90,7 @@ function userDisplayName(user: { email: string; firstName?: string | null; lastN
 }
 
 export default function TasksPage() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
@@ -114,6 +116,7 @@ export default function TasksPage() {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeProjectTitle, setActiveProjectTitle] = useState<string | null>(null);
   const [activeProjectTypology, setActiveProjectTypology] = useState<string | null>(null);
+  const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeTaskLabel, setActiveTaskLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,16 +132,23 @@ export default function TasksPage() {
     try {
       setLoading(true);
       setError(null);
-      const [tasksData, projectsData, usersData, contactsData] = await Promise.all([
+      const [tasksData, projectsData, usersData, contactsData, workspacesData] = await Promise.all([
         apiClient.listKanban(token),
         apiClient.listProjects(token),
         apiClient.listUsers(token),
         apiClient.listContacts(token),
+        apiClient.listWorkspaces(token),
       ]);
       setTasks(tasksData);
       setProjects(projectsData);
       setUsers(usersData);
       setContacts(contactsData);
+      const workspaceId =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('mw_active_workspace_id')
+          : null;
+      const workspaceName = workspacesData.find((item) => item.workspace.id === workspaceId)?.workspace.name ?? null;
+      setActiveWorkspaceName(workspaceName);
       const activeProject = getActiveProjectContext();
       if (activeProject && projectsData.some((project) => project.id === activeProject.projectId)) {
         const selectedProject = projectsData.find((project) => project.id === activeProject.projectId);
@@ -183,15 +193,20 @@ export default function TasksPage() {
   }, [load]);
 
   useEffect(() => {
+    const onWorkspaceChanged = (): void => {
+      void load();
+    };
     const onProjectChanged = (): void => {
       void load();
     };
     const onTaskChanged = (): void => {
       void load();
     };
+    window.addEventListener('mw_workspace_changed', onWorkspaceChanged);
     window.addEventListener('mw_active_project_changed', onProjectChanged);
     window.addEventListener('mw_active_task_changed', onTaskChanged);
     return () => {
+      window.removeEventListener('mw_workspace_changed', onWorkspaceChanged);
       window.removeEventListener('mw_active_project_changed', onProjectChanged);
       window.removeEventListener('mw_active_task_changed', onTaskChanged);
     };
@@ -277,7 +292,7 @@ export default function TasksPage() {
     });
   }
 
-  function onSelectTask(task: Task): void {
+  function onSelectTask(task: Task, redirectToEmails = false): void {
     const workspaceId =
       typeof window !== 'undefined'
         ? window.localStorage.getItem('mw_active_workspace_id') ?? undefined
@@ -307,6 +322,9 @@ export default function TasksPage() {
       workspaceId,
     });
     showToast('Tâche active mise à jour.', 'success');
+    if (redirectToEmails) {
+      router.push('/emails');
+    }
   }
 
   function onCancelEdit(): void {
@@ -425,8 +443,11 @@ export default function TasksPage() {
     <section className="grid gap-6">
       <h1 className="text-2xl font-semibold text-[var(--brand)]">Tasks Kanban</h1>
       <div className="rounded-lg border-2 border-[var(--brand)] bg-[#efe7d4] px-4 py-3 text-base font-bold text-[#2f2b23]">
-        Projet: {activeProjectTitle ?? 'Aucun'}{activeProjectTypology ? ` (${activeProjectTypology})` : ''}
-        {activeTaskLabel ? ` | Tâche: ${activeTaskLabel}` : ''}
+        <p>Workspace: {activeWorkspaceName ?? 'Aucun'}</p>
+        <p className="pl-6">
+          Projet: {activeProjectTitle ?? 'Aucun'}{activeProjectTypology ? ` (${activeProjectTypology})` : ''}
+        </p>
+        <p className="pl-12">Tâche: {activeTaskLabel ?? 'Aucune'}</p>
         {activeProjectId ? (
           <button
             type="button"
@@ -695,7 +716,7 @@ export default function TasksPage() {
                   <td className="px-2 py-2">P{task.priority}</td>
                   <td
                     className="cursor-pointer px-2 py-2 hover:bg-[#f7f3e8]"
-                    onClick={() => onSelectTask(task)}
+                    onClick={() => onSelectTask(task, true)}
                     title="Cliquer pour sélectionner cette tâche"
                   >
                     <div>{task.description}</div>

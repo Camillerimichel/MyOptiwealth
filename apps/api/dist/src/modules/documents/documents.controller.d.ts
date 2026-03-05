@@ -1,3 +1,5 @@
+import { StreamableFile } from '@nestjs/common';
+import type { Response } from 'express';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { SendSignatureRequestDto } from './dto/send-signature-request.dto';
 import { SignDocumentDto } from './dto/sign-document.dto';
@@ -15,7 +17,8 @@ interface UploadedBinaryFile {
 export declare class DocumentsController {
     private readonly documentsService;
     constructor(documentsService: DocumentsService);
-    list(user: AuthUser): import(".prisma/client").Prisma.PrismaPromise<({
+    list(user: AuthUser): Promise<{
+        canView: boolean;
         society: {
             id: string;
             createdAt: Date;
@@ -58,7 +61,6 @@ export declare class DocumentsController {
             collectedAmount: import("@prisma/client/runtime/library").Decimal;
             estimatedMargin: import("@prisma/client/runtime/library").Decimal;
         } | null;
-    } & {
         id: string;
         createdAt: Date;
         workspaceId: string;
@@ -74,7 +76,7 @@ export declare class DocumentsController {
         version: number;
         signatureCertificate: string | null;
         signatureState: string | null;
-    })[]>;
+    }[]>;
     create(user: AuthUser, dto: CreateDocumentDto): import(".prisma/client").Prisma.Prisma__DocumentClient<{
         id: string;
         createdAt: Date;
@@ -126,6 +128,7 @@ export declare class DocumentsController {
         signatureCertificate: string | null;
         signatureState: string | null;
     }>;
+    view(user: AuthUser, id: string, response: Response): Promise<StreamableFile>;
     sign(user: AuthUser, id: string, body: SignDocumentDto): Promise<{
         id: string;
         createdAt: Date;
@@ -142,6 +145,26 @@ export declare class DocumentsController {
         version: number;
         signatureCertificate: string | null;
         signatureState: string | null;
+    }>;
+    archive(user: AuthUser, id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        societyId: string | null;
+        contactId: string | null;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    }>;
+    remove(user: AuthUser, id: string): Promise<{
+        success: boolean;
     }>;
 }
 export {};

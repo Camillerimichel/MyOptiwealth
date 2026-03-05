@@ -58,6 +58,24 @@ export declare class EmailsController {
         subject: string;
         receivedAt: Date;
     })[]>;
+    listIgnored(user: AuthUser): Promise<({
+        workspace: {
+            id: string;
+            name: string;
+        };
+    } & {
+        id: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        projectId: string | null;
+        externalMessageId: string;
+        fromAddress: string;
+        toAddresses: string[];
+        subject: string;
+        receivedAt: Date;
+    })[]>;
     listCatalog(user: AuthUser): Promise<{
         id: string;
         name: string;
@@ -81,6 +99,11 @@ export declare class EmailsController {
             contentType: string;
             size: number;
         }[];
+    }>;
+    saveAttachments(user: AuthUser, emailId: string): Promise<{
+        saved: boolean;
+        alreadySaved: boolean;
+        importedCount: number;
     }>;
     linkEmail(user: AuthUser, dto: LinkEmailDto): Promise<{
         id: string;
@@ -107,6 +130,12 @@ export declare class EmailsController {
         toAddresses: string[];
         subject: string;
         receivedAt: Date;
+    }>;
+    ignoreInboxEmail(user: AuthUser, emailId: string): Promise<{
+        ignored: boolean;
+    }>;
+    unignoreInboxEmail(user: AuthUser, emailId: string): Promise<{
+        restored: boolean;
     }>;
     sync(user: AuthUser): Promise<{
         synced: number;

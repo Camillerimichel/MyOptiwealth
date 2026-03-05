@@ -145,6 +145,39 @@ async function uploadWithAuth<T>(
   return (await response.json()) as T;
 }
 
+async function fetchBlobWithAuth(path: string, token: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    let serverMessage: string | undefined;
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      const payload = (await response.json()) as { message?: string | string[] };
+      if (typeof payload.message === 'string') {
+        serverMessage = payload.message;
+      } else if (Array.isArray(payload.message)) {
+        serverMessage = payload.message.join(', ');
+      }
+    } else {
+      const text = await response.text();
+      serverMessage = text || undefined;
+    }
+
+    const message = normalizeApiMessage(response.status, serverMessage);
+    showToast(message, 'error');
+    throw new ApiError(message, response.status);
+  }
+
+  return response.blob();
+}
+
 export const apiClient = {
   register(email: string, password: string, workspaceName: string) {
     return request<{ tokens: AuthTokens; workspace: { id: string; name: string }; twoFactorProvisioning: { otpauth: string } }>('/auth/register', {
@@ -506,7 +539,11 @@ export const apiClient = {
         fromAddress: string;
         toAddresses: string[];
         receivedAt: string;
-        metadata?: { preview?: string } | null;
+        metadata?: {
+          preview?: string;
+          attachments?: Array<{ filename?: string; contentType?: string; size?: number }>;
+          documentsSaved?: boolean;
+        } | null;
         project?: { id: string; name: string } | null;
         tasks: Array<{ taskId: string }>;
       }>
@@ -526,6 +563,21 @@ export const apiClient = {
         workspace: { id: string; name: string };
       }>
     >('/emails/inbox/unassigned', { token });
+  },
+
+  listIgnoredInboxEmails(token: string) {
+    return request<
+      Array<{
+        id: string;
+        externalMessageId: string;
+        subject: string;
+        fromAddress: string;
+        toAddresses: string[];
+        receivedAt: string;
+        metadata?: { preview?: string } | null;
+        workspace: { id: string; name: string };
+      }>
+    >('/emails/inbox/ignored', { token });
   },
 
   getEmailContent(token: string, emailId: string) {
@@ -589,8 +641,29 @@ export const apiClient = {
     return request('/emails/inbox/link', { method: 'POST', token, body: payload });
   },
 
+  ignoreInboxEmail(token: string, emailId: string) {
+    return request<{ ignored: boolean }>(`/emails/inbox/${emailId}/ignore`, {
+      method: 'POST',
+      token,
+    });
+  },
+
+  unignoreInboxEmail(token: string, emailId: string) {
+    return request<{ restored: boolean }>(`/emails/inbox/${emailId}/unignore`, {
+      method: 'POST',
+      token,
+    });
+  },
+
   syncEmails(token: string) {
     return request<{ synced: number }>('/emails/sync', { method: 'POST', token });
+  },
+
+  saveEmailAttachments(token: string, emailId: string) {
+    return request<{ saved: boolean; alreadySaved: boolean; importedCount: number }>(
+      `/emails/${emailId}/attachments/save`,
+      { method: 'POST', token },
+    );
   },
 
   listDocuments(token: string) {
@@ -600,6 +673,8 @@ export const apiClient = {
         title: string;
         status: string;
         storagePath: string;
+        canView?: boolean;
+        createdAt: string;
         project?: { id: string; name: string } | null;
       }>
     >('/documents', { token });
@@ -641,6 +716,18 @@ export const apiClient = {
 
   signDocument(token: string, id: string, certificate: string) {
     return request(`/documents/${id}/sign`, { method: 'PATCH', token, body: { certificate } });
+  },
+
+  archiveDocument(token: string, id: string) {
+    return request(`/documents/${id}/archive`, { method: 'PATCH', token });
+  },
+
+  deleteDocument(token: string, id: string) {
+    return request<{ success: boolean }>(`/documents/${id}`, { method: 'DELETE', token });
+  },
+
+  viewDocumentBlob(token: string, id: string) {
+    return fetchBlobWithAuth(`/documents/${id}/view`, token);
   },
 
   financeKpis(token: string) {

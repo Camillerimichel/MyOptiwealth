@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.EmailsService = void 0;
 const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
+const node_crypto_1 = require("node:crypto");
 const imapflow_1 = require("imapflow");
 const mailparser_1 = require("mailparser");
 const encryption_service_1 = require("../../common/crypto/encryption.service");
@@ -44,7 +45,7 @@ let EmailsService = class EmailsService {
         if (workspaceIds.length === 0) {
             return [];
         }
-        return this.prisma.emailMessage.findMany({
+        const emails = await this.prisma.emailMessage.findMany({
             where: {
                 workspaceId: { in: workspaceIds },
                 projectId: null,
@@ -56,6 +57,26 @@ let EmailsService = class EmailsService {
             },
             orderBy: { receivedAt: 'desc' },
         });
+        return emails.filter((email) => !this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
+    }
+    async listIgnoredForUser(userId) {
+        const workspaceIds = await this.getWorkspaceIdsForUser(userId);
+        if (workspaceIds.length === 0) {
+            return [];
+        }
+        const emails = await this.prisma.emailMessage.findMany({
+            where: {
+                workspaceId: { in: workspaceIds },
+                projectId: null,
+                tasks: { none: {} },
+                receivedAt: { gte: this.getWindowStartDate() },
+            },
+            include: {
+                workspace: { select: { id: true, name: true } },
+            },
+            orderBy: { receivedAt: 'desc' },
+        });
+        return emails.filter((email) => this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
     }
     async listLinkCatalogForUser(userId) {
         const workspaceIds = await this.getWorkspaceIdsForUser(userId);
@@ -167,11 +188,167 @@ let EmailsService = class EmailsService {
             })),
         };
     }
+    async saveAttachmentsToDocuments(userId, emailId) {
+        const email = await this.prisma.emailMessage.findUnique({
+            where: { id: emailId },
+            select: {
+                id: true,
+                workspaceId: true,
+                projectId: true,
+                externalMessageId: true,
+                metadata: true,
+            },
+        });
+        if (!email) {
+            throw new common_1.BadRequestException('Email introuvable.');
+        }
+        const membership = await this.prisma.userWorkspaceRole.findUnique({
+            where: {
+                userId_workspaceId: {
+                    userId,
+                    workspaceId: email.workspaceId,
+                },
+            },
+            select: { role: true },
+        });
+        if (!membership) {
+            throw new common_1.BadRequestException('Accès refusé à cet email.');
+        }
+        if (membership.role === client_1.WorkspaceRole.VIEWER) {
+            throw new common_1.BadRequestException('Droits insuffisants pour sauvegarder les pièces jointes.');
+        }
+        if (!email.projectId) {
+            throw new common_1.BadRequestException('Email non rattaché à un projet.');
+        }
+        const taskLink = await this.prisma.taskEmail.findFirst({
+            where: { emailId: email.id },
+            select: {
+                taskId: true,
+                task: {
+                    select: { projectId: true },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (!taskLink) {
+            throw new common_1.BadRequestException('Email non rattaché à une tâche.');
+        }
+        if (taskLink.task.projectId !== email.projectId) {
+            throw new common_1.BadRequestException('Incohérence projet/tâche pour cet email.');
+        }
+        if (this.readMetadataBoolean(email.metadata, 'documentsSaved')) {
+            return { saved: true, alreadySaved: true, importedCount: 0 };
+        }
+        const declaredAttachmentCount = this.readMetadataAttachments(email.metadata).length;
+        const importedCount = await this.importAttachmentsAsDocuments(email.externalMessageId, email.workspaceId, email.projectId, taskLink.taskId, email.id);
+        const existingSavedCount = await this.prisma.document.count({
+            where: {
+                workspaceId: email.workspaceId,
+                projectId: email.projectId,
+                storagePath: { contains: `/${email.id}/` },
+            },
+        });
+        if (declaredAttachmentCount > 0 && importedCount === 0 && existingSavedCount === 0) {
+            throw new common_1.BadRequestException('Impossible de récupérer les pièces jointes depuis IMAP.');
+        }
+        const metadata = this.mergeMetadata(email.metadata, {
+            documentsSaved: true,
+            documentsSavedAt: new Date().toISOString(),
+            documentsSavedCount: importedCount + existingSavedCount,
+        });
+        await this.prisma.emailMessage.update({
+            where: { id: email.id },
+            data: { metadata },
+        });
+        return { saved: true, alreadySaved: false, importedCount };
+    }
     upsertMetadata(workspaceId, dto) {
         return this.upsertMetadataInternal(workspaceId, dto);
     }
     upsertMetadataGlobal(userId, dto) {
         return this.upsertMetadataGlobalByEmailId(userId, dto);
+    }
+    async ignoreInboxEmail(userId, emailId) {
+        const email = await this.prisma.emailMessage.findUnique({
+            where: { id: emailId },
+            select: {
+                id: true,
+                workspaceId: true,
+                projectId: true,
+                metadata: true,
+            },
+        });
+        if (!email) {
+            throw new common_1.BadRequestException('Email introuvable.');
+        }
+        const membership = await this.prisma.userWorkspaceRole.findUnique({
+            where: {
+                userId_workspaceId: {
+                    userId,
+                    workspaceId: email.workspaceId,
+                },
+            },
+            select: { role: true },
+        });
+        if (!membership) {
+            throw new common_1.BadRequestException('Accès refusé à cet email.');
+        }
+        if (membership.role === client_1.WorkspaceRole.VIEWER) {
+            throw new common_1.BadRequestException('Droits insuffisants pour ignorer cet email.');
+        }
+        if (email.projectId) {
+            throw new common_1.BadRequestException("Email deja affecte, impossible de l'ignorer.");
+        }
+        const metadata = this.mergeMetadata(email.metadata, {
+            inboxIgnored: true,
+            inboxIgnoredAt: new Date().toISOString(),
+            inboxIgnoredBy: userId,
+        });
+        await this.prisma.emailMessage.update({
+            where: { id: email.id },
+            data: { metadata },
+        });
+        return { ignored: true };
+    }
+    async unignoreInboxEmail(userId, emailId) {
+        const email = await this.prisma.emailMessage.findUnique({
+            where: { id: emailId },
+            select: {
+                id: true,
+                workspaceId: true,
+                metadata: true,
+            },
+        });
+        if (!email) {
+            throw new common_1.BadRequestException('Email introuvable.');
+        }
+        const membership = await this.prisma.userWorkspaceRole.findUnique({
+            where: {
+                userId_workspaceId: {
+                    userId,
+                    workspaceId: email.workspaceId,
+                },
+            },
+            select: { role: true },
+        });
+        if (!membership) {
+            throw new common_1.BadRequestException('Acces refuse a cet email.');
+        }
+        if (membership.role === client_1.WorkspaceRole.VIEWER) {
+            throw new common_1.BadRequestException('Droits insuffisants pour reafficher cet email.');
+        }
+        const metadata = this.mergeMetadata(email.metadata, {
+            inboxIgnored: false,
+            inboxIgnoredAt: null,
+            inboxIgnoredBy: null,
+            inboxRestoredAt: new Date().toISOString(),
+            inboxRestoredBy: userId,
+        });
+        await this.prisma.emailMessage.update({
+            where: { id: email.id },
+            data: { metadata },
+        });
+        return { restored: true };
     }
     async upsertMetadataGlobalByEmailId(userId, dto) {
         const workspaceIds = await this.getWorkspaceIdsForUser(userId);
@@ -574,6 +751,7 @@ let EmailsService = class EmailsService {
             },
             logger: false,
         });
+        client.on('error', () => undefined);
         try {
             await client.connect();
             await client.mailboxOpen('INBOX');
@@ -586,6 +764,9 @@ let EmailsService = class EmailsService {
             }
             return null;
         }
+        catch {
+            return null;
+        }
         finally {
             await client.logout().catch(() => undefined);
         }
@@ -593,18 +774,27 @@ let EmailsService = class EmailsService {
     async importAttachmentsAsDocuments(externalMessageId, workspaceId, projectId, taskId, sourceEmailId) {
         const source = await this.fetchImapSourceByExternalMessageId(externalMessageId);
         if (!source) {
-            return;
+            return 0;
         }
         const parsed = await (0, mailparser_1.simpleParser)(source);
         if (!parsed.attachments || parsed.attachments.length === 0) {
-            return;
+            return 0;
         }
+        const [workspace, project, task] = await Promise.all([
+            this.prisma.workspace.findUnique({ where: { id: workspaceId }, select: { name: true } }),
+            this.prisma.project.findUnique({ where: { id: projectId }, select: { name: true } }),
+            this.prisma.task.findUnique({ where: { id: taskId }, select: { description: true } }),
+        ]);
+        const workspaceLabel = this.toStorageSegment(workspace?.name ?? workspaceId);
+        const projectLabel = this.toStorageSegment(project?.name ?? projectId);
+        const taskLabel = this.toStorageSegment(task?.description ?? taskId);
+        let imported = 0;
         let index = 0;
         for (const attachment of parsed.attachments) {
             index += 1;
             const originalName = attachment.filename || `attachment-${index}.bin`;
             const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const storageKey = `emails/${workspaceId}/${projectId}/${taskId}/${sourceEmailId}/${index}-${safeName}`;
+            const storageKey = `emails/${workspaceLabel}/${projectLabel}/${taskLabel}/${this.shortMessageKey(externalMessageId)}/${index}-${safeName}`;
             const stored = await this.documentStorageService.storeByKey(storageKey, attachment.contentType || 'application/octet-stream', attachment.content);
             const existing = await this.prisma.document.findFirst({
                 where: {
@@ -624,11 +814,26 @@ let EmailsService = class EmailsService {
                     storagePath: stored.storagePath,
                 },
             });
+            imported += 1;
         }
+        return imported;
     }
     normalizeBodyText(value) {
         const clean = value.replace(/\r\n/g, '\n').trim();
         return clean.length > 100000 ? clean.slice(0, 100000) : clean;
+    }
+    toStorageSegment(value) {
+        return value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9._-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 80) || 'item';
+    }
+    shortMessageKey(externalMessageId) {
+        return `msg-${(0, node_crypto_1.createHash)('sha1').update(externalMessageId).digest('hex').slice(0, 10)}`;
     }
     readMetadataString(metadata, key) {
         if (!metadata || typeof metadata !== 'object')
@@ -636,6 +841,21 @@ let EmailsService = class EmailsService {
         const map = metadata;
         const value = map[key];
         return typeof value === 'string' && value.trim().length > 0 ? value : null;
+    }
+    readMetadataBoolean(metadata, key) {
+        if (!metadata || typeof metadata !== 'object')
+            return false;
+        const map = metadata;
+        return map[key] === true;
+    }
+    mergeMetadata(metadata, patch) {
+        const base = metadata && typeof metadata === 'object'
+            ? { ...metadata }
+            : {};
+        return {
+            ...base,
+            ...patch,
+        };
     }
     readMetadataAttachments(metadata) {
         if (!metadata || typeof metadata !== 'object')

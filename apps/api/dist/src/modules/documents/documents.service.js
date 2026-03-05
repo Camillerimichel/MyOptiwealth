@@ -13,6 +13,8 @@ exports.DocumentsService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const client_1 = require("@prisma/client");
+const promises_1 = require("fs/promises");
+const path_1 = require("path");
 const encryption_service_1 = require("../../common/crypto/encryption.service");
 const audit_service_1 = require("../audit/audit.service");
 const prisma_service_1 = require("../prisma.service");
@@ -27,12 +29,17 @@ let DocumentsService = class DocumentsService {
         this.encryptionService = encryptionService;
         this.configService = configService;
     }
-    list(workspaceId) {
-        return this.prisma.document.findMany({
+    async list(workspaceId) {
+        const documents = await this.prisma.document.findMany({
             where: { workspaceId },
             include: { project: true, society: true, contact: true },
             orderBy: { createdAt: 'desc' },
         });
+        const withFlags = await Promise.all(documents.map(async (document) => ({
+            ...document,
+            canView: await this.canViewStoragePath(document.storagePath),
+        })));
+        return withFlags;
     }
     create(workspaceId, userId, dto) {
         return this.prisma.document.create({
@@ -155,12 +162,102 @@ let DocumentsService = class DocumentsService {
         await this.auditService.log(workspaceId, 'DOCUMENT_SIGNATURE_EVENT', { documentId: id, status: 'signed' }, userId);
         return document;
     }
+    async markArchived(workspaceId, userId, id) {
+        const updated = await this.prisma.document.updateMany({
+            where: { id, workspaceId },
+            data: { status: client_1.DocumentStatus.ARCHIVED },
+        });
+        if (updated.count === 0) {
+            throw new common_1.NotFoundException('Document not found in workspace');
+        }
+        const document = await this.prisma.document.findUniqueOrThrow({
+            where: { id },
+        });
+        await this.auditService.log(workspaceId, 'DOCUMENT_ARCHIVED', { documentId: id, status: 'archived' }, userId);
+        return document;
+    }
+    async deleteDocument(workspaceId, userId, id) {
+        const deleted = await this.prisma.document.deleteMany({
+            where: { id, workspaceId },
+        });
+        if (deleted.count === 0) {
+            throw new common_1.NotFoundException('Document not found in workspace');
+        }
+        await this.auditService.log(workspaceId, 'DOCUMENT_DELETED', { documentId: id }, userId);
+        return { success: true };
+    }
+    async getDocumentBinary(workspaceId, id) {
+        const document = await this.prisma.document.findFirst({
+            where: { id, workspaceId },
+            select: { id: true, storagePath: true, title: true },
+        });
+        if (!document) {
+            throw new common_1.NotFoundException('Document not found in workspace');
+        }
+        const localPath = this.resolveLocalPath(document.storagePath);
+        if (!localPath) {
+            throw new common_1.BadRequestException('Visualisation non disponible pour ce type de stockage.');
+        }
+        let buffer;
+        try {
+            buffer = await (0, promises_1.readFile)(localPath);
+        }
+        catch {
+            throw new common_1.BadRequestException('Fichier document introuvable sur le stockage.');
+        }
+        const filename = (0, path_1.basename)(localPath) || `${document.title}.bin`;
+        const contentType = this.detectContentType(localPath);
+        return { buffer, filename, contentType };
+    }
     decryptOrRaw(value) {
         try {
             return this.encryptionService.decrypt(value);
         }
         catch {
             return value;
+        }
+    }
+    detectContentType(pathValue) {
+        const extension = (0, path_1.extname)(pathValue).toLowerCase();
+        if (extension === '.pdf')
+            return 'application/pdf';
+        if (extension === '.png')
+            return 'image/png';
+        if (extension === '.jpg' || extension === '.jpeg')
+            return 'image/jpeg';
+        if (extension === '.doc')
+            return 'application/msword';
+        if (extension === '.docx')
+            return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        if (extension === '.xls')
+            return 'application/vnd.ms-excel';
+        if (extension === '.xlsx')
+            return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        if (extension === '.txt')
+            return 'text/plain';
+        return 'application/octet-stream';
+    }
+    resolveLocalPath(storagePath) {
+        if (storagePath.startsWith('file://')) {
+            return storagePath.replace('file://', '');
+        }
+        if (storagePath.startsWith('http://') || storagePath.startsWith('https://') || storagePath.startsWith('s3://')) {
+            return null;
+        }
+        const localBasePath = this.configService.get('DOCUMENT_LOCAL_BASE_PATH', '/var/www/myoptiwealth/storage/documents');
+        const normalized = storagePath.replace(/^\/+/, '');
+        return `${localBasePath}/${normalized}`;
+    }
+    async canViewStoragePath(storagePath) {
+        const localPath = this.resolveLocalPath(storagePath);
+        if (!localPath)
+            return false;
+        try {
+            await (0, promises_1.access)(localPath);
+            return true;
+        }
+        catch {
+            return false;
         }
     }
 };

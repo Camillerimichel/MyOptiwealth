@@ -28,6 +28,11 @@ export class EmailsController {
     return this.emailsService.listUnassignedForUser(user.sub);
   }
 
+  @Get('inbox/ignored')
+  listIgnored(@CurrentUser() user: AuthUser) {
+    return this.emailsService.listIgnoredForUser(user.sub);
+  }
+
   @Get('inbox/catalog')
   listCatalog(@CurrentUser() user: AuthUser) {
     return this.emailsService.listLinkCatalogForUser(user.sub);
@@ -36,6 +41,12 @@ export class EmailsController {
   @Get(':emailId/content')
   getContent(@CurrentUser() user: AuthUser, @Param('emailId') emailId: string) {
     return this.emailsService.getEmailContent(user.sub, emailId);
+  }
+
+  @Post(':emailId/attachments/save')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR)
+  saveAttachments(@CurrentUser() user: AuthUser, @Param('emailId') emailId: string) {
+    return this.emailsService.saveAttachmentsToDocuments(user.sub, emailId);
   }
 
   @Post('link')
@@ -47,6 +58,18 @@ export class EmailsController {
   @Post('inbox/link')
   linkEmailFromInbox(@CurrentUser() user: AuthUser, @Body() dto: LinkGlobalEmailDto) {
     return this.emailsService.upsertMetadataGlobal(user.sub, dto);
+  }
+
+  @Post('inbox/:emailId/ignore')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR)
+  ignoreInboxEmail(@CurrentUser() user: AuthUser, @Param('emailId') emailId: string) {
+    return this.emailsService.ignoreInboxEmail(user.sub, emailId);
+  }
+
+  @Post('inbox/:emailId/unignore')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR)
+  unignoreInboxEmail(@CurrentUser() user: AuthUser, @Param('emailId') emailId: string) {
+    return this.emailsService.unignoreInboxEmail(user.sub, emailId);
   }
 
   @Post('sync')

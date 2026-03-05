@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/auth';
 import { showToast } from '@/lib/toast';
@@ -18,7 +19,16 @@ type Society = {
   country?: string | null;
 };
 
+function societyKeyFromName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
 export function SocietiesBlock() {
+  const router = useRouter();
   const [societies, setSocieties] = useState<Society[]>([]);
   const [societyName, setSocietyName] = useState('');
   const [legalForm, setLegalForm] = useState('');
@@ -147,6 +157,13 @@ export function SocietiesBlock() {
     setCountry('');
   }
 
+  const dedupedSocieties = societies.reduce<Society[]>((acc, society) => {
+    const key = societyKeyFromName(society.name);
+    const exists = acc.some((item) => societyKeyFromName(item.name) === key);
+    if (!exists) acc.push(society);
+    return acc;
+  }, []);
+
   return (
     <article id="societes" className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
       <div className="flex items-center justify-between gap-2">
@@ -240,15 +257,25 @@ export function SocietiesBlock() {
       ) : null}
 
       <ul className="mt-4 grid gap-2 text-sm">
-        {societies.map((society) => (
+        {dedupedSocieties.map((society) => (
           <li key={society.id} className="rounded border border-[var(--line)] bg-[#fbfaf7] px-3 py-2">
-            <button
-              type="button"
-              onClick={() => onEditSociety(society)}
-              className="font-medium text-[var(--brand)] underline-offset-2 hover:underline"
-            >
-              {society.name}
-            </button>
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => router.push(`/crm/contacts?societyKey=${encodeURIComponent(societyKeyFromName(society.name))}`)}
+                className="font-medium text-[var(--brand)] underline-offset-2 hover:underline"
+                title="Voir les contacts de cette societe"
+              >
+                {society.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => onEditSociety(society)}
+                className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+              >
+                Voir/Modifier
+              </button>
+            </div>
           </li>
         ))}
       </ul>

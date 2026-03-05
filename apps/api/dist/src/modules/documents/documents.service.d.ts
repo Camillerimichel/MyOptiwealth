@@ -16,7 +16,8 @@ export declare class DocumentsService {
     private readonly encryptionService;
     private readonly configService;
     constructor(prisma: PrismaService, auditService: AuditService, storageService: DocumentStorageService, signatureService: SignatureService, encryptionService: EncryptionService, configService: ConfigService);
-    list(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<({
+    list(workspaceId: string): Promise<{
+        canView: boolean;
         society: {
             id: string;
             createdAt: Date;
@@ -59,7 +60,6 @@ export declare class DocumentsService {
             collectedAmount: import("@prisma/client/runtime/library").Decimal;
             estimatedMargin: import("@prisma/client/runtime/library").Decimal;
         } | null;
-    } & {
         id: string;
         createdAt: Date;
         workspaceId: string;
@@ -75,7 +75,7 @@ export declare class DocumentsService {
         version: number;
         signatureCertificate: string | null;
         signatureState: string | null;
-    })[]>;
+    }[]>;
     create(workspaceId: string, userId: string, dto: CreateDocumentDto): import(".prisma/client").Prisma.Prisma__DocumentClient<{
         id: string;
         createdAt: Date;
@@ -165,5 +165,33 @@ export declare class DocumentsService {
         signatureCertificate: string | null;
         signatureState: string | null;
     }>;
+    markArchived(workspaceId: string, userId: string, id: string): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        societyId: string | null;
+        contactId: string | null;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    }>;
+    deleteDocument(workspaceId: string, userId: string, id: string): Promise<{
+        success: boolean;
+    }>;
+    getDocumentBinary(workspaceId: string, id: string): Promise<{
+        buffer: Buffer<ArrayBufferLike>;
+        filename: string;
+        contentType: string;
+    }>;
     private decryptOrRaw;
+    private detectContentType;
+    private resolveLocalPath;
+    private canViewStoragePath;
 }

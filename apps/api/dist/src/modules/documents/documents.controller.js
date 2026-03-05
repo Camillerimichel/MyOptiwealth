@@ -41,8 +41,21 @@ let DocumentsController = class DocumentsController {
     sendSignature(user, id, dto) {
         return this.documentsService.sendForSignature(user.activeWorkspaceId, user.sub, id, dto);
     }
+    view(user, id, response) {
+        return this.documentsService.getDocumentBinary(user.activeWorkspaceId, id).then((file) => {
+            response.setHeader('Content-Type', file.contentType);
+            response.setHeader('Content-Disposition', `inline; filename="${file.filename}"`);
+            return new common_1.StreamableFile(file.buffer);
+        });
+    }
     sign(user, id, body) {
         return this.documentsService.markSigned(user.activeWorkspaceId, user.sub, id, body.certificate);
+    }
+    archive(user, id) {
+        return this.documentsService.markArchived(user.activeWorkspaceId, user.sub, id);
+    }
+    remove(user, id) {
+        return this.documentsService.deleteDocument(user.activeWorkspaceId, user.sub, id);
     }
 };
 exports.DocumentsController = DocumentsController;
@@ -84,6 +97,15 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], DocumentsController.prototype, "sendSignature", null);
 __decorate([
+    (0, common_1.Get)(':id/view'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Res)({ passthrough: true })),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:returntype", void 0)
+], DocumentsController.prototype, "view", null);
+__decorate([
     (0, common_1.Patch)(':id/sign'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
@@ -93,6 +115,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, sign_document_dto_1.SignDocumentDto]),
     __metadata("design:returntype", void 0)
 ], DocumentsController.prototype, "sign", null);
+__decorate([
+    (0, common_1.Patch)(':id/archive'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], DocumentsController.prototype, "archive", null);
+__decorate([
+    (0, common_1.Delete)(':id'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], DocumentsController.prototype, "remove", null);
 exports.DocumentsController = DocumentsController = __decorate([
     (0, common_1.Controller)('documents'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, workspace_role_guard_1.WorkspaceRoleGuard),

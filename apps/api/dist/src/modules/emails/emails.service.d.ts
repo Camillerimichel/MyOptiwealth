@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { EncryptionService } from '../../common/crypto/encryption.service';
 import { DocumentStorageService } from '../documents/storage.service';
 import { PrismaService } from '../prisma.service';
@@ -8,7 +9,7 @@ export declare class EmailsService {
     private readonly encryptionService;
     private readonly documentStorageService;
     constructor(prisma: PrismaService, encryptionService: EncryptionService, documentStorageService: DocumentStorageService);
-    list(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<({
+    list(workspaceId: string): Prisma.PrismaPromise<({
         project: {
             id: string;
             createdAt: Date;
@@ -19,17 +20,17 @@ export declare class EmailsService {
             missionType: string | null;
             currentPhase: import(".prisma/client").$Enums.ProjectPhaseCode;
             progressPercent: number;
-            estimatedFees: import("@prisma/client/runtime/library").Decimal;
-            invoicedAmount: import("@prisma/client/runtime/library").Decimal;
-            collectedAmount: import("@prisma/client/runtime/library").Decimal;
-            estimatedMargin: import("@prisma/client/runtime/library").Decimal;
+            estimatedFees: Prisma.Decimal;
+            invoicedAmount: Prisma.Decimal;
+            collectedAmount: Prisma.Decimal;
+            estimatedMargin: Prisma.Decimal;
         } | null;
         tasks: {
             taskId: string;
         }[];
     } & {
         id: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue;
+        metadata: Prisma.JsonValue;
         createdAt: Date;
         workspaceId: string;
         updatedAt: Date;
@@ -47,7 +48,25 @@ export declare class EmailsService {
         };
     } & {
         id: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue;
+        metadata: Prisma.JsonValue;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        projectId: string | null;
+        externalMessageId: string;
+        fromAddress: string;
+        toAddresses: string[];
+        subject: string;
+        receivedAt: Date;
+    })[]>;
+    listIgnoredForUser(userId: string): Promise<({
+        workspace: {
+            id: string;
+            name: string;
+        };
+    } & {
+        id: string;
+        metadata: Prisma.JsonValue;
         createdAt: Date;
         workspaceId: string;
         updatedAt: Date;
@@ -82,9 +101,14 @@ export declare class EmailsService {
             size: number;
         }[];
     }>;
+    saveAttachmentsToDocuments(userId: string, emailId: string): Promise<{
+        saved: boolean;
+        alreadySaved: boolean;
+        importedCount: number;
+    }>;
     upsertMetadata(workspaceId: string, dto: LinkEmailDto): Promise<{
         id: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue;
+        metadata: Prisma.JsonValue;
         createdAt: Date;
         workspaceId: string;
         updatedAt: Date;
@@ -97,7 +121,7 @@ export declare class EmailsService {
     }>;
     upsertMetadataGlobal(userId: string, dto: LinkGlobalEmailDto): Promise<{
         id: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue;
+        metadata: Prisma.JsonValue;
         createdAt: Date;
         workspaceId: string;
         updatedAt: Date;
@@ -107,6 +131,12 @@ export declare class EmailsService {
         toAddresses: string[];
         subject: string;
         receivedAt: Date;
+    }>;
+    ignoreInboxEmail(userId: string, emailId: string): Promise<{
+        ignored: boolean;
+    }>;
+    unignoreInboxEmail(userId: string, emailId: string): Promise<{
+        restored: boolean;
     }>;
     private upsertMetadataGlobalByEmailId;
     private upsertMetadataInternal;
@@ -121,6 +151,10 @@ export declare class EmailsService {
     private fetchImapSourceByExternalMessageId;
     private importAttachmentsAsDocuments;
     private normalizeBodyText;
+    private toStorageSegment;
+    private shortMessageKey;
     private readMetadataString;
+    private readMetadataBoolean;
+    private mergeMetadata;
     private readMetadataAttachments;
 }

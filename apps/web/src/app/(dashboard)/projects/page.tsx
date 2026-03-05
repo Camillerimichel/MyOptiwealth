@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import {
   clearActiveProjectContext,
@@ -42,6 +43,7 @@ const CONTACT_ROLE_LABELS: Record<'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL', str
 };
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [projectContacts, setProjectContacts] = useState<ProjectContact[]>([]);
@@ -54,6 +56,7 @@ export default function ProjectsPage() {
   const [missionType, setMissionType] = useState<string>(DEFAULT_MISSION_TYPES[0]);
   const [missionTypes, setMissionTypes] = useState<string[]>(DEFAULT_MISSION_TYPES);
   const [saving, setSaving] = useState(false);
+  const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeProjectTitle, setActiveProjectTitle] = useState<string | null>(null);
   const [activeProjectTypology, setActiveProjectTypology] = useState<string | null>(null);
@@ -71,14 +74,21 @@ export default function ProjectsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [projectsData, societiesData, settings, contactsData] = await Promise.all([
+      const [projectsData, societiesData, settings, contactsData, workspacesData] = await Promise.all([
         apiClient.listProjects(token),
         apiClient.listSocieties(token),
         apiClient.getWorkspaceSettings(token),
         apiClient.listContacts(token),
+        apiClient.listWorkspaces(token),
       ]);
       setProjects(projectsData);
       setContacts(contactsData);
+      const workspaceId =
+        typeof window !== 'undefined'
+          ? window.localStorage.getItem('mw_active_workspace_id')
+          : null;
+      const workspaceName = workspacesData.find((item) => item.workspace.id === workspaceId)?.workspace.name ?? null;
+      setActiveWorkspaceName(workspaceName);
       const workspaceDefaultSociety = [...societiesData]
         .sort((a, b) => {
           const left = a.createdAt ? new Date(a.createdAt).getTime() : Number.MAX_SAFE_INTEGER;
@@ -171,6 +181,7 @@ export default function ProjectsPage() {
     setActiveProjectTypology(project.missionType ? (LEGACY_MISSION_LABELS[project.missionType] ?? project.missionType) : null);
     setActiveTaskLabel(null);
     showToast('Contexte projet activé.', 'success');
+    router.push('/tasks');
   }
 
   async function onCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -257,13 +268,17 @@ export default function ProjectsPage() {
     <section className="grid gap-6">
       <h1 className="text-2xl font-semibold text-[var(--brand)]">Projects</h1>
       <div className="rounded-lg border-2 border-[var(--brand)] bg-[#efe7d4] px-4 py-3 text-base font-bold text-[#2f2b23]">
-        Projet: {activeProjectTitle ?? 'Aucun'}{activeProjectTypology ? ` (${activeProjectTypology})` : ''}
-        {activeTaskLabel ? ` | Tâche: ${activeTaskLabel}` : ''}
+        <p>Workspace: {activeWorkspaceName ?? 'Aucun'}</p>
+        <p className="pl-6">
+          Projet: {activeProjectTitle ?? 'Aucun'}{activeProjectTypology ? ` (${activeProjectTypology})` : ''}
+        </p>
+        <p className="pl-12">Tâche: {activeTaskLabel ?? 'Aucune'}</p>
         {activeProjectId ? (
           <button
             type="button"
             onClick={() => {
               clearActiveProjectContext();
+              clearActiveTaskContext();
               setActiveProjectId(null);
               setActiveProjectTitle(null);
               setActiveProjectTypology(null);

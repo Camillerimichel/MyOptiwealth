@@ -32,17 +32,29 @@ let EmailsController = class EmailsController {
     listUnassigned(user) {
         return this.emailsService.listUnassignedForUser(user.sub);
     }
+    listIgnored(user) {
+        return this.emailsService.listIgnoredForUser(user.sub);
+    }
     listCatalog(user) {
         return this.emailsService.listLinkCatalogForUser(user.sub);
     }
     getContent(user, emailId) {
         return this.emailsService.getEmailContent(user.sub, emailId);
     }
+    saveAttachments(user, emailId) {
+        return this.emailsService.saveAttachmentsToDocuments(user.sub, emailId);
+    }
     linkEmail(user, dto) {
         return this.emailsService.upsertMetadata(user.activeWorkspaceId, dto);
     }
     linkEmailFromInbox(user, dto) {
         return this.emailsService.upsertMetadataGlobal(user.sub, dto);
+    }
+    ignoreInboxEmail(user, emailId) {
+        return this.emailsService.ignoreInboxEmail(user.sub, emailId);
+    }
+    unignoreInboxEmail(user, emailId) {
+        return this.emailsService.unignoreInboxEmail(user.sub, emailId);
     }
     sync(user) {
         return this.emailsService.syncFromImap(user.activeWorkspaceId);
@@ -64,6 +76,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], EmailsController.prototype, "listUnassigned", null);
 __decorate([
+    (0, common_1.Get)('inbox/ignored'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "listIgnored", null);
+__decorate([
     (0, common_1.Get)('inbox/catalog'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __metadata("design:type", Function),
@@ -78,6 +97,15 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", void 0)
 ], EmailsController.prototype, "getContent", null);
+__decorate([
+    (0, common_1.Post)(':emailId/attachments/save'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('emailId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "saveAttachments", null);
 __decorate([
     (0, common_1.Post)('link'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
@@ -95,6 +123,24 @@ __decorate([
     __metadata("design:paramtypes", [Object, link_global_email_dto_1.LinkGlobalEmailDto]),
     __metadata("design:returntype", void 0)
 ], EmailsController.prototype, "linkEmailFromInbox", null);
+__decorate([
+    (0, common_1.Post)('inbox/:emailId/ignore'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('emailId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "ignoreInboxEmail", null);
+__decorate([
+    (0, common_1.Post)('inbox/:emailId/unignore'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('emailId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "unignoreInboxEmail", null);
 __decorate([
     (0, common_1.Post)('sync'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
