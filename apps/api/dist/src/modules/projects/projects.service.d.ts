@@ -92,6 +92,41 @@ export declare class ProjectsService {
             city: string | null;
             country: string | null;
         };
+        contacts: ({
+            contact: {
+                society: {
+                    id: string;
+                    createdAt: Date;
+                    workspaceId: string;
+                    name: string;
+                    updatedAt: Date;
+                    legalForm: string | null;
+                    siren: string | null;
+                    siret: string | null;
+                    addressLine1: string | null;
+                    addressLine2: string | null;
+                    postalCode: string | null;
+                    city: string | null;
+                    country: string | null;
+                } | null;
+            } & {
+                id: string;
+                createdAt: Date;
+                workspaceId: string;
+                email: string | null;
+                firstName: string;
+                lastName: string;
+                updatedAt: Date;
+                role: import(".prisma/client").$Enums.ContactRole | null;
+                societyId: string | null;
+                phone: string | null;
+            };
+        } & {
+            createdAt: Date;
+            projectId: string;
+            contactId: string;
+            projectRole: import(".prisma/client").$Enums.ContactRole | null;
+        })[];
         phases: {
             id: string;
             createdAt: Date;

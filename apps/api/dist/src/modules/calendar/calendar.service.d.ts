@@ -1,5 +1,6 @@
 import { PrismaService } from '../prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
+import { UpdateEventDto } from './dto/update-event.dto';
 export declare class CalendarService {
     private readonly prisma;
     constructor(prisma: PrismaService);
@@ -18,6 +19,24 @@ export declare class CalendarService {
         visioLink: string | null;
         alertMinutes: number | null;
     }, never, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    update(workspaceId: string, eventId: string, dto: UpdateEventDto): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        title: string;
+        description: string | null;
+        eventType: import(".prisma/client").$Enums.CalendarEventType;
+        startAt: Date;
+        endAt: Date;
+        projectId: string | null;
+        taskId: string | null;
+        visioLink: string | null;
+        alertMinutes: number | null;
+    } | null>;
+    remove(workspaceId: string, eventId: string): Promise<{
+        success: boolean;
+    }>;
     list(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<{
         id: string;
         createdAt: Date;
@@ -51,5 +70,6 @@ export declare class CalendarService {
     private toUtc;
     private toDateOnly;
     private addOneDay;
+    private toLocalDateTime;
     private addDays;
 }

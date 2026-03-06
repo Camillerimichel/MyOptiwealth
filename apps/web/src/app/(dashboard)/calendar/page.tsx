@@ -48,6 +48,11 @@ export default function CalendarPage() {
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
   const [selectedEvent, setSelectedEvent] = useState<FeedItem | null>(null);
+  const [isEditingSelectedEvent, setIsEditingSelectedEvent] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editEventType, setEditEventType] = useState('MEETING');
+  const [editStartAt, setEditStartAt] = useState('');
+  const [editEndAt, setEditEndAt] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -148,6 +153,62 @@ export default function CalendarPage() {
     const item = items.find((entry) => entry.id === arg.event.id);
     if (!item) return;
     setSelectedEvent(item);
+    setIsEditingSelectedEvent(false);
+    if (item.source === 'EVENT') {
+      setEditTitle(item.title);
+      setEditEventType('MEETING');
+      setEditStartAt(toDateTimeLocalValue(item.start));
+      setEditEndAt(toDateTimeLocalValue(item.end));
+    } else {
+      setEditTitle('');
+      setEditEventType('MEETING');
+      setEditStartAt('');
+      setEditEndAt('');
+    }
+  }
+
+  function toDateTimeLocalValue(value: string): string {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+  }
+
+  function selectedCalendarEventId(item: FeedItem | null): string | null {
+    if (!item || item.source !== 'EVENT') return null;
+    if (!item.id.startsWith('event-')) return null;
+    return item.id.slice(6);
+  }
+
+  async function onUpdateSelectedEvent(): Promise<void> {
+    const token = getAccessToken();
+    const eventId = selectedCalendarEventId(selectedEvent);
+    if (!token || !eventId || !editTitle || !editStartAt || !editEndAt) return;
+    await apiClient.updateEvent(token, eventId, {
+      title: editTitle,
+      eventType: editEventType,
+      startAt: new Date(editStartAt).toISOString(),
+      endAt: new Date(editEndAt).toISOString(),
+    });
+    showToast('Evenement modifie.', 'success');
+    setSelectedEvent(null);
+    setIsEditingSelectedEvent(false);
+    await load();
+  }
+
+  async function onDeleteSelectedEvent(): Promise<void> {
+    const token = getAccessToken();
+    const eventId = selectedCalendarEventId(selectedEvent);
+    if (!token || !eventId) return;
+    await apiClient.deleteEvent(token, eventId);
+    showToast('Evenement supprime.', 'success');
+    setSelectedEvent(null);
+    setIsEditingSelectedEvent(false);
+    await load();
   }
 
   return (
@@ -222,15 +283,26 @@ export default function CalendarPage() {
               <p>Fin: {new Date(selectedEvent.end).toLocaleString('fr-FR')}</p>
             </div>
             <div className="mt-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  router.push(selectedEvent.url);
-                }}
-                className="rounded bg-[var(--brand)] px-3 py-2 text-white"
-              >
-                Ouvrir URL
-              </button>
+              {selectedEvent.source === 'EVENT' ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingSelectedEvent((current) => !current)}
+                  className="rounded bg-[var(--brand)] px-3 py-2 text-white"
+                >
+                  Modifier
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selectedEvent.url) return;
+                    router.push(selectedEvent.url);
+                  }}
+                  className="rounded bg-[var(--brand)] px-3 py-2 text-white"
+                >
+                  Ouvrir
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setSelectedEvent(null)}
@@ -239,6 +311,58 @@ export default function CalendarPage() {
                 Fermer
               </button>
             </div>
+            {selectedEvent.source === 'EVENT' && isEditingSelectedEvent ? (
+              <div className="mt-4 grid gap-2 border-t border-[var(--line)] pt-4">
+                <input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Titre"
+                  className="rounded border border-[var(--line)] px-3 py-2"
+                />
+                <select
+                  value={editEventType}
+                  onChange={(e) => setEditEventType(e.target.value)}
+                  className="rounded border border-[var(--line)] px-3 py-2"
+                >
+                  <option value="MEETING">Meeting</option>
+                  <option value="TASK_DEADLINE">Task deadline</option>
+                  <option value="INTERNAL">Internal</option>
+                  <option value="EXTERNAL">External</option>
+                </select>
+                <input
+                  type="datetime-local"
+                  value={editStartAt}
+                  onChange={(e) => setEditStartAt(e.target.value)}
+                  className="rounded border border-[var(--line)] px-3 py-2"
+                />
+                <input
+                  type="datetime-local"
+                  value={editEndAt}
+                  onChange={(e) => setEditEndAt(e.target.value)}
+                  className="rounded border border-[var(--line)] px-3 py-2"
+                />
+                <div className="mt-1 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void onUpdateSelectedEvent();
+                    }}
+                    className="rounded bg-[var(--brand)] px-3 py-2 text-white"
+                  >
+                    Enregistrer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void onDeleteSelectedEvent();
+                    }}
+                    className="rounded border border-red-300 px-3 py-2 text-red-700"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

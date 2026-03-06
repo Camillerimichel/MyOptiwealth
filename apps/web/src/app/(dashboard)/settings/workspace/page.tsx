@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/auth';
 import { showToast } from '@/lib/toast';
@@ -11,6 +11,26 @@ type WorkspaceMembership = {
   isDefault: boolean;
 };
 type Society = { id: string; name: string };
+
+function normalizeSocietyName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function dedupeSocietiesByName(input: Society[]): Society[] {
+  const seen = new Set<string>();
+  const deduped: Society[] = [];
+  for (const society of input) {
+    const key = normalizeSocietyName(society.name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(society);
+  }
+  return deduped;
+}
 
 export default function WorkspaceSettingsPage() {
   const [activeSubmenu, setActiveSubmenu] = useState<'workspaces' | 'imap'>('workspaces');
@@ -37,6 +57,9 @@ export default function WorkspaceSettingsPage() {
   const [editingWorkspaceName, setEditingWorkspaceName] = useState('');
   const [editingAssociatedSocietyId, setEditingAssociatedSocietyId] = useState('');
 
+  const uniqueAllSocieties = useMemo(() => dedupeSocietiesByName(allSocieties), [allSocieties]);
+  const uniqueSocieties = useMemo(() => dedupeSocietiesByName(societies), [societies]);
+
   const load = useCallback(async (): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
@@ -61,10 +84,11 @@ export default function WorkspaceSettingsPage() {
       setImapHost(settings.imapHost ?? '');
       setImapPort(settings.imapPort ?? 993);
       setImapUser(settings.imapUser ?? '');
+      const dedupedSocietiesData = dedupeSocietiesByName(societiesData);
       const validAssociatedSocietyId =
-        settings.associatedSocietyId && societiesData.some((society) => society.id === settings.associatedSocietyId)
+        settings.associatedSocietyId && dedupedSocietiesData.some((society) => society.id === settings.associatedSocietyId)
           ? settings.associatedSocietyId
-          : societiesData[0]?.id ?? '';
+          : dedupedSocietiesData[0]?.id ?? '';
       setAssociatedSocietyId(validAssociatedSocietyId);
       if (settings.signatureProvider === 'YOUSIGN' || settings.signatureProvider === 'DOCUSIGN' || settings.signatureProvider === 'MOCK') {
         setSignatureProvider(settings.signatureProvider);
@@ -149,7 +173,7 @@ export default function WorkspaceSettingsPage() {
     if (!token) return;
     try {
       const validAssociatedSocietyId =
-        associatedSocietyId && societies.some((society) => society.id === associatedSocietyId)
+        associatedSocietyId && uniqueSocieties.some((society) => society.id === associatedSocietyId)
           ? associatedSocietyId
           : undefined;
       await apiClient.updateWorkspaceSettings(token, {
@@ -222,7 +246,7 @@ export default function WorkspaceSettingsPage() {
               className="rounded border border-[var(--line)] px-3 py-2 text-sm"
             >
               <option value="">Société associée (liste)</option>
-              {allSocieties.map((society) => (
+              {uniqueAllSocieties.map((society) => (
                 <option key={society.id} value={society.id}>
                   {society.name}
                 </option>
@@ -289,7 +313,7 @@ export default function WorkspaceSettingsPage() {
                     className="rounded border border-[var(--line)] px-3 py-2 text-sm"
                   >
                     <option value="">Société associée inchangée</option>
-                    {allSocieties.map((society) => (
+                    {uniqueAllSocieties.map((society) => (
                       <option key={society.id} value={society.id}>
                         {society.name}
                       </option>

@@ -35,13 +35,13 @@ export declare class FinanceController {
         status: string;
         dueDate: Date | null;
         quoteId: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        issuedAt: Date;
-        accountingRef: string | null;
-        paidAt: Date | null;
         invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
+        accountingRef: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        paidAt: Date | null;
     })[]>;
     overview(user: AuthUser, projectId?: string): Promise<{
         quote: {
@@ -83,13 +83,13 @@ export declare class FinanceController {
         status: string;
         dueDate: Date | null;
         quoteId: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        issuedAt: Date;
-        accountingRef: string | null;
-        paidAt: Date | null;
         invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
+        accountingRef: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        paidAt: Date | null;
     }>;
     createInvoice(user: AuthUser, dto: CreateInvoiceDto): Promise<{
         id: string;
@@ -101,13 +101,13 @@ export declare class FinanceController {
         status: string;
         dueDate: Date | null;
         quoteId: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        issuedAt: Date;
-        accountingRef: string | null;
-        paidAt: Date | null;
         invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
+        accountingRef: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        paidAt: Date | null;
     }>;
     updateDocument(user: AuthUser, documentId: string, dto: UpdateFinanceDocumentDto): Promise<{
         id: string;
@@ -119,13 +119,13 @@ export declare class FinanceController {
         status: string;
         dueDate: Date | null;
         quoteId: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        issuedAt: Date;
-        accountingRef: string | null;
-        paidAt: Date | null;
         invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
+        accountingRef: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        paidAt: Date | null;
     }>;
     kpis(user: AuthUser, projectId?: string): Promise<{
         billedRevenue: number;

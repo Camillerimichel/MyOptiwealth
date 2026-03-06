@@ -1,7 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import {
+  clearActiveProjectContext,
+  clearActiveTaskContext,
+  setActiveProjectContext,
+} from '@/lib/active-task';
 import { WorkspaceDashboardOverviewPayload } from '@/types/api';
 
 function euro(value: number): string {
@@ -18,6 +23,8 @@ function progressColor(percent: number): string {
   return '#dc2626';
 }
 
+const WORKSPACE_NAME_COLLATOR = new Intl.Collator('fr', { sensitivity: 'base' });
+
 export default function DashboardPage() {
   const [data, setData] = useState<WorkspaceDashboardOverviewPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +40,29 @@ export default function DashboardPage() {
       .then((payload) => setData(payload))
       .catch(() => setError('Impossible de charger le dashboard.'));
   }, [token]);
+
+  const openWorkspacePage = useCallback(async (workspaceId: string, path: '/timesheet' | '/finance'): Promise<void> => {
+    const currentToken = typeof window !== 'undefined' ? localStorage.getItem('mw_access_token') : null;
+    if (!currentToken) return;
+    const switched = await apiClient.switchWorkspace(currentToken, workspaceId);
+    localStorage.setItem('mw_access_token', switched.accessToken);
+    localStorage.setItem('mw_active_workspace_id', switched.activeWorkspaceId);
+    const projects = await apiClient.listProjects(switched.accessToken);
+    if (projects.length === 1) {
+      const only = projects[0];
+      setActiveProjectContext({
+        projectId: only.id,
+        projectTitle: only.name,
+        projectTypology: only.missionType ?? null,
+        workspaceId: switched.activeWorkspaceId,
+      });
+    } else {
+      clearActiveProjectContext();
+    }
+    clearActiveTaskContext();
+    window.dispatchEvent(new Event('mw_workspace_changed'));
+    window.location.href = path;
+  }, []);
 
   if (!token) {
     return <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Aucun token détecté.</p>;
@@ -110,7 +140,9 @@ export default function DashboardPage() {
         </article>
       </div>
 
-      {data.workspaces.map((item) => {
+      {[...data.workspaces]
+        .sort((left, right) => WORKSPACE_NAME_COLLATOR.compare(left.workspace.name, right.workspace.name))
+        .map((item) => {
         const totalTasks = item.taskStats.total || 1;
         const segments = [
           { label: 'À faire', value: item.taskStats.todo, color: '#d1d5db' },
@@ -141,7 +173,18 @@ export default function DashboardPage() {
                 <p className="mt-2 text-right text-xl font-semibold text-[#2f2b23]">{item.progressPercent}%</p>
               </div>
 
-              <div className="rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { void openWorkspacePage(item.workspace.id, '/timesheet'); }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    void openWorkspacePage(item.workspace.id, '/timesheet');
+                  }
+                }}
+                className="cursor-pointer rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4 text-left transition hover:bg-[#f2eee4]"
+              >
                 <p className="mb-2 text-xs uppercase tracking-[0.08em] text-[#6a6861]">Graphique des tâches</p>
                 <div className="mb-2 flex h-5 overflow-hidden rounded">
                   {segments.map((segment) => (
@@ -165,7 +208,18 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4">
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { void openWorkspacePage(item.workspace.id, '/finance'); }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    void openWorkspacePage(item.workspace.id, '/finance');
+                  }
+                }}
+                className="cursor-pointer rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4 text-left transition hover:bg-[#f2eee4]"
+              >
                 <p className="mb-2 text-xs uppercase tracking-[0.08em] text-[#6a6861]">Finances</p>
                 <table className="w-full border-collapse text-sm">
                   <tbody>

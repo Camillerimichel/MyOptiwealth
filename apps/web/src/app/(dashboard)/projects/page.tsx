@@ -14,7 +14,20 @@ import { apiClient } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/auth';
 import { showToast } from '@/lib/toast';
 
-type Project = { id: string; name: string; progressPercent: number; missionType?: string | null };
+type Project = {
+  id: string;
+  name: string;
+  progressPercent: number;
+  missionType?: string | null;
+  contacts?: Array<{
+    contact: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      society?: { id: string; name: string } | null;
+    };
+  }>;
+};
 type Contact = {
   id: string;
   firstName: string;
@@ -56,10 +69,24 @@ function compareContactsByName(left: Contact, right: Contact): number {
   return CONTACT_LIST_COLLATOR.compare(contactSortName(left), contactSortName(right));
 }
 
+function normalizeSocietyName(value?: string | null): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function contactSocietyLink(name?: string | null): string {
+  const key = normalizeSocietyName(name);
+  return key ? `/crm/contacts?societyKey=${encodeURIComponent(key)}` : '/crm/contacts';
+}
+
 export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [workspaceSocietyNameKeys, setWorkspaceSocietyNameKeys] = useState<string[]>([]);
   const [projectContacts, setProjectContacts] = useState<ProjectContact[]>([]);
   const [projectContactIdToAdd, setProjectContactIdToAdd] = useState('');
   const [projectContactRoleToAdd, setProjectContactRoleToAdd] = useState<'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | ''>('');
@@ -92,11 +119,14 @@ export default function ProjectsPage() {
         apiClient.listProjects(token),
         apiClient.listSocieties(token),
         apiClient.getWorkspaceSettings(token),
-        apiClient.listContacts(token),
+        apiClient.listContactsAll(token),
         apiClient.listWorkspaces(token),
       ]);
       setProjects(projectsData);
       setContacts(contactsData);
+      setWorkspaceSocietyNameKeys(
+        [...new Set(societiesData.map((society) => normalizeSocietyName(society.name)).filter(Boolean))],
+      );
       const workspaceId =
         typeof window !== 'undefined'
           ? window.localStorage.getItem('mw_active_workspace_id')
@@ -260,6 +290,14 @@ export default function ProjectsPage() {
     await loadProjectContacts(editingProjectId);
   }
 
+  const workspaceSocietyNameKeySet = new Set(workspaceSocietyNameKeys);
+  const projectContactsToSelect = [...contacts]
+    .filter((contact) => {
+      if (!workspaceSocietyNameKeySet.size) return false;
+      return workspaceSocietyNameKeySet.has(normalizeSocietyName(contact.society?.name));
+    })
+    .sort(compareContactsByName);
+
   async function onUpdateProjectContactRole(contactId: string, role: string): Promise<void> {
     const token = getAccessToken();
     if (!token || !editingProjectId) return;
@@ -357,7 +395,7 @@ export default function ProjectsPage() {
               className="rounded border border-[var(--line)] px-3 py-2"
             >
               <option value="">Choisir un contact existant</option>
-              {[...contacts].sort(compareContactsByName).map((contact) => (
+              {projectContactsToSelect.map((contact) => (
                 <option key={contact.id} value={contact.id}>
                   {contact.firstName} {contact.lastName}
                   {contact.society?.name ? ` (${contact.society.name})` : ''}
@@ -447,6 +485,7 @@ export default function ProjectsPage() {
                 <th className="px-2 py-2">Nom</th>
                 <th className="px-2 py-2">Progression</th>
                 <th className="px-2 py-2">Typologie</th>
+                <th className="px-2 py-2">Contact projet</th>
                 <th className="px-2 py-2">Action</th>
               </tr>
             </thead>
@@ -459,6 +498,23 @@ export default function ProjectsPage() {
                   <td className="px-2 py-2">{project.name}</td>
                   <td className="px-2 py-2">{project.progressPercent}%</td>
                   <td className="px-2 py-2">{project.missionType ? (LEGACY_MISSION_LABELS[project.missionType] ?? project.missionType) : '-'}</td>
+                  <td className="px-2 py-2">
+                    {project.contacts && project.contacts.length > 0 ? (
+                      <div className="flex flex-wrap gap-x-2 gap-y-1">
+                        {project.contacts.map((link) => (
+                          <Link
+                            key={`${project.id}-${link.contact.id}`}
+                            href={contactSocietyLink(link.contact.society?.name)}
+                            className="text-[var(--brand)] underline-offset-2 hover:underline"
+                          >
+                            {link.contact.firstName} {link.contact.lastName}
+                          </Link>
+                        ))}
+                      </div>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
                   <td className="px-2 py-2">
                     <button
                       type="button"

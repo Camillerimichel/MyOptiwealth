@@ -21,6 +21,7 @@ const workspace_role_guard_1 = require("../../common/guards/workspace-role.guard
 const client_1 = require("@prisma/client");
 const calendar_service_1 = require("./calendar.service");
 const create_event_dto_1 = require("./dto/create-event.dto");
+const update_event_dto_1 = require("./dto/update-event.dto");
 let CalendarController = class CalendarController {
     constructor(calendarService) {
         this.calendarService = calendarService;
@@ -33,6 +34,12 @@ let CalendarController = class CalendarController {
     }
     create(user, dto) {
         return this.calendarService.create(user.activeWorkspaceId, dto);
+    }
+    update(user, eventId, dto) {
+        return this.calendarService.update(user.activeWorkspaceId, eventId, dto);
+    }
+    remove(user, eventId) {
+        return this.calendarService.remove(user.activeWorkspaceId, eventId);
     }
     exportWeekly(user) {
         return this.calendarService.exportWeeklyIcs(user.activeWorkspaceId);
@@ -62,6 +69,25 @@ __decorate([
     __metadata("design:paramtypes", [Object, create_event_dto_1.CreateEventDto]),
     __metadata("design:returntype", void 0)
 ], CalendarController.prototype, "create", null);
+__decorate([
+    (0, common_1.Patch)('events/:eventId'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('eventId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, update_event_dto_1.UpdateEventDto]),
+    __metadata("design:returntype", void 0)
+], CalendarController.prototype, "update", null);
+__decorate([
+    (0, common_1.Delete)('events/:eventId'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('eventId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], CalendarController.prototype, "remove", null);
 __decorate([
     (0, common_1.Get)('exports/weekly.ics'),
     (0, common_1.Header)('Content-Type', 'text/calendar; charset=utf-8'),

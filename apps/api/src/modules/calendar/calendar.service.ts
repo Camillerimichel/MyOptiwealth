@@ -1,6 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { FinancialDocumentType } from '@prisma/client';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
+import { UpdateEventDto } from './dto/update-event.dto';
 
 @Injectable()
 export class CalendarService {
@@ -8,6 +10,27 @@ export class CalendarService {
 
   create(workspaceId: string, dto: CreateEventDto) {
     return this.prisma.calendarEvent.create({ data: { workspaceId, ...dto } });
+  }
+
+  async update(workspaceId: string, eventId: string, dto: UpdateEventDto) {
+    const result = await this.prisma.calendarEvent.updateMany({
+      where: { id: eventId, workspaceId },
+      data: dto,
+    });
+    if (result.count === 0) {
+      throw new NotFoundException('Evenement introuvable dans ce workspace');
+    }
+    return this.prisma.calendarEvent.findUnique({ where: { id: eventId } });
+  }
+
+  async remove(workspaceId: string, eventId: string) {
+    const result = await this.prisma.calendarEvent.deleteMany({
+      where: { id: eventId, workspaceId },
+    });
+    if (result.count === 0) {
+      throw new NotFoundException('Evenement introuvable dans ce workspace');
+    }
+    return { success: true };
   }
 
   list(workspaceId: string) {
@@ -37,7 +60,7 @@ export class CalendarService {
     const workspaceById = new Map(memberships.map((membership) => [membership.workspace.id, membership.workspace.name]));
     const workspaceIds = memberships.map((membership) => membership.workspace.id);
 
-    const [events, tasks, timeEntries] = await this.prisma.$transaction([
+    const [events, tasks, timeEntries, financeDocuments] = await this.prisma.$transaction([
       this.prisma.calendarEvent.findMany({
         where: { workspaceId: { in: workspaceIds } },
         orderBy: { startAt: 'asc' },
@@ -66,6 +89,16 @@ export class CalendarService {
           project: { select: { id: true, name: true } },
           user: { select: { id: true, email: true } },
         },
+      }),
+      this.prisma.financeDocument.findMany({
+        where: {
+          workspaceId: { in: workspaceIds },
+          type: { in: [FinancialDocumentType.QUOTE, FinancialDocumentType.INVOICE] },
+        },
+        include: {
+          project: { select: { id: true, name: true } },
+        },
+        orderBy: { issuedAt: 'asc' },
       }),
     ]);
 
@@ -197,7 +230,27 @@ export class CalendarService {
       workspaceName: workspaceById.get(event.workspaceId) ?? 'Workspace',
     }));
 
-    const items = [...calendarEvents, ...taskEvents, ...timesheetEvents].sort((a, b) => a.start.localeCompare(b.start));
+    const financeEvents = financeDocuments.map((document) => {
+      const workspaceName = workspaceById.get(document.workspaceId) ?? 'Workspace';
+      const dateOnly = this.toDateOnly(document.issuedAt);
+      const startsAt = this.toLocalDateTime(dateOnly, 10, 0);
+      const endsAt = this.toLocalDateTime(dateOnly, 11, 0);
+      const kind = document.type === FinancialDocumentType.QUOTE ? 'Devis' : 'Facture';
+      const projectSuffix = document.project?.name ? ` (${document.project.name})` : '';
+      return {
+        id: `finance-${document.id}`,
+        title: `${kind}${projectSuffix} - ${document.name}`,
+        start: startsAt,
+        end: endsAt,
+        allDay: false,
+        source: 'FINANCE',
+        url: '/finance',
+        workspaceId: document.workspaceId,
+        workspaceName,
+      };
+    });
+
+    const items = [...calendarEvents, ...taskEvents, ...timesheetEvents, ...financeEvents].sort((a, b) => a.start.localeCompare(b.start));
 
     return {
       activeWorkspaceId,
@@ -245,6 +298,12 @@ export class CalendarService {
     const value = new Date(`${dateOnly}T00:00:00.000Z`);
     value.setUTCDate(value.getUTCDate() + 1);
     return value.toISOString().slice(0, 10);
+  }
+
+  private toLocalDateTime(dateOnly: string, hour: number, minute: number): string {
+    const hh = String(hour).padStart(2, '0');
+    const mm = String(minute).padStart(2, '0');
+    return `${dateOnly}T${hh}:${mm}:00`;
   }
 
   private addDays(dateOnly: string, days: number): string {

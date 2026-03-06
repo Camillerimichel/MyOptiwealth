@@ -183,6 +183,18 @@ let ProjectsService = class ProjectsService {
             include: {
                 society: true,
                 phases: { orderBy: { position: 'asc' } },
+                contacts: {
+                    include: {
+                        contact: {
+                            include: {
+                                society: true,
+                            },
+                        },
+                    },
+                    orderBy: {
+                        createdAt: 'asc',
+                    },
+                },
             },
         });
         const totalTasksByProject = await this.prisma.task.groupBy({
@@ -222,16 +234,46 @@ let ProjectsService = class ProjectsService {
         });
     }
     async addProjectContact(workspaceId, userId, projectId, dto) {
-        await this.getProjectOrThrow(workspaceId, projectId);
-        await this.getContactOrThrow(workspaceId, dto.contactId);
+        const project = await this.prisma.project.findFirst({
+            where: { id: projectId, workspaceId },
+            select: {
+                id: true,
+            },
+        });
+        if (!project) {
+            throw new common_1.NotFoundException('Projet introuvable dans ce workspace');
+        }
+        const [workspaceSocieties, selectedContact] = await Promise.all([
+            this.prisma.society.findMany({
+                where: { workspaceId },
+                select: { name: true },
+            }),
+            this.prisma.contact.findUnique({
+                where: { id: dto.contactId },
+                include: {
+                    society: {
+                        select: { name: true },
+                    },
+                },
+            }),
+        ]);
+        if (!selectedContact) {
+            throw new common_1.NotFoundException('Contact introuvable');
+        }
+        const workspaceSocietyNames = new Set(workspaceSocieties.map((society) => normalizeForSort(society.name)).filter(Boolean));
+        const contactSocietyName = normalizeForSort(selectedContact.society?.name ?? '');
+        if (!workspaceSocietyNames.has(contactSocietyName)) {
+            throw new common_1.NotFoundException('Contact introuvable dans les sociétés du workspace');
+        }
+        const resolvedContactId = selectedContact.id;
         const result = await this.prisma.projectContact.upsert({
-            where: { projectId_contactId: { projectId, contactId: dto.contactId } },
+            where: { projectId_contactId: { projectId, contactId: resolvedContactId } },
             update: {
                 projectRole: dto.projectRole,
             },
             create: {
                 projectId,
-                contactId: dto.contactId,
+                contactId: resolvedContactId,
                 projectRole: dto.projectRole,
             },
             include: {
@@ -242,7 +284,7 @@ let ProjectsService = class ProjectsService {
                 },
             },
         });
-        await this.auditService.log(workspaceId, 'PROJECT_CONTACT_LINKED', { projectId, contactId: dto.contactId }, userId);
+        await this.auditService.log(workspaceId, 'PROJECT_CONTACT_LINKED', { projectId, contactId: resolvedContactId }, userId);
         return result;
     }
     async updateProjectContact(workspaceId, userId, projectId, contactId, dto) {

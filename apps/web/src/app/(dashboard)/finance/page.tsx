@@ -425,8 +425,8 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
             ))}
           </select>
           <input value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} placeholder="Montant devis" className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={quoteIssuedAt} onChange={(e) => setQuoteIssuedAt(e.target.value)} className="rounded border border-[var(--line)] w-full max-w-28 px-3 py-2" />
-          <input type="date" value={quoteDueAt} onChange={(e) => setQuoteDueAt(e.target.value)} className="rounded border border-[var(--line)] w-full max-w-28 px-3 py-2" />
+          <input type="date" value={quoteIssuedAt} onChange={(e) => setQuoteIssuedAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
+          <input type="date" value={quoteDueAt} onChange={(e) => setQuoteDueAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
           <button disabled={!createProjectId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1">Créer devis</button>
         </form>
       </article>
@@ -437,12 +437,12 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
           <select value={invoiceQuoteId} onChange={(e) => setInvoiceQuoteId(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3">
             <option value="">Devis parent</option>
             {quoteOptions.map((quote) => (
-              <option key={quote.id} value={quote.id}>{quote.reference} - {quote.projectName}</option>
+              <option key={quote.id} value={quote.id}>{getQuoteDisplayName(quote)}</option>
             ))}
           </select>
           <input value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} placeholder="Montant facture" className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={invoiceIssuedAt} onChange={(e) => setInvoiceIssuedAt(e.target.value)} className="rounded border border-[var(--line)] w-full max-w-28 px-3 py-2" />
-          <input type="date" value={invoiceDueAt} onChange={(e) => setInvoiceDueAt(e.target.value)} className="rounded border border-[var(--line)] w-full max-w-28 px-3 py-2" />
+          <input type="date" value={invoiceIssuedAt} onChange={(e) => setInvoiceIssuedAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
+          <input type="date" value={invoiceDueAt} onChange={(e) => setInvoiceDueAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
           <select value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value as 'PENDING' | 'PAID')} className="rounded border border-[var(--line)] px-3 py-2"> 
             <option value="PENDING">En attente</option>
             <option value="PAID">Payee</option>
@@ -473,6 +473,9 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
               ) : null}
                   {overview.map((item) => (
                 <Fragment key={item.quote.id}>
+                    {(() => {
+                      const pendingFromQuote = item.quote.amount - item.totals.paidInvoicesTotal;
+                      return (
                     <tr key={item.quote.id} className="border-b border-[var(--line)] bg-[#f8f5ed]">
                       <td className="px-2 py-2">
                       <div className="font-semibold">{getQuoteDisplayName(item.quote)}</div>
@@ -481,7 +484,7 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
                     <td className="px-2 py-2">{new Date(item.quote.issuedAt).toLocaleDateString('fr-FR')}</td>
                     <td className="px-2 py-2 text-right">{euro(item.quote.amount)}</td>
                     <td className="px-2 py-2 text-right text-green-700">{euro(item.totals.paidInvoicesTotal)}</td>
-                    <td className="px-2 py-2 text-right text-orange-700">{euro(item.totals.pendingInvoicesTotal)}</td>
+                    <td className="px-2 py-2 text-right text-orange-700">{euro(pendingFromQuote)}</td>
                     <td className="px-2 py-2">
                       <button onClick={() => toggleQuoteDetails(item.quote.id)} className="mr-2 rounded border border-[var(--line)] px-2 py-1 text-xs">
                         {expandedQuoteIds[item.quote.id] ? 'Masquer factures' : 'Voir factures'}
@@ -489,14 +492,16 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
                       <button onClick={() => onEditQuote(item.quote)} className="rounded border border-[var(--line)] px-2 py-1 text-xs">Modifier devis</button>
                     </td>
                   </tr>
+                      );
+                    })()}
                   {editingDocId === item.quote.id ? (
                     <tr className="border-b border-[var(--line)] bg-[#fffdf7]">
                       <td colSpan={6} className="px-2 py-2">
                         <div className="grid gap-2 lg:grid-cols-6">
                           <input value={editingName} onChange={(e) => setEditingName(e.target.value)} placeholder="Nom" className="rounded border border-[var(--line)] px-2 py-1" />
                           <input value={editingAmount} onChange={(e) => setEditingAmount(e.target.value)} placeholder="Montant" className="rounded border border-[var(--line)] px-2 py-1" />
-                          <input type="date" value={editingIssuedAt} onChange={(e) => setEditingIssuedAt(e.target.value)} className="rounded border border-[var(--line)] px-2 py-1" />
-                          <input type="date" value={editingDueAt} onChange={(e) => setEditingDueAt(e.target.value)} className="rounded border border-[var(--line)] px-2 py-1" />
+                          <input type="date" value={editingIssuedAt} onChange={(e) => setEditingIssuedAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-2 py-1" />
+                          <input type="date" value={editingDueAt} onChange={(e) => setEditingDueAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-2 py-1" />
                           <select value={editingStatus} onChange={(e) => setEditingStatus(e.target.value as 'OPEN' | 'PENDING' | 'PAID' | 'CANCELLED')} className="rounded border border-[var(--line)] px-2 py-1">
                             <option value="OPEN">Ouvert</option>
                             <option value="CANCELLED">Annule</option>
@@ -535,8 +540,8 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
                               <div className="grid gap-2 lg:grid-cols-6">
                                 <input value={editingName} onChange={(e) => setEditingName(e.target.value)} placeholder="Nom" className="rounded border border-[var(--line)] px-2 py-1" />
                                 <input value={editingAmount} onChange={(e) => setEditingAmount(e.target.value)} placeholder="Montant" className="rounded border border-[var(--line)] px-2 py-1" />
-                                <input type="date" value={editingIssuedAt} onChange={(e) => setEditingIssuedAt(e.target.value)} className="rounded border border-[var(--line)] px-2 py-1" />
-                                <input type="date" value={editingDueAt} onChange={(e) => setEditingDueAt(e.target.value)} className="rounded border border-[var(--line)] px-2 py-1" />
+                                <input type="date" value={editingIssuedAt} onChange={(e) => setEditingIssuedAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-2 py-1" />
+                                <input type="date" value={editingDueAt} onChange={(e) => setEditingDueAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-2 py-1" />
                                 <select value={editingStatus} onChange={(e) => setEditingStatus(e.target.value as 'OPEN' | 'PENDING' | 'PAID' | 'CANCELLED')} className="rounded border border-[var(--line)] px-2 py-1">
                                   <option value="PENDING">En attente</option>
                                   <option value="PAID">Payee</option>

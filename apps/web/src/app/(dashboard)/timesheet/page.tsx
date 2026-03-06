@@ -961,58 +961,6 @@ export default function TimesheetPage() {
           </button>
         ) : null}
       </div>
-      <article className="rounded-xl border border-[#f59e0b] bg-amber-50 p-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="font-semibold text-[#7c5800]">Journal dates (base de données)</p>
-          <button
-            type="button"
-            onClick={() => setTaskDateLogs([])}
-            className="rounded border border-[#f59e0b] px-2 py-1 text-xs font-semibold"
-          >
-            Vider le journal
-          </button>
-        </div>
-        <div className="max-h-56 overflow-auto rounded border border-[#fde68a] bg-white p-2 text-xs">
-          {taskDateLogs.length === 0 ? (
-            <p className="text-[#6b7280]">Aucune entrée pour l&apos;instant.</p>
-          ) : (
-            <table className="w-full table-fixed border-collapse text-left">
-              <thead>
-                <tr className="text-[11px] text-[#6b7280]">
-                  <th className="w-36 px-2 py-1">Heure</th>
-                  <th className="w-20 px-2 py-1">Action</th>
-                  <th className="w-16 px-2 py-1">Source</th>
-                  <th className="w-28 px-2 py-1">Tâche</th>
-                  <th className="px-2 py-1">Détails</th>
-                </tr>
-              </thead>
-              <tbody>
-                {taskDateLogs.map((log) => (
-                  <tr key={log.id} className="border-t border-[#fef3c7]">
-                    <td className="px-2 py-1 text-[#374151]">{new Date(log.at).toLocaleTimeString('fr-FR')}</td>
-                    <td className="px-2 py-1 capitalize text-[#374151]">{log.action}</td>
-                    <td className="px-2 py-1 text-[#374151]">{log.source}</td>
-                    <td className="truncate px-2 py-1 text-[#374151]" title={log.taskName}>{log.taskName}</td>
-                    <td className="px-2 py-1 text-[#111827]">
-                      <span
-                        className={`mr-2 inline-block rounded px-2 py-0.5 text-[10px] ${
-                          log.level === 'error' ? 'bg-red-100 text-red-700' : log.level === 'warn' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                        }`}
-                      >
-                        {log.level.toUpperCase()}
-                      </span>
-                      {log.message}
-                      {log.startDate ? ` | start=${log.startDate}` : ''}
-                      {log.durationDays ? ` | durée=${log.durationDays}j` : ''}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </article>
-
       {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
 

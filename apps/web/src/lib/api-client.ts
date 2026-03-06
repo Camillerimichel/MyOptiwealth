@@ -545,6 +545,25 @@ export const apiClient = {
     return request('/calendar/events', { method: 'POST', token, body: payload });
   },
 
+  updateEvent(
+    token: string,
+    eventId: string,
+    payload: {
+      title?: string;
+      eventType?: string;
+      startAt?: string;
+      endAt?: string;
+      description?: string;
+      visioLink?: string;
+    },
+  ) {
+    return request(`/calendar/events/${eventId}`, { method: 'PATCH', token, body: payload });
+  },
+
+  deleteEvent(token: string, eventId: string) {
+    return request<{ success: boolean }>(`/calendar/events/${eventId}`, { method: 'DELETE', token });
+  },
+
   exportWeeklyIcs(token: string) {
     return request<string>('/calendar/exports/weekly.ics', { token, isText: true });
   },

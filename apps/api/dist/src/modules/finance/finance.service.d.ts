@@ -17,13 +17,13 @@ export declare class FinanceService {
         status: string;
         dueDate: Date | null;
         quoteId: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        issuedAt: Date;
-        accountingRef: string | null;
-        paidAt: Date | null;
         invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
+        accountingRef: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        paidAt: Date | null;
     }>;
     createInvoice(workspaceId: string, userId: string, dto: CreateInvoiceDto): Promise<{
         id: string;
@@ -35,13 +35,13 @@ export declare class FinanceService {
         status: string;
         dueDate: Date | null;
         quoteId: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        issuedAt: Date;
-        accountingRef: string | null;
-        paidAt: Date | null;
         invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
+        accountingRef: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        paidAt: Date | null;
     }>;
     updateDocument(workspaceId: string, userId: string, documentId: string, dto: UpdateFinanceDocumentDto): Promise<{
         id: string;
@@ -53,13 +53,13 @@ export declare class FinanceService {
         status: string;
         dueDate: Date | null;
         quoteId: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        issuedAt: Date;
-        accountingRef: string | null;
-        paidAt: Date | null;
         invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
+        accountingRef: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        paidAt: Date | null;
     }>;
     listByWorkspace(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<({
         project: {
@@ -87,13 +87,13 @@ export declare class FinanceService {
         status: string;
         dueDate: Date | null;
         quoteId: string | null;
-        amount: import("@prisma/client/runtime/library").Decimal;
-        issuedAt: Date;
-        accountingRef: string | null;
-        paidAt: Date | null;
         invoiceIndex: number | null;
         type: import(".prisma/client").$Enums.FinancialDocumentType;
         reference: string;
+        accountingRef: string | null;
+        amount: import("@prisma/client/runtime/library").Decimal;
+        issuedAt: Date;
+        paidAt: Date | null;
     })[]>;
     overview(workspaceId: string, projectId?: string): Promise<{
         quote: {

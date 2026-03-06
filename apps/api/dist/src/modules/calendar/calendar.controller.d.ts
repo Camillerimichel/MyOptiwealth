@@ -1,5 +1,6 @@
 import { CalendarService } from './calendar.service';
 import { CreateEventDto } from './dto/create-event.dto';
+import { UpdateEventDto } from './dto/update-event.dto';
 interface AuthUser {
     sub: string;
     activeWorkspaceId: string;
@@ -51,6 +52,24 @@ export declare class CalendarController {
         visioLink: string | null;
         alertMinutes: number | null;
     }, never, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    update(user: AuthUser, eventId: string, dto: UpdateEventDto): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        title: string;
+        description: string | null;
+        eventType: import(".prisma/client").$Enums.CalendarEventType;
+        startAt: Date;
+        endAt: Date;
+        projectId: string | null;
+        taskId: string | null;
+        visioLink: string | null;
+        alertMinutes: number | null;
+    } | null>;
+    remove(user: AuthUser, eventId: string): Promise<{
+        success: boolean;
+    }>;
     exportWeekly(user: AuthUser): Promise<string>;
 }
 export {};

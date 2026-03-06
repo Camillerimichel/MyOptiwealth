@@ -80,7 +80,10 @@ export class DashboardService {
       this.prisma.task.findMany({
         where: {
           workspaceId: { in: workspaceIds },
-          dueDate: { not: null },
+          OR: [
+            { dueDate: { not: null } },
+            { planningEndDate: { not: null } },
+          ],
           status: { not: TaskStatus.DONE },
         },
         include: {
@@ -91,8 +94,7 @@ export class DashboardService {
             select: { id: true, name: true },
           },
         },
-        orderBy: { dueDate: 'asc' },
-        take: 10,
+        take: 200,
       }),
     ]);
 
@@ -172,12 +174,20 @@ export class DashboardService {
       { billedRevenue: 0, collectedRevenue: 0, remainingRevenue: 0 },
     );
 
+    const sortedUpcomingTasks = [...upcomingTasks]
+      .sort((a, b) => {
+        const aDate = (a.dueDate ?? a.planningEndDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        const bDate = (b.dueDate ?? b.planningEndDate)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+        return aDate - bDate;
+      })
+      .slice(0, 10);
+
     return {
       summary,
-      upcomingTasks: upcomingTasks.map((task) => ({
+      upcomingTasks: sortedUpcomingTasks.map((task) => ({
         id: task.id,
         description: task.description,
-        dueDate: task.dueDate,
+        dueDate: task.dueDate ?? task.planningEndDate,
         priority: task.priority,
         status: task.status,
         workspace: task.workspace,
