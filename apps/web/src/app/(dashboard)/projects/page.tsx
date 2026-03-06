@@ -36,11 +36,25 @@ const LEGACY_MISSION_LABELS: Record<string, string> = {
   SUCCESSION: 'Succession',
   CORPORATE_FINANCE: 'Finance d entreprise',
 };
+const CONTACT_LIST_COLLATOR = new Intl.Collator('fr', { sensitivity: 'base' });
+
 const CONTACT_ROLE_LABELS: Record<'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL', string> = {
   DECIDEUR: 'Décideur',
   N_MINUS_1: 'N-1',
   OPERATIONNEL: 'Opérationnel',
 };
+
+function contactSortName(contact: Contact): string {
+  return `${contact.lastName} ${contact.firstName}`
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function compareContactsByName(left: Contact, right: Contact): number {
+  return CONTACT_LIST_COLLATOR.compare(contactSortName(left), contactSortName(right));
+}
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -343,7 +357,7 @@ export default function ProjectsPage() {
               className="rounded border border-[var(--line)] px-3 py-2"
             >
               <option value="">Choisir un contact existant</option>
-              {contacts.map((contact) => (
+              {[...contacts].sort(compareContactsByName).map((contact) => (
                 <option key={contact.id} value={contact.id}>
                   {contact.firstName} {contact.lastName}
                   {contact.society?.name ? ` (${contact.society.name})` : ''}
@@ -385,7 +399,9 @@ export default function ProjectsPage() {
                 </tr>
               </thead>
               <tbody>
-                {projectContacts.map((link) => (
+                {[...projectContacts].sort((left, right) =>
+                  compareContactsByName(left.contact, right.contact),
+                ).map((link) => (
                   <tr key={link.contactId} className="border-b border-[var(--line)]">
                     <td className="px-2 py-2">{link.contact.firstName} {link.contact.lastName}</td>
                     <td className="px-2 py-2">{link.contact.society?.name ?? '-'}</td>

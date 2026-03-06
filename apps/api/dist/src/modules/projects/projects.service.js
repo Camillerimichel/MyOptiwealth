@@ -22,6 +22,17 @@ const PHASES = [
     { code: client_1.ProjectPhaseCode.MISE_EN_OEUVRE, title: 'Mise en œuvre', position: 5 },
     { code: client_1.ProjectPhaseCode.CLOTURE_SUIVI, title: 'Clôture & Suivi', position: 6 },
 ];
+const collator = new Intl.Collator('fr', { sensitivity: 'base' });
+function normalizeForSort(value) {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+function compareProjectByName(a, b) {
+    return collator.compare(normalizeForSort(a.name), normalizeForSort(b.name));
+}
 const BASE_TEMPLATE_TASKS = [
     { phaseCode: client_1.ProjectPhaseCode.QUALIFICATION_CADRAGE, description: 'Collecte des informations client et objectifs', priority: 3 },
     { phaseCode: client_1.ProjectPhaseCode.QUALIFICATION_CADRAGE, description: 'Validation du périmètre de mission', priority: 2 },
@@ -173,7 +184,6 @@ let ProjectsService = class ProjectsService {
                 society: true,
                 phases: { orderBy: { position: 'asc' } },
             },
-            orderBy: { createdAt: 'desc' },
         });
         const totalTasksByProject = await this.prisma.task.groupBy({
             by: ['projectId'],
@@ -187,7 +197,7 @@ let ProjectsService = class ProjectsService {
         });
         const totalByProjectId = new Map(totalTasksByProject.map((row) => [row.projectId, row._count._all]));
         const doneByProjectId = new Map(doneTasksByProject.map((row) => [row.projectId, row._count._all]));
-        return projects.map((project) => {
+        return projects.sort(compareProjectByName).map((project) => {
             const total = totalByProjectId.get(project.id) ?? 0;
             const done = doneByProjectId.get(project.id) ?? 0;
             const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;

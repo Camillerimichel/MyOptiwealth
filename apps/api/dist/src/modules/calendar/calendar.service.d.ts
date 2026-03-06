@@ -51,4 +51,5 @@ export declare class CalendarService {
     private toUtc;
     private toDateOnly;
     private addOneDay;
+    private addDays;
 }

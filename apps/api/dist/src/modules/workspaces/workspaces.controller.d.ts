@@ -19,7 +19,7 @@ export declare class WorkspacesController {
     constructor(workspacesService: WorkspacesService, authService: AuthService, configService: ConfigService);
     private refreshCookieName;
     private isCookieSecure;
-    list(user: AuthUser): import(".prisma/client").Prisma.PrismaPromise<({
+    list(user: AuthUser): Promise<({
         workspace: {
             id: string;
             createdAt: Date;

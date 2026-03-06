@@ -16,6 +16,20 @@ const PHASES: Array<{ code: ProjectPhaseCode; title: string; position: number }>
   { code: ProjectPhaseCode.CLOTURE_SUIVI, title: 'Clôture & Suivi', position: 6 },
 ];
 
+const collator = new Intl.Collator('fr', { sensitivity: 'base' });
+
+function normalizeForSort(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function compareProjectByName(a: { name: string }, b: { name: string }): number {
+  return collator.compare(normalizeForSort(a.name), normalizeForSort(b.name));
+}
+
 interface TemplateTask {
   phaseCode: ProjectPhaseCode;
   description: string;
@@ -191,7 +205,6 @@ export class ProjectsService {
         society: true,
         phases: { orderBy: { position: 'asc' } },
       },
-      orderBy: { createdAt: 'desc' },
     });
 
     const totalTasksByProject = await this.prisma.task.groupBy({
@@ -209,7 +222,7 @@ export class ProjectsService {
     const totalByProjectId = new Map(totalTasksByProject.map((row) => [row.projectId, row._count._all]));
     const doneByProjectId = new Map(doneTasksByProject.map((row) => [row.projectId, row._count._all]));
 
-    return projects.map((project) => {
+    return projects.sort(compareProjectByName).map((project) => {
       const total = totalByProjectId.get(project.id) ?? 0;
       const done = doneByProjectId.get(project.id) ?? 0;
       const progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;

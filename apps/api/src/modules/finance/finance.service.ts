@@ -16,7 +16,7 @@ export class FinanceService {
   async createQuote(workspaceId: string, userId: string, dto: CreateQuoteDto) {
     const project = await this.prisma.project.findFirst({
       where: { id: dto.projectId, workspaceId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, missionType: true },
     });
     if (!project) {
       throw new BadRequestException('Projet invalide pour ce workspace.');
@@ -42,7 +42,7 @@ export class FinanceService {
         workspaceId,
         projectId: project.id,
         type: FinancialDocumentType.QUOTE,
-        name: `Devis ${workspace.name} - ${project.name} (${nextIndex})`,
+        name: this.buildQuoteDisplayName(project.name, project.missionType),
         reference: generatedReference,
         amount: dto.amount,
         issuedAt: dto.issuedAt ?? new Date(),
@@ -112,18 +112,41 @@ export class FinanceService {
   async updateDocument(workspaceId: string, userId: string, documentId: string, dto: UpdateFinanceDocumentDto) {
     const existing = await this.prisma.financeDocument.findFirst({
       where: { id: documentId, workspaceId },
-      select: { id: true, type: true },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        accountingRef: true,
+        project: {
+          select: {
+            name: true,
+            missionType: true,
+          },
+        },
+      },
     });
+
     if (!existing) {
       throw new NotFoundException('Document financier introuvable.');
     }
 
     const normalizedStatus = this.normalizeStatusForDocumentType(existing.type, dto.status);
+    const quoteSuffix = dto.accountingRef !== undefined
+      ? (dto.accountingRef ?? undefined)
+      : (dto.name !== undefined ? dto.name : undefined);
+    const quoteTitle =
+      existing.type === FinancialDocumentType.QUOTE && quoteSuffix !== undefined
+        ? this.buildQuoteDisplayName(
+            existing.project?.name ?? '',
+            existing.project?.missionType ?? null,
+            quoteSuffix ?? '',
+          )
+        : undefined;
 
     const updated = await this.prisma.financeDocument.update({
       where: { id: documentId },
       data: {
-        name: dto.name ?? undefined,
+        name: quoteTitle ?? (dto.name !== undefined ? dto.name : undefined),
         amount: dto.amount ?? undefined,
         issuedAt: dto.issuedAt ?? undefined,
         dueDate: dto.dueDate === null ? null : dto.dueDate ?? undefined,
@@ -289,6 +312,76 @@ export class FinanceService {
       .replace(/^-+|-+$/g, '')
       .slice(0, 40);
     return normalized || 'NA';
+  }
+
+  private buildQuoteDisplayName(projectName: string, missionType: string | null, customSuffix?: string): string {
+    const missionLabel = this.humanizeMissionType(missionType);
+    const base = `${projectName || 'Projet'} (${missionLabel})`;
+    const normalizedSuffix = this.stripQuotePrefix(customSuffix?.trim() ?? '', projectName, missionLabel, missionType ?? '');
+    return normalizedSuffix ? `${base} - ${normalizedSuffix}` : base;
+  }
+
+  private stripQuotePrefix(
+    value: string,
+    projectName: string,
+    missionLabel: string,
+    missionType: string,
+  ): string {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    const normalize = (text: string): string =>
+      text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[\u2013]/g, '-')
+        .replace(/_/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const project = normalize(projectName || '');
+    const mission = normalize(missionLabel || missionType || '');
+    const projectWords = project ? project.split(' ') : [];
+    const missionWords = mission ? mission.split(' ') : [];
+
+    const isMetaToken = (token: string): boolean => {
+      const normalized = normalize(token);
+      if (!normalized) return false;
+      if (/^devis\b/.test(normalized)) return true;
+      if (normalized === project || normalized === mission) return true;
+
+      const words = normalized.split(' ').filter((word) => word);
+      if (!words.length) return false;
+
+      const projectOverlap = words.filter((word) => projectWords.includes(word)).length;
+      const missionOverlap = words.filter((word) => missionWords.includes(word)).length;
+      const matchingCount = Math.max(projectOverlap, missionOverlap);
+      if (matchingCount === 0) return false;
+
+      return matchingCount >= Math.max(1, words.length - 1);
+    };
+
+    const parts = trimmed.split(/\s*[-–]\s*/).map((part) => part.trim()).filter(Boolean);
+    if (!parts.length) return '';
+
+    let cursor = 0;
+    while (cursor < parts.length && isMetaToken(parts[cursor])) {
+      cursor += 1;
+    }
+
+    if (cursor >= parts.length) {
+      const trailingMatch = trimmed.match(/\([^)]*\)\s*$/);
+      return trailingMatch ? trailingMatch[0].trim() : '';
+    }
+
+    const suffix = parts.slice(cursor).join(' - ');
+    return suffix || '';
+  }
+
+  private humanizeMissionType(missionType: string | null): string {
+    if (!missionType) return 'MISSION';
+    return missionType;
   }
 
   private normalizeStatusForDocumentType(type: FinancialDocumentType, rawStatus?: string): string | null {

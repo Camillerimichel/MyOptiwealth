@@ -20,6 +20,17 @@ const DEFAULT_PROJECT_TYPOLOGIES = [
     'Succession',
     'Finance d entreprise',
 ];
+const workspaceNameCollator = new Intl.Collator('fr', { sensitivity: 'base' });
+function normalizeForSort(value) {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+function compareWorkspaceByName(left, right) {
+    return workspaceNameCollator.compare(normalizeForSort(left.workspace.name), normalizeForSort(right.workspace.name));
+}
 let WorkspacesService = class WorkspacesService {
     constructor(prisma, auditService, encryptionService) {
         this.prisma = prisma;
@@ -32,8 +43,7 @@ let WorkspacesService = class WorkspacesService {
             include: {
                 workspace: true,
             },
-            orderBy: { createdAt: 'asc' },
-        });
+        }).then((memberships) => memberships.sort(compareWorkspaceByName));
     }
     async getGlobalProjectTypologies() {
         const recentSettings = await this.prisma.workspaceSettings.findMany({

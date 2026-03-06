@@ -134,5 +134,8 @@ export declare class FinanceService {
     private nextQuoteIndex;
     private buildQuoteReference;
     private toReferenceToken;
+    private buildQuoteDisplayName;
+    private stripQuotePrefix;
+    private humanizeMissionType;
     private normalizeStatusForDocumentType;
 }

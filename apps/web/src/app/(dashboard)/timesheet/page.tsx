@@ -38,6 +38,21 @@ type TaskPlanState = {
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 type SortKey = 'default' | 'start' | 'end' | 'progress';
 type TimesheetView = 'saisie' | 'gantt';
+type TaskDateLogAction = 'load' | 'sync' | 'save';
+type TaskDateLogLevel = 'info' | 'warn' | 'error';
+type TaskDateLogRow = {
+  id: number;
+  at: string;
+  action: TaskDateLogAction;
+  level: TaskDateLogLevel;
+  taskId: string;
+  taskName: string;
+  source: 'saisie' | 'planning' | 'computed' | 'sync' | 'api';
+  startDate?: string;
+  endDate?: string;
+  durationDays?: number;
+  message: string;
+};
 
 const LEGACY_MISSION_LABELS: Record<string, string> = {
   WEALTH_STRATEGY: 'Strategie patrimoniale',
@@ -135,14 +150,27 @@ export default function TimesheetPage() {
   const [sortKey, setSortKey] = useState<SortKey>('default');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [view, setView] = useState<TimesheetView>('saisie');
-  const [ganttDayWidth, setGanttDayWidth] = useState(22);
+  const [ganttDayWidth, setGanttDayWidth] = useState(10);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const [lastSavedPlanByTaskId, setLastSavedPlanByTaskId] = useState<Record<string, TaskPlanState>>({});
   const [saveStatusByTaskId, setSaveStatusByTaskId] = useState<Record<string, SaveStatus>>({});
+  const [taskDateLogs, setTaskDateLogs] = useState<TaskDateLogRow[]>([]);
 
   const planByTaskIdRef = useRef<Record<string, TaskPlanState>>({});
   const computedRef = useRef<Map<string, { start: Date | null; end: Date | null; duration: number; overrun: number; effectiveDuration: number; progress: number; fte: number }>>(new Map());
   const saveTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const pushTaskDateLogs = useCallback((entries: Array<Omit<TaskDateLogRow, 'id' | 'at'>>): void => {
+    setTaskDateLogs((prev) => {
+      const now = Date.now();
+      const mapped = entries.map((entry, index) => ({
+        id: Number(`${now}${index}`),
+        at: new Date().toISOString(),
+        ...entry,
+      }));
+      return [...mapped, ...prev].slice(0, 120);
+    });
+  }, []);
 
   const load = useCallback(async (): Promise<void> => {
     const token = getAccessToken();
@@ -160,6 +188,26 @@ export default function TimesheetPage() {
         apiClient.listKanban(token),
         apiClient.listWorkspaces(token),
       ]);
+
+      const dbLoadLogs = tasksData
+        .filter((task) => task.planningStartDate || task.planningEndDate || task.plannedDurationDays)
+        .slice(0, 6)
+        .map((task) => ({
+          action: 'load' as const,
+          level: 'info' as const,
+          taskId: task.id,
+          taskName: task.description,
+          source: 'api' as const,
+          startDate: toDateInputValue(task.planningStartDate ?? ''),
+          endDate: toDateInputValue(task.planningEndDate ?? ''),
+          durationDays: task.plannedDurationDays ?? 0,
+          message: task.planningStartDate || task.planningEndDate
+            ? 'Ligne date chargée depuis la base.'
+            : 'Aucune date planifiée.',
+        }));
+      if (dbLoadLogs.length > 0) {
+        pushTaskDateLogs(dbLoadLogs);
+      }
 
       setProjects(projectsData);
       setTasks(tasksData.map((task) => ({
@@ -323,9 +371,18 @@ export default function TimesheetPage() {
       }
 
       const cfg = getTaskPlan(taskId);
-      const duration = Math.max(1, Number(cfg.durationDays || 5));
+      const planningStart = parseDateFromInput(toDateInputValue(task.planningStartDate));
+      const planningEnd = parseDateFromInput(toDateInputValue(task.planningEndDate));
+      const hasPlanningRange = Boolean(planningStart && planningEnd && planningEnd >= planningStart);
+      const cfgStart = parseDateFromInput(cfg.startDate);
+      const baseDuration = Number(cfg.durationDays || task.plannedDurationDays || 5);
+      const duration = Math.max(1, baseDuration);
       const overrun = Math.max(0, Number(cfg.overrunDays || 0));
-      const effectiveDuration = duration + overrun;
+      const derivedDurationFromPlanning = hasPlanningRange && planningStart && planningEnd
+        ? businessDaysBetween(planningStart, planningEnd)
+        : duration;
+      const plannedDuration = Math.max(1, derivedDurationFromPlanning);
+      const effectiveDuration = plannedDuration + overrun;
       const progress = Math.min(100, Math.max(0, Number(cfg.progressPercent || 0)));
       const fte = Math.max(0.1, Number(cfg.fte || 1));
 
@@ -340,11 +397,19 @@ export default function TimesheetPage() {
       }
 
       if (!start) {
-        start = parseDateFromInput(cfg.startDate) ?? null;
+        start = cfgStart ?? planningStart ?? null;
       }
-
-      const end = start ? addBusinessDays(start, effectiveDuration - 1) : null;
-      const value = { start, end, duration, overrun, effectiveDuration, progress, fte };
+      let effective = plannedDuration;
+      let end: Date | null = null;
+      if (start) {
+        if (!cfg.startsAfterTaskId && !cfg.startDate && hasPlanningRange && planningStart) {
+          end = planningEnd ? addBusinessDays(planningEnd, overrun) : null;
+          effective = effectiveDuration;
+        } else {
+          end = addBusinessDays(start, effective - 1);
+        }
+      }
+      const value = { start, end, duration: effective, overrun, effectiveDuration, progress, fte };
       memo.set(taskId, value);
       return value;
     };
@@ -453,20 +518,101 @@ export default function TimesheetPage() {
     const items = sortedProjectTasks
       .map((task) => {
         const data = computed.get(task.id);
-        if (!data?.start || !data?.end) return null;
-        const late = data.end < today && data.progress < 100;
-        const started = data.progress > 0;
+        const rawPlanningStart = parseDateFromInput(toDateInputValue(task.planningStartDate));
+        const rawPlanningEnd = parseDateFromInput(toDateInputValue(task.planningEndDate));
+        const planningHasRange = Boolean(rawPlanningStart && rawPlanningEnd && rawPlanningEnd >= rawPlanningStart);
+        const rawDuration = Math.max(1, Number(task.plannedDurationDays || 5));
+        const rawOverrun = Math.max(0, Number(task.overrunDays || 0));
+
+        const cfg = getTaskPlan(task.id);
+        const cfgDuration = Math.max(1, Number(cfg.durationDays || rawDuration));
+        const cfgStart = parseDateFromInput(cfg.startDate);
+        const plannedOverrunStart = planningHasRange ? rawPlanningStart : null;
+        const plannedOverrunEnd = planningHasRange ? rawPlanningEnd : null;
+
+        let start = data?.start ?? null;
+        let end = data?.end ?? null;
+
+        if (!start || !end) {
+          if (cfg.startsAfterTaskId) {
+            start = cfgStart ?? null;
+          } else if (cfgStart) {
+            start = cfgStart;
+          } else if (plannedOverrunStart && plannedOverrunEnd) {
+            start = plannedOverrunStart;
+          } else if (cfgStart) {
+            start = cfgStart;
+          }
+
+          if (start && !planningHasRange) {
+            end = addBusinessDays(start, cfgDuration - 1 + rawOverrun);
+          } else if (plannedOverrunStart && plannedOverrunEnd) {
+            end = plannedOverrunEnd;
+          }
+
+          if (!end && start) {
+            end = addBusinessDays(start, rawDuration - 1);
+          }
+        }
+
+        if (start && end && plannedOverrunEnd && planningHasRange && end < plannedOverrunEnd) {
+          end = plannedOverrunEnd;
+        }
+
+        if (!start || !end) return null;
+
+        const progress = data?.progress ?? 0;
+        const late = end < today && progress < 100;
+        const started = progress > 0;
         return {
           id: task.id,
           description: task.description,
-          start: data.start,
-          end: data.end,
-          progress: data.progress,
+          start,
+          end,
+          progress,
           late,
           started,
         };
       })
       .filter((item): item is NonNullable<typeof item> => Boolean(item));
+
+    if (items.length === 0 && sortedProjectTasks.length > 0) {
+      const fallbackDate = sortedProjectTasks.reduce((acc: Date | null, task) => {
+        if (acc) {
+          return acc;
+        }
+        return parseDateFromInput(toDateInputValue(task.planningStartDate)) ?? acc;
+      }, null as Date | null);
+
+      let cursor = fallbackDate ?? todayUtcDate();
+      const fallbackItems = sortedProjectTasks.map((task) => {
+        const cfg = getTaskPlan(task.id);
+        const cfgStart = parseDateFromInput(cfg.startDate);
+        const planningStart = parseDateFromInput(toDateInputValue(task.planningStartDate));
+        const planningEnd = parseDateFromInput(toDateInputValue(task.planningEndDate));
+        const hasPlanningRange = Boolean(planningStart && planningEnd && planningEnd >= planningStart);
+        const start = planningStart ?? cfgStart ?? cursor;
+        const duration = Math.max(1, Number(cfg.durationDays || task.plannedDurationDays || 5));
+        const overrun = Math.max(0, Number(cfg.overrunDays || task.overrunDays || 0));
+        const end = hasPlanningRange && planningEnd ? planningEnd : addBusinessDays(start, duration - 1 + overrun);
+        cursor = addBusinessDays(end, 1);
+        return {
+          id: task.id,
+          description: task.description,
+          start,
+          end,
+          progress: Math.min(100, Math.max(0, Number(cfg.progressPercent || 0))),
+          late: false,
+          started: (cfg.progressPercent || 0) > 0,
+        };
+      });
+
+      return {
+        items: fallbackItems,
+        minDate: fallbackItems[0].start,
+        maxDate: fallbackItems[fallbackItems.length - 1].end,
+      };
+    }
 
     if (items.length === 0) {
       return {
@@ -484,7 +630,7 @@ export default function TimesheetPage() {
     }
 
     return { items, minDate, maxDate };
-  }, [sortedProjectTasks, computed, today]);
+  }, [sortedProjectTasks, computed, getTaskPlan, today]);
 
   const ganttTimeline = useMemo(() => {
     if (!ganttItems.minDate || !ganttItems.maxDate) return null;
@@ -524,7 +670,7 @@ export default function TimesheetPage() {
     return () => clearTimeout(timer);
   }, [view, focusedTaskId]);
 
-  const onSaveTaskPlan = useCallback(async (taskId: string): Promise<void> => {
+    const onSaveTaskPlan = useCallback(async (taskId: string): Promise<void> => {
     const token = getAccessToken();
     if (!token) return;
 
@@ -536,12 +682,34 @@ export default function TimesheetPage() {
     const endDate = data?.end ? formatDateForInput(data.end) : '';
 
     if (!cfg.startsAfterTaskId && !startDate) {
+      pushTaskDateLogs([{
+        action: 'save',
+        level: 'warn',
+        taskId,
+        taskName: projectTasks.find((task) => task.id === taskId)?.description ?? taskId,
+        source: 'api',
+        startDate,
+        endDate,
+        durationDays: Math.max(1, cfg.durationDays),
+        message: "Impossible d'enregistrer: aucune date de départ saisie (sans dépendance).",
+      }]);
       setSaveStatusByTaskId((prev) => ({ ...prev, [taskId]: 'error' }));
       return;
     }
 
     try {
       setSaveStatusByTaskId((prev) => ({ ...prev, [taskId]: 'saving' }));
+      pushTaskDateLogs([{
+        action: 'save',
+        level: 'info',
+        taskId,
+        taskName: projectTasks.find((task) => task.id === taskId)?.description ?? taskId,
+        source: 'saisie',
+        startDate,
+        endDate,
+        durationDays: cfg.durationDays,
+        message: 'Tentative de sauvegarde des dates de tâche',
+      }]);
       await apiClient.updateTask(token, taskId, {
         startsAfterTaskId: cfg.startsAfterTaskId || null,
         planningStartDate: startDate ? `${startDate}T00:00:00.000Z` : null,
@@ -563,7 +731,29 @@ export default function TimesheetPage() {
         },
       }));
       setSaveStatusByTaskId((prev) => ({ ...prev, [taskId]: 'saved' }));
+      pushTaskDateLogs([{
+        action: 'save',
+        level: 'info',
+        taskId,
+        taskName: projectTasks.find((task) => task.id === taskId)?.description ?? taskId,
+        source: 'api',
+        startDate,
+        endDate,
+        durationDays: cfg.durationDays,
+        message: 'Enregistrement base OK',
+      }]);
     } catch {
+      pushTaskDateLogs([{
+        action: 'save',
+        level: 'error',
+        taskId,
+        taskName: projectTasks.find((task) => task.id === taskId)?.description ?? taskId,
+        source: 'api',
+        startDate,
+        endDate,
+        durationDays: cfg.durationDays,
+        message: 'Erreur enregistrement base',
+      }]);
       setSaveStatusByTaskId((prev) => ({ ...prev, [taskId]: 'error' }));
     }
   }, []);
@@ -614,9 +804,128 @@ export default function TimesheetPage() {
     };
   }, []);
 
+  const onSyncCalendarFromTasks = useCallback(() => {
+    const nextPlansByTaskId = projectTasks.reduce((acc, task) => {
+      const current = acc[task.id] ?? {
+        startsAfterTaskId: task.startsAfterTaskId ?? '',
+        startDate: task.planningStartDate ? toDateInputValue(task.planningStartDate) : '',
+        durationDays: task.plannedDurationDays ?? 5,
+        overrunDays: task.overrunDays ?? 0,
+        progressPercent: task.progressPercent ?? 0,
+        fte: task.fte ?? 1,
+      };
+      return {
+        ...acc,
+        [task.id]: current,
+      };
+    }, {} as Record<string, TaskPlanState>);
+
+    setPlanByTaskId((prev) => {
+      const next = { ...prev };
+      let hasChange = false;
+
+      for (const task of projectTasks) {
+        const cfg = nextPlansByTaskId[task.id];
+        if (!cfg) continue;
+
+        const persistedStart = toDateInputValue(task.planningStartDate);
+        const saisieStart = parseDateFromInput(cfg.startDate);
+        const plannedStart = parseDateFromInput(persistedStart);
+        const plannedEnd = parseDateFromInput(toDateInputValue(task.planningEndDate));
+
+        const start = saisieStart ?? plannedStart;
+        if (!start) {
+          continue;
+        }
+
+        const hasPlannedRange = Boolean(plannedStart && plannedEnd && plannedEnd >= plannedStart);
+        const saisieDuration = Math.max(1, Number(cfg.durationDays || 0));
+        const sourceDuration = Math.max(1, task.plannedDurationDays || 5);
+        const usePlannedRange = hasPlannedRange && Number(cfg.durationDays) === sourceDuration && cfg.startDate === persistedStart;
+        const rangeDuration = hasPlannedRange ? Math.max(1, businessDaysBetween(start, plannedEnd ?? start)) : 0;
+        const durationDays = usePlannedRange ? rangeDuration : (Number.isFinite(saisieDuration) ? saisieDuration : sourceDuration);
+
+        const shouldUseStartFromPlanned = !cfg.startDate && toDateInputValue(task.planningStartDate);
+        const targetStart = shouldUseStartFromPlanned ? toDateInputValue(task.planningStartDate) : cfg.startDate;
+
+        const finalDuration = Math.max(1, Number(durationDays));
+        const nextPlan = nextPlansByTaskId[task.id];
+
+        const updated = {
+          ...nextPlan,
+          startDate: targetStart,
+          durationDays: finalDuration,
+        };
+
+        pushTaskDateLogs([{
+          action: 'sync',
+          level: 'info',
+          taskId: task.id,
+          taskName: task.description,
+          source: targetStart ? 'saisie' : 'planning',
+          startDate: targetStart,
+          durationDays: finalDuration,
+          message: `Synchro calendrier: start=${targetStart || '-'}, durée=${finalDuration}j`,
+        }]);
+
+        const previous = prev[task.id];
+        if (
+          !previous
+          || previous.startsAfterTaskId !== updated.startsAfterTaskId
+          || previous.startDate !== updated.startDate
+          || previous.durationDays !== updated.durationDays
+        ) {
+          hasChange = true;
+        }
+        next[task.id] = updated;
+      }
+
+      return hasChange ? next : prev;
+    });
+    setLastSavedPlanByTaskId((prev) => {
+      const next = { ...prev };
+      for (const task of projectTasks) {
+        const cfg = nextPlansByTaskId[task.id];
+        if (!cfg) continue;
+
+        const persistedStart = toDateInputValue(task.planningStartDate);
+        const saisieStart = parseDateFromInput(cfg.startDate);
+        const plannedStart = parseDateFromInput(persistedStart);
+        const plannedEnd = parseDateFromInput(toDateInputValue(task.planningEndDate));
+        const start = saisieStart ?? plannedStart;
+        if (!start) continue;
+
+        const hasPlannedRange = Boolean(plannedStart && plannedEnd && plannedEnd >= plannedStart);
+        const durationFromSaisie = Math.max(1, Number(cfg.durationDays || 0));
+        const sourceDuration = Math.max(1, task.plannedDurationDays || 5);
+        const usePlannedRange = hasPlannedRange && Number(cfg.durationDays) === sourceDuration && cfg.startDate === persistedStart;
+        const rangeDuration = hasPlannedRange ? Math.max(1, businessDaysBetween(start, plannedEnd ?? start)) : 0;
+        const durationDays = usePlannedRange ? rangeDuration : durationFromSaisie;
+
+        const plan = nextPlansByTaskId[task.id];
+        if (!plan) continue;
+        next[task.id] = {
+          ...plan,
+          startDate: cfg.startDate ? cfg.startDate : formatDateForInput(start),
+          durationDays,
+        };
+      }
+      return next;
+    });
+  }, [projectTasks]);
+
   return (
     <section className="grid gap-6">
       <h1 className="text-2xl font-semibold text-[var(--brand)]">Timesheet</h1>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onSyncCalendarFromTasks}
+          className="rounded bg-[var(--brand)] px-3 py-2 font-semibold text-white"
+        >
+          Mise à jour du calendrier
+        </button>
+      </div>
       <div className="inline-flex w-fit overflow-hidden rounded-md border border-[var(--line)] bg-white">
         <button
           type="button"
@@ -652,17 +961,68 @@ export default function TimesheetPage() {
           </button>
         ) : null}
       </div>
+      <article className="rounded-xl border border-[#f59e0b] bg-amber-50 p-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="font-semibold text-[#7c5800]">Journal dates (base de données)</p>
+          <button
+            type="button"
+            onClick={() => setTaskDateLogs([])}
+            className="rounded border border-[#f59e0b] px-2 py-1 text-xs font-semibold"
+          >
+            Vider le journal
+          </button>
+        </div>
+        <div className="max-h-56 overflow-auto rounded border border-[#fde68a] bg-white p-2 text-xs">
+          {taskDateLogs.length === 0 ? (
+            <p className="text-[#6b7280]">Aucune entrée pour l&apos;instant.</p>
+          ) : (
+            <table className="w-full table-fixed border-collapse text-left">
+              <thead>
+                <tr className="text-[11px] text-[#6b7280]">
+                  <th className="w-36 px-2 py-1">Heure</th>
+                  <th className="w-20 px-2 py-1">Action</th>
+                  <th className="w-16 px-2 py-1">Source</th>
+                  <th className="w-28 px-2 py-1">Tâche</th>
+                  <th className="px-2 py-1">Détails</th>
+                </tr>
+              </thead>
+              <tbody>
+                {taskDateLogs.map((log) => (
+                  <tr key={log.id} className="border-t border-[#fef3c7]">
+                    <td className="px-2 py-1 text-[#374151]">{new Date(log.at).toLocaleTimeString('fr-FR')}</td>
+                    <td className="px-2 py-1 capitalize text-[#374151]">{log.action}</td>
+                    <td className="px-2 py-1 text-[#374151]">{log.source}</td>
+                    <td className="truncate px-2 py-1 text-[#374151]" title={log.taskName}>{log.taskName}</td>
+                    <td className="px-2 py-1 text-[#111827]">
+                      <span
+                        className={`mr-2 inline-block rounded px-2 py-0.5 text-[10px] ${
+                          log.level === 'error' ? 'bg-red-100 text-red-700' : log.level === 'warn' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}
+                      >
+                        {log.level.toUpperCase()}
+                      </span>
+                      {log.message}
+                      {log.startDate ? ` | start=${log.startDate}` : ''}
+                      {log.durationDays ? ` | durée=${log.durationDays}j` : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </article>
 
       {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <div className="grid gap-2 lg:grid-cols-3">
-          <div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="w-[360px]">
             <label className="mb-1 block text-xs text-[#5b5952]">Workspace</label>
             <input value={activeWorkspaceName ?? ''} disabled className="w-full rounded border border-[var(--line)] bg-[#f3f2ef] px-3 py-2" />
           </div>
-          <div>
+          <div className="w-[360px]">
             <label className="mb-1 block text-xs text-[#5b5952]">Projet</label>
             <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full rounded border border-[var(--line)] px-3 py-2">
               <option value="">Choisir un projet</option>
@@ -676,20 +1036,25 @@ export default function TimesheetPage() {
 
       {projectId ? (
         <>
-          <div className="grid gap-3 lg:grid-cols-3">
-            <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+          <div className="grid gap-3 md:grid-cols-3">
+            <article className="min-w-0 rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
               <p className="text-sm text-[#5b5952]">Avancement projet</p>
               <p className="text-right text-lg font-semibold">{projectSummary.progressPercent}%</p>
+              <div className="mt-2 h-2 rounded bg-[#ece7da]">
+                <div className="h-full rounded bg-[var(--brand)]" style={{ width: `${projectSummary.progressPercent}%` }} />
+              </div>
             </article>
-            <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+            <article className="min-w-0 rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
               <p className="text-sm text-[#5b5952]">Date fin prévisionnelle</p>
               <p className="text-right text-lg font-semibold">
                 {projectSummary.plannedEndDate ? formatDateForInput(projectSummary.plannedEndDate) : '-'}
               </p>
             </article>
-            <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+            <article className="min-w-0 rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
               <p className="text-sm text-[#5b5952]">Tâches en dépassement</p>
-              <p className="text-right text-lg font-semibold">{projectSummary.lateDays} j</p>
+              <p className="text-right text-lg font-semibold">
+                {projectSummary.lateTasks} tâche(s) - {projectSummary.lateDays} j
+              </p>
             </article>
           </div>
 
@@ -844,6 +1209,7 @@ export default function TimesheetPage() {
           ) : (
             <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-xs text-[#5b5952]">
+                <div className="text-sm font-semibold text-[#2f2b23]">{activeWorkspaceName ?? 'Workspace'} - Tâches</div>
                 <div className="flex flex-wrap items-center gap-4">
                   <span><span className="mr-1 inline-block h-3 w-3 rounded bg-[#d6d6d6]" />Non fait</span>
                   <span><span className="mr-1 inline-block h-3 w-3 rounded bg-[#22c55e]" />Avancement</span>

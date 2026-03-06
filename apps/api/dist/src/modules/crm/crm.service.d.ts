@@ -49,7 +49,7 @@ export declare class CrmService {
         city: string | null;
         country: string | null;
     }) | null>;
-    listSocieties(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<({
+    listSocieties(workspaceId: string): Promise<({
         contacts: {
             id: string;
             createdAt: Date;
@@ -145,7 +145,7 @@ export declare class CrmService {
         societyId: string | null;
         phone: string | null;
     }) | null>;
-    listContacts(workspaceId: string): import(".prisma/client").Prisma.PrismaPromise<({
+    listContacts(workspaceId: string): Promise<({
         society: {
             id: string;
             createdAt: Date;

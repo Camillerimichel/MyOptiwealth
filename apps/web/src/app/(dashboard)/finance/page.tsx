@@ -43,7 +43,6 @@ type FinanceOverviewItem = {
     paidAt?: string | null;
   }>;
 };
-
 const LEGACY_MISSION_LABELS: Record<string, string> = {
   WEALTH_STRATEGY: 'Strategie patrimoniale',
   SUCCESSION: 'Succession',
@@ -61,6 +60,74 @@ function euro(value: number): string {
     maximumFractionDigits: 2,
   }).format(value);
   return `${formatted.replace(/\u202f|\u00a0/g, ' ')} €`;
+}
+
+function stripQuotePrefix(value: string, projectName: string, missionLabel: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+
+  const normalize = (text: string): string =>
+    text
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[\u2013]/g, '-')
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const project = normalize(projectName || '');
+  const mission = normalize(missionLabel || '');
+  const projectWords = project ? project.split(' ') : [];
+  const missionWords = mission ? mission.split(' ') : [];
+
+  const isMetaToken = (token: string): boolean => {
+    const normalized = normalize(token);
+    if (!normalized) return false;
+    if (/^devis\b/.test(normalized)) return true;
+    if (normalized === project || normalized === mission) return true;
+
+    const words = normalized.split(' ').filter((word) => word);
+    if (!words.length) return false;
+
+    const projectOverlap = words.filter((word) => projectWords.includes(word)).length;
+    const missionOverlap = words.filter((word) => missionWords.includes(word)).length;
+    const matchingCount = Math.max(projectOverlap, missionOverlap);
+    if (matchingCount === 0) return false;
+
+    return matchingCount >= Math.max(1, words.length - 1);
+  };
+
+  const parts = trimmed.split(/\s*[-–]\s*/).map((part) => part.trim()).filter(Boolean);
+  if (!parts.length) return '';
+
+  let cursor = 0;
+  while (cursor < parts.length && isMetaToken(parts[cursor])) {
+    cursor += 1;
+  }
+
+  if (cursor >= parts.length) {
+    const trailingMatch = trimmed.match(/\([^)]*\)\s*$/);
+    return trailingMatch ? trailingMatch[0].trim() : '';
+  }
+
+  return parts.slice(cursor).join(' - ');
+}
+
+function buildQuoteDisplayName(
+  projectName: string,
+  missionType: string | null | undefined,
+  accountingRef?: string | null,
+  customName?: string,
+): string {
+  const missionLabel = missionType || 'MISSION';
+  const base = `${projectName || 'Projet'} (${missionLabel})`;
+  if (accountingRef !== undefined && accountingRef !== null) {
+    const accountingSuffix = accountingRef.trim();
+    return accountingSuffix ? `${base} - ${accountingSuffix}` : base;
+  }
+  const customSuffix = customName ? customName.trim() : '';
+  return customSuffix ? `${base} - ${customSuffix}` : base;
 }
 
 function normalizeQuoteStatus(status?: string): 'OPEN' | 'CANCELLED' {
@@ -280,6 +347,25 @@ export default function FinancePage() {
     setExpandedQuoteIds((prev) => ({ ...prev, [quoteId]: !prev[quoteId] }));
   }
 
+  function getEditingQuoteNamePreview(): string {
+    if (!editingDocId || editingDocType !== 'QUOTE') return '';
+    const editingItem = overview.find((item) => item.quote.id === editingDocId);
+    if (!editingItem) return editingName;
+
+    const project = projects.find((candidate) => candidate.id === editingItem.quote.projectId);
+    return buildQuoteDisplayName(
+      editingItem.quote.projectName,
+      project?.missionType,
+      editingAccountingRef || null,
+      editingName,
+    );
+  }
+
+function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
+    const project = projects.find((candidate) => candidate.id === item.projectId);
+    return buildQuoteDisplayName(item.projectName, project?.missionType, item.accountingRef);
+  }
+
   return (
     <section className="grid gap-6">
       <h1 className="text-2xl font-semibold text-[var(--brand)]">Finance</h1>
@@ -326,12 +412,12 @@ export default function FinancePage() {
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
         <h2 className="font-semibold">Nouveau devis</h2>
-        <form onSubmit={onCreateQuote} className="mt-3 grid gap-2 lg:grid-cols-5">
+        <form onSubmit={onCreateQuote} className="mt-3 grid gap-2 lg:grid-cols-7">
           <select
             value={createProjectId}
             onChange={(e) => setCreateProjectId(e.target.value)}
             disabled={Boolean(activeProjectId)}
-            className="rounded border border-[var(--line)] px-3 py-2"
+            className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3"
           >
             <option value="">Projet</option>
             {projects.map((project) => (
@@ -339,30 +425,30 @@ export default function FinancePage() {
             ))}
           </select>
           <input value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} placeholder="Montant devis" className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={quoteIssuedAt} onChange={(e) => setQuoteIssuedAt(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={quoteDueAt} onChange={(e) => setQuoteDueAt(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2" />
-          <button disabled={!createProjectId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50">Créer devis</button>
+          <input type="date" value={quoteIssuedAt} onChange={(e) => setQuoteIssuedAt(e.target.value)} className="rounded border border-[var(--line)] w-full max-w-28 px-3 py-2" />
+          <input type="date" value={quoteDueAt} onChange={(e) => setQuoteDueAt(e.target.value)} className="rounded border border-[var(--line)] w-full max-w-28 px-3 py-2" />
+          <button disabled={!createProjectId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1">Créer devis</button>
         </form>
       </article>
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
         <h2 className="font-semibold">Nouvelle facture (liée à un devis)</h2>
-        <form onSubmit={onCreateInvoice} className="mt-3 grid gap-2 lg:grid-cols-6">
-          <select value={invoiceQuoteId} onChange={(e) => setInvoiceQuoteId(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
+        <form onSubmit={onCreateInvoice} className="mt-3 grid gap-2 lg:grid-cols-8">
+          <select value={invoiceQuoteId} onChange={(e) => setInvoiceQuoteId(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3">
             <option value="">Devis parent</option>
             {quoteOptions.map((quote) => (
               <option key={quote.id} value={quote.id}>{quote.reference} - {quote.projectName}</option>
             ))}
           </select>
           <input value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} placeholder="Montant facture" className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={invoiceIssuedAt} onChange={(e) => setInvoiceIssuedAt(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={invoiceDueAt} onChange={(e) => setInvoiceDueAt(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2" />
-          <select value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value as 'PENDING' | 'PAID')} className="rounded border border-[var(--line)] px-3 py-2">
+          <input type="date" value={invoiceIssuedAt} onChange={(e) => setInvoiceIssuedAt(e.target.value)} className="rounded border border-[var(--line)] w-full max-w-28 px-3 py-2" />
+          <input type="date" value={invoiceDueAt} onChange={(e) => setInvoiceDueAt(e.target.value)} className="rounded border border-[var(--line)] w-full max-w-28 px-3 py-2" />
+          <select value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value as 'PENDING' | 'PAID')} className="rounded border border-[var(--line)] px-3 py-2"> 
             <option value="PENDING">En attente</option>
             <option value="PAID">Payee</option>
           </select>
           <input value={invoiceAccountingRef} onChange={(e) => setInvoiceAccountingRef(e.target.value)} placeholder="Ref comptable (optionnel)" className="rounded border border-[var(--line)] px-3 py-2" />
-          <button disabled={!invoiceQuoteId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-6">Créer facture</button>
+          <button disabled={!invoiceQuoteId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-8">Créer facture</button>
         </form>
       </article>
 
@@ -385,13 +471,13 @@ export default function FinancePage() {
                   <td colSpan={6} className="px-2 py-3 text-[#5b5952]">Aucun devis.</td>
                 </tr>
               ) : null}
-              {overview.map((item) => (
+                  {overview.map((item) => (
                 <Fragment key={item.quote.id}>
-                  <tr key={item.quote.id} className="border-b border-[var(--line)] bg-[#f8f5ed]">
-                    <td className="px-2 py-2">
-                      <div className="font-semibold">{item.quote.reference}</div>
-                      <div className="text-xs text-[#5b5952]">{item.quote.name} - {item.quote.projectName}</div>
-                    </td>
+                    <tr key={item.quote.id} className="border-b border-[var(--line)] bg-[#f8f5ed]">
+                      <td className="px-2 py-2">
+                      <div className="font-semibold">{getQuoteDisplayName(item.quote)}</div>
+                      <div className="text-xs text-[#5b5952]">Ref devis: {item.quote.reference}</div>
+                      </td>
                     <td className="px-2 py-2">{new Date(item.quote.issuedAt).toLocaleDateString('fr-FR')}</td>
                     <td className="px-2 py-2 text-right">{euro(item.quote.amount)}</td>
                     <td className="px-2 py-2 text-right text-green-700">{euro(item.totals.paidInvoicesTotal)}</td>
@@ -416,6 +502,9 @@ export default function FinancePage() {
                             <option value="CANCELLED">Annule</option>
                           </select>
                           <input value={editingAccountingRef} onChange={(e) => setEditingAccountingRef(e.target.value)} placeholder="Ref comptable" className="rounded border border-[var(--line)] px-2 py-1" />
+                        </div>
+                        <div className="mt-2 rounded border border-dashed border-[var(--brand)] bg-[#fff8ea] px-3 py-2 text-xs text-[#4b463d]">
+                          <strong>Nom final :</strong> {getEditingQuoteNamePreview()}
                         </div>
                         <div className="mt-2 flex gap-2">
                           <button onClick={() => { void onSaveEdit(); }} className="rounded bg-[var(--brand)] px-2 py-1 text-xs text-white">Enregistrer</button>

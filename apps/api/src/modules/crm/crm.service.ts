@@ -5,6 +5,30 @@ import { CreateSocietyDto } from './dto/create-society.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { UpdateSocietyDto } from './dto/update-society.dto';
 
+const collator = new Intl.Collator('fr', { sensitivity: 'base' });
+
+function normalizeForSort(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function compareByName(
+  a: { name: string },
+  b: { name: string },
+): number {
+  return collator.compare(normalizeForSort(a.name), normalizeForSort(b.name));
+}
+
+function compareContactByFullName(a: { firstName: string; lastName: string }, b: { firstName: string; lastName: string }): number {
+  return compareByName(
+    { name: normalizeForSort(`${a.lastName} ${a.firstName}`) },
+    { name: normalizeForSort(`${b.lastName} ${b.firstName}`) },
+  );
+}
+
 @Injectable()
 export class CrmService {
   constructor(private readonly prisma: PrismaService) {}
@@ -42,9 +66,8 @@ export class CrmService {
   listSocieties(workspaceId: string) {
     return this.prisma.society.findMany({
       where: { workspaceId },
-      orderBy: { createdAt: 'desc' },
       include: { contacts: true },
-    });
+    }).then((societies) => societies.sort(compareByName));
   }
 
   async listSocietiesAll(userId: string) {
@@ -56,9 +79,8 @@ export class CrmService {
     if (workspaceIds.length === 0) return [];
     return this.prisma.society.findMany({
       where: { workspaceId: { in: workspaceIds } },
-      orderBy: { createdAt: 'desc' },
       include: { contacts: true },
-    });
+    }).then((societies) => societies.sort(compareByName));
   }
 
   createContact(workspaceId: string, dto: CreateContactDto) {
@@ -91,9 +113,8 @@ export class CrmService {
   listContacts(workspaceId: string) {
     return this.prisma.contact.findMany({
       where: { workspaceId },
-      orderBy: { createdAt: 'desc' },
       include: { society: true },
-    });
+    }).then((contacts) => contacts.sort(compareContactByFullName));
   }
 
   async listContactsAll(userId: string) {
@@ -105,8 +126,7 @@ export class CrmService {
     if (workspaceIds.length === 0) return [];
     return this.prisma.contact.findMany({
       where: { workspaceId: { in: workspaceIds } },
-      orderBy: { createdAt: 'desc' },
       include: { society: true },
-    });
+    }).then((contacts) => contacts.sort(compareContactByFullName));
   }
 }

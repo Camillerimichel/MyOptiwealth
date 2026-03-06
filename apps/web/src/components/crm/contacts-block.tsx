@@ -25,6 +25,15 @@ function societyKeyFromName(name: string): string {
     .toLowerCase();
 }
 
+const collator = new Intl.Collator('fr', { sensitivity: 'base' });
+
+function compareByName(left: Society, right: Society): number {
+  return collator.compare(
+    left.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase(),
+    right.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase(),
+  );
+}
+
 export function ContactsBlock({
   selectedSocietyId,
   selectedSocietyKey,
@@ -178,6 +187,7 @@ export function ContactsBlock({
     if (!exists) acc.push(society);
     return acc;
   }, []);
+  const sortedUniqueSocieties = [...uniqueSocieties].sort(compareByName);
 
   return (
     <article id="contacts" className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
@@ -263,7 +273,7 @@ export function ContactsBlock({
               className="h-10 rounded border border-[var(--line)] bg-white px-3"
             >
               <option value="">Aucune societe</option>
-              {uniqueSocieties.map((society) => (
+              {sortedUniqueSocieties.map((society) => (
                 <option key={society.id} value={society.id}>
                   {society.name}
                 </option>

@@ -10,7 +10,7 @@ interface AuthUser {
 export declare class CrmController {
     private readonly crmService;
     constructor(crmService: CrmService);
-    listSocieties(user: AuthUser): import(".prisma/client").Prisma.PrismaPromise<({
+    listSocieties(user: AuthUser): Promise<({
         contacts: {
             id: string;
             createdAt: Date;
@@ -109,7 +109,7 @@ export declare class CrmController {
         city: string | null;
         country: string | null;
     }) | null>;
-    listContacts(user: AuthUser): import(".prisma/client").Prisma.PrismaPromise<({
+    listContacts(user: AuthUser): Promise<({
         society: {
             id: string;
             createdAt: Date;

@@ -46,6 +46,8 @@ export class CalendarService {
         where: {
           workspaceId: { in: workspaceIds },
           OR: [
+            { planningStartDate: { not: null } },
+            { planningEndDate: { not: null } },
             { dueDate: { not: null } },
             { startDate: { not: null } },
             { expectedEndDate: { not: null } },
@@ -84,6 +86,25 @@ export class CalendarService {
       const workspaceName = workspaceById.get(task.workspaceId) ?? 'Workspace';
       const taskLabel = task.description.length > 80 ? `${task.description.slice(0, 80)}...` : task.description;
       const projectLabel = task.project?.name ? ` (${task.project.name})` : '';
+      const plannedStart = task.planningStartDate ? this.toDateOnly(task.planningStartDate) : null;
+      const plannedEnd = task.planningEndDate ? this.toDateOnly(task.planningEndDate) : null;
+      const plannedDuration = Math.max(1, Number(task.plannedDurationDays ?? 1));
+      const plannedEndFromDuration = plannedStart ? this.addDays(plannedStart, plannedDuration) : null;
+
+      if (plannedStart) {
+        result.push({
+          id: `${task.id}-planning`,
+          title: `${workspaceName} - ${taskLabel}`,
+          start: plannedStart,
+          end: plannedEnd ? this.addOneDay(plannedEnd) : (plannedEndFromDuration ?? this.addOneDay(plannedStart)),
+          allDay: true,
+          source: 'TASK',
+          url: '/timesheet',
+          workspaceId: task.workspaceId,
+          workspaceName,
+          taskStatus: task.status,
+        });
+      }
 
       if (task.startDate) {
         const day = this.toDateOnly(task.startDate);
@@ -223,6 +244,12 @@ export class CalendarService {
   private addOneDay(dateOnly: string): string {
     const value = new Date(`${dateOnly}T00:00:00.000Z`);
     value.setUTCDate(value.getUTCDate() + 1);
+    return value.toISOString().slice(0, 10);
+  }
+
+  private addDays(dateOnly: string, days: number): string {
+    const value = new Date(`${dateOnly}T00:00:00.000Z`);
+    value.setUTCDate(value.getUTCDate() + days);
     return value.toISOString().slice(0, 10);
   }
 }

@@ -12,6 +12,20 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CrmService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma.service");
+const collator = new Intl.Collator('fr', { sensitivity: 'base' });
+function normalizeForSort(value) {
+    return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+function compareByName(a, b) {
+    return collator.compare(normalizeForSort(a.name), normalizeForSort(b.name));
+}
+function compareContactByFullName(a, b) {
+    return compareByName({ name: normalizeForSort(`${a.lastName} ${a.firstName}`) }, { name: normalizeForSort(`${b.lastName} ${b.firstName}`) });
+}
 let CrmService = class CrmService {
     constructor(prisma) {
         this.prisma = prisma;
@@ -45,9 +59,8 @@ let CrmService = class CrmService {
     listSocieties(workspaceId) {
         return this.prisma.society.findMany({
             where: { workspaceId },
-            orderBy: { createdAt: 'desc' },
             include: { contacts: true },
-        });
+        }).then((societies) => societies.sort(compareByName));
     }
     async listSocietiesAll(userId) {
         const memberships = await this.prisma.userWorkspaceRole.findMany({
@@ -59,9 +72,8 @@ let CrmService = class CrmService {
             return [];
         return this.prisma.society.findMany({
             where: { workspaceId: { in: workspaceIds } },
-            orderBy: { createdAt: 'desc' },
             include: { contacts: true },
-        });
+        }).then((societies) => societies.sort(compareByName));
     }
     createContact(workspaceId, dto) {
         return this.prisma.contact.create({ data: { workspaceId, ...dto } });
@@ -89,9 +101,8 @@ let CrmService = class CrmService {
     listContacts(workspaceId) {
         return this.prisma.contact.findMany({
             where: { workspaceId },
-            orderBy: { createdAt: 'desc' },
             include: { society: true },
-        });
+        }).then((contacts) => contacts.sort(compareContactByFullName));
     }
     async listContactsAll(userId) {
         const memberships = await this.prisma.userWorkspaceRole.findMany({
@@ -103,9 +114,8 @@ let CrmService = class CrmService {
             return [];
         return this.prisma.contact.findMany({
             where: { workspaceId: { in: workspaceIds } },
-            orderBy: { createdAt: 'desc' },
             include: { society: true },
-        });
+        }).then((contacts) => contacts.sort(compareContactByFullName));
     }
 };
 exports.CrmService = CrmService;

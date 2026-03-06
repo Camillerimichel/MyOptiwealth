@@ -13,6 +13,26 @@ const DEFAULT_PROJECT_TYPOLOGIES = [
   'Finance d entreprise',
 ];
 
+const workspaceNameCollator = new Intl.Collator('fr', { sensitivity: 'base' });
+
+function normalizeForSort(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function compareWorkspaceByName(
+  left: { workspace: { name: string } },
+  right: { workspace: { name: string } },
+): number {
+  return workspaceNameCollator.compare(
+    normalizeForSort(left.workspace.name),
+    normalizeForSort(right.workspace.name),
+  );
+}
+
 @Injectable()
 export class WorkspacesService {
   constructor(
@@ -27,8 +47,7 @@ export class WorkspacesService {
       include: {
         workspace: true,
       },
-      orderBy: { createdAt: 'asc' },
-    });
+    }).then((memberships) => memberships.sort(compareWorkspaceByName));
   }
 
   private async getGlobalProjectTypologies(): Promise<string[]> {

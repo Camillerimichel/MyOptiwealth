@@ -9,7 +9,7 @@ export declare class WorkspacesService {
     private readonly auditService;
     private readonly encryptionService;
     constructor(prisma: PrismaService, auditService: AuditService, encryptionService: EncryptionService);
-    listForUser(userId: string): import(".prisma/client").Prisma.PrismaPromise<({
+    listForUser(userId: string): Promise<({
         workspace: {
             id: string;
             createdAt: Date;
