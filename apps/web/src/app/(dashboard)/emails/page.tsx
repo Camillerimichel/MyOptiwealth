@@ -61,6 +61,7 @@ export default function EmailsPage() {
   const [reassignStatus, setReassignStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [reassignMessage, setReassignMessage] = useState<string | null>(null);
   const [savingAttachmentsByEmailId, setSavingAttachmentsByEmailId] = useState<Record<string, boolean>>({});
+  const [ignoringByEmailId, setIgnoringByEmailId] = useState<Record<string, boolean>>({});
   const [emailContentById, setEmailContentById] = useState<Record<string, EmailContent>>({});
   const [loadingContentEmailId, setLoadingContentEmailId] = useState<string | null>(null);
   const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
@@ -113,6 +114,10 @@ export default function EmailsPage() {
 
       const filtered = emailsData.filter((email) => {
         if (!activeProject?.projectId || !activeTask?.taskId) {
+          return false;
+        }
+        const ignored = Boolean((email.metadata as { inboxIgnored?: boolean } | null | undefined)?.inboxIgnored);
+        if (ignored) {
           return false;
         }
         const emailInProject = email.project?.id === activeProject.projectId;
@@ -354,6 +359,21 @@ export default function EmailsPage() {
     }
   }
 
+  async function onIgnore(email: EmailMessage): Promise<void> {
+    const token = getAccessToken();
+    if (!token) return;
+    setIgnoringByEmailId((prev) => ({ ...prev, [email.id]: true }));
+    try {
+      await apiClient.ignoreInboxEmail(token, email.id);
+      showToast('Email déplacé vers les ignorés.', 'success');
+      await load();
+    } catch (error) {
+      showToast(error instanceof ApiError ? error.message : 'Erreur pendant le déplacement.', 'error');
+    } finally {
+      setIgnoringByEmailId((prev) => ({ ...prev, [email.id]: false }));
+    }
+  }
+
   const attachmentProcessRunning = Object.values(savingAttachmentsByEmailId).some(Boolean);
 
   return (
@@ -405,6 +425,7 @@ export default function EmailsPage() {
                 const attachmentCount = Array.isArray(email.metadata?.attachments) ? email.metadata.attachments.length : 0;
                 const documentsSaved = Boolean(email.metadata?.documentsSaved);
                 const savingAttachments = Boolean(savingAttachmentsByEmailId[email.id]);
+                const ignoring = Boolean(ignoringByEmailId[email.id]);
                 return (
                   <tr key={email.id} className="border-b border-[var(--line)] align-top">
                     <td className="px-2 py-2 whitespace-nowrap">{new Date(email.receivedAt).toLocaleString('fr-FR')}</td>
@@ -444,6 +465,16 @@ export default function EmailsPage() {
                         className="rounded border border-[var(--line)] px-2 py-1 text-xs"
                       >
                         Réaffectation
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void onIgnore(email);
+                        }}
+                        disabled={ignoring}
+                        className="ml-2 rounded border border-[var(--line)] px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {ignoring ? 'Déplacement...' : 'Ignorer'}
                       </button>
                     </td>
                   </tr>

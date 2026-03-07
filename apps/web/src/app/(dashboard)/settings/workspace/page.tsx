@@ -113,7 +113,7 @@ export default function WorkspaceSettingsPage() {
     localStorage.setItem('mw_active_workspace_id', switched.activeWorkspaceId);
     window.dispatchEvent(new Event('mw_workspace_changed'));
     showToast('Workspace actif changé.', 'success');
-    window.location.reload();
+    window.location.assign('/projects');
   }
 
   async function onCreateWorkspace(): Promise<void> {

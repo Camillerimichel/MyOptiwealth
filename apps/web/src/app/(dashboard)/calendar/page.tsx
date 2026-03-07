@@ -43,6 +43,8 @@ export default function CalendarPage() {
   const router = useRouter();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string>('');
+  const [workspaceFilterId, setWorkspaceFilterId] = useState<string>('ALL');
+  const [showCreatePanel, setShowCreatePanel] = useState(false);
   const [title, setTitle] = useState('');
   const [eventType, setEventType] = useState('MEETING');
   const [startAt, setStartAt] = useState('');
@@ -111,7 +113,10 @@ export default function CalendarPage() {
   }
 
   const calendarEvents = useMemo<EventInput[]>(() => {
-    return items.map((item) => {
+    const filteredItems = workspaceFilterId === 'ALL'
+      ? items
+      : items.filter((item) => item.workspaceId === workspaceFilterId);
+    return filteredItems.map((item) => {
       if (item.source === 'TASK') {
         const taskColors = taskStatusCalendarColors(item.taskStatus);
         return {
@@ -147,7 +152,15 @@ export default function CalendarPage() {
         },
       };
     });
-  }, [activeWorkspaceId, items]);
+  }, [activeWorkspaceId, items, workspaceFilterId]);
+
+  const workspaceFilterOptions = useMemo(
+    () =>
+      Array.from(new Map(items.map((item) => [item.workspaceId, item.workspaceName])).entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((left, right) => left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' })),
+    [items],
+  );
 
   function onEventClick(arg: EventClickArg): void {
     const item = items.find((entry) => entry.id === arg.event.id);
@@ -212,27 +225,34 @@ export default function CalendarPage() {
   }
 
   return (
-    <section className="grid gap-6">
-      <h1 className="text-2xl font-semibold text-[var(--brand)]">Calendar</h1>
-      {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+    <section className="grid gap-6" aria-labelledby="calendar-page-title">
+      <h1 id="calendar-page-title" className="text-2xl font-semibold text-[var(--brand)]">Calendar</h1>
+      {loading ? <p className="text-sm text-[#5b5952]" role="status" aria-live="polite">Chargement...</p> : null}
+      {error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null}
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <form onSubmit={onCreate} className="grid gap-2 lg:grid-cols-5">
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre" className="rounded border border-[var(--line)] px-3 py-2" />
-          <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
-            <option value="MEETING">Meeting</option>
-            <option value="TASK_DEADLINE">Task deadline</option>
-            <option value="INTERNAL">Internal</option>
-            <option value="EXTERNAL">External</option>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowCreatePanel((current) => !current)}
+            className="h-10 rounded border border-[var(--line)] px-3 py-2 text-sm"
+          >
+            {showCreatePanel ? 'Masquer création' : 'Créer un événement'}
+          </button>
+          <button type="button" onClick={() => void onExportIcs()} className="h-10 rounded border border-[var(--line)] px-3 py-2 text-sm" aria-label="Exporter le calendrier hebdomadaire en ICS">Exporter ICS hebdo</button>
+          <select
+            value={workspaceFilterId}
+            onChange={(e) => setWorkspaceFilterId(e.target.value)}
+            className="h-10 rounded border border-[var(--line)] px-3 py-2 text-sm"
+            aria-label="Filtrer le calendrier par workspace"
+          >
+            <option value="ALL">Tous les workspaces</option>
+            {workspaceFilterOptions.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.name}
+              </option>
+            ))}
           </select>
-          <input type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2" />
-          <button className="rounded bg-[var(--brand)] px-3 py-2 text-white">Creer</button>
-        </form>
-
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <button onClick={() => void onExportIcs()} className="rounded border border-[var(--line)] px-3 py-2 text-sm">Exporter ICS hebdo</button>
           <div className="flex items-center gap-2 text-xs text-[#5b5952]">
             <span className="inline-block h-3 w-3 rounded" style={{ backgroundColor: '#111111' }} />
             Workspace actif
@@ -242,6 +262,20 @@ export default function CalendarPage() {
             Autres workspaces
           </div>
         </div>
+        {showCreatePanel ? (
+          <form onSubmit={onCreate} className="mt-3 grid gap-2 lg:grid-cols-5" aria-label="Créer un événement calendrier">
+            <input aria-label="Titre de l'événement" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre" className="rounded border border-[var(--line)] px-3 py-2" />
+            <select aria-label="Type d'événement" value={eventType} onChange={(e) => setEventType(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
+              <option value="MEETING">Meeting</option>
+              <option value="TASK_DEADLINE">Task deadline</option>
+              <option value="INTERNAL">Internal</option>
+              <option value="EXTERNAL">External</option>
+            </select>
+            <input aria-label="Date et heure de début" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2" />
+            <input aria-label="Date et heure de fin" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2" />
+            <button type="submit" className="rounded bg-[var(--brand)] px-3 py-2 text-white">Creer</button>
+          </form>
+        ) : null}
       </article>
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-4 shadow-panel">
@@ -273,9 +307,9 @@ export default function CalendarPage() {
       </article>
 
       {selectedEvent ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="calendar-event-dialog-title">
           <div className="w-full max-w-lg rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-            <h2 className="text-lg font-semibold text-[var(--brand)]">{selectedEvent.title}</h2>
+            <h2 id="calendar-event-dialog-title" className="text-lg font-semibold text-[var(--brand)]">{selectedEvent.title}</h2>
             <div className="mt-3 grid gap-1 text-sm text-[#4f4d45]">
               <p>Workspace: {selectedEvent.workspaceName}</p>
               <p>Type: {selectedEvent.source}</p>
@@ -314,12 +348,14 @@ export default function CalendarPage() {
             {selectedEvent.source === 'EVENT' && isEditingSelectedEvent ? (
               <div className="mt-4 grid gap-2 border-t border-[var(--line)] pt-4">
                 <input
+                  aria-label="Titre de l'événement"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder="Titre"
                   className="rounded border border-[var(--line)] px-3 py-2"
                 />
                 <select
+                  aria-label="Type d'événement"
                   value={editEventType}
                   onChange={(e) => setEditEventType(e.target.value)}
                   className="rounded border border-[var(--line)] px-3 py-2"
@@ -330,12 +366,14 @@ export default function CalendarPage() {
                   <option value="EXTERNAL">External</option>
                 </select>
                 <input
+                  aria-label="Date et heure de début"
                   type="datetime-local"
                   value={editStartAt}
                   onChange={(e) => setEditStartAt(e.target.value)}
                   className="rounded border border-[var(--line)] px-3 py-2"
                 />
                 <input
+                  aria-label="Date et heure de fin"
                   type="datetime-local"
                   value={editEndAt}
                   onChange={(e) => setEditEndAt(e.target.value)}

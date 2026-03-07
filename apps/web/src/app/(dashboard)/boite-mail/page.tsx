@@ -302,12 +302,7 @@ export default function MailboxPage() {
       {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <button onClick={onSync} className="rounded border border-[var(--line)] px-3 py-2 text-sm">
-          Synchroniser IMAP
-        </button>
-      </article>
-      <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('pending')}
@@ -321,6 +316,15 @@ export default function MailboxPage() {
             className={`rounded px-3 py-2 text-sm ${activeTab === 'ignored' ? 'bg-[var(--brand)] text-white' : 'border border-[var(--line)]'}`}
           >
             Mails ignores ({ignoredEmails.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void onSync();
+            }}
+            className="ml-auto rounded border border-[var(--line)] px-3 py-2 text-sm"
+          >
+            Synchroniser IMAP
           </button>
         </div>
         <div className="overflow-x-auto">

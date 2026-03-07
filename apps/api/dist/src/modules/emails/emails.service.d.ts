@@ -157,4 +157,5 @@ export declare class EmailsService {
     private readMetadataBoolean;
     private mergeMetadata;
     private readMetadataAttachments;
+    private dedupeInboxEmails;
 }

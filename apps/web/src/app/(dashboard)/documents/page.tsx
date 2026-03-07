@@ -59,10 +59,15 @@ export default function DocumentsPage() {
 
   const buildDefaultStoragePath = useCallback((nextTitle: string): string => {
     const workspaceKey = normalizePathPart(activeWorkspaceName ?? 'workspace');
-    const projectKey = normalizePathPart(activeProjectTitle ?? 'projet');
-    const taskKey = normalizePathPart(activeTaskLabel ?? 'tache');
-    const titleKey = normalizePathPart(nextTitle || 'document');
-    return `documents/${workspaceKey}/${projectKey}/${taskKey}/${titleKey}`;
+    if (!activeProjectTitle) {
+      return `documents/${workspaceKey}/global`;
+    }
+    const projectKey = normalizePathPart(activeProjectTitle);
+    if (!activeTaskLabel) {
+      return `documents/${workspaceKey}/${projectKey}/global`;
+    }
+    const taskKey = normalizePathPart(activeTaskLabel);
+    return `documents/${workspaceKey}/${projectKey}/${taskKey}`;
   }, [activeWorkspaceName, activeProjectTitle, activeTaskLabel]);
 
   const load = useCallback(async (): Promise<void> => {
@@ -124,9 +129,14 @@ export default function DocumentsPage() {
   }, [load]);
 
   useEffect(() => {
-    if (!activeProjectId) return;
-    if (storagePath.trim().length > 0) return;
-    setStoragePath(buildDefaultStoragePath(title));
+    if (
+      !storagePath.trim()
+      || storagePath.startsWith('documents/global/')
+      || storagePath.startsWith('documents/workspace/')
+      || storagePath.endsWith('/document')
+    ) {
+      setStoragePath(buildDefaultStoragePath(title));
+    }
   }, [activeProjectId, activeTaskId, activeWorkspaceId, title, storagePath, buildDefaultStoragePath]);
 
   useEffect(() => {
@@ -213,6 +223,20 @@ export default function DocumentsPage() {
     }, 60000);
   }
 
+  async function onDownload(documentId: string, documentTitle: string): Promise<void> {
+    const token = getAccessToken();
+    if (!token) return;
+    const blob = await apiClient.viewDocumentBlob(token, documentId);
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `${normalizePathPart(documentTitle || 'document')}.pdf`;
+    link.click();
+    window.setTimeout(() => {
+      window.URL.revokeObjectURL(blobUrl);
+    }, 60000);
+  }
+
   function documentStatusLabel(status: string): string {
     switch (status) {
       case 'DRAFT':
@@ -278,25 +302,24 @@ export default function DocumentsPage() {
               <input
                 value={storagePath}
                 onChange={(e) => setStoragePath(e.target.value)}
-                placeholder="Chemin de stockage (ex: documents/workspace/projet/tache/document)"
+                placeholder="Chemin de stockage (ex: documents/workspace/projet/global)"
                 className="rounded border border-[var(--line)] px-3 py-2"
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setStoragePath(buildDefaultStoragePath(title))}
-                  disabled={!activeProjectId}
-                  className="rounded border border-[var(--line)] px-3 py-2 text-[#4f4d45] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded border border-[var(--line)] px-3 py-2 text-[#4f4d45]"
                 >
                   Path défaut
                 </button>
-                <button disabled={!activeProjectId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50">Créer document</button>
+                <button className="rounded bg-[var(--brand)] px-3 py-2 text-white">Valider</button>
               </div>
             </form>
             <form onSubmit={onUpload} className="mt-3 grid gap-2 lg:grid-cols-3">
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre fichier à uploader" className="rounded border border-[var(--line)] px-3 py-2" />
               <input type="file" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} className="rounded border border-[var(--line)] px-3 py-2" />
-              <button disabled={!activeProjectId} className="rounded border border-[var(--line)] px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50">Uploader fichier</button>
+              <button className="rounded border border-[var(--line)] px-3 py-2">Uploader fichier</button>
             </form>
             <div className="mt-3 grid gap-2 lg:grid-cols-3">
               <input
@@ -368,6 +391,12 @@ export default function DocumentsPage() {
                           title={item.canView ? 'Ouvrir le document' : 'Visualisation indisponible (fichier absent)'}
                         >
                           Visualiser
+                        </button>
+                        <button
+                          onClick={() => { void onDownload(item.id, item.title); }}
+                          className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                        >
+                          Télécharger
                         </button>
                         <button onClick={() => { void onDelete(item.id); }} className="rounded border border-red-300 px-2 py-1 text-xs text-red-700">Supprimer</button>
                       </div>

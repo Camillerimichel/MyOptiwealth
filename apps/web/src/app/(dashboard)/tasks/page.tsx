@@ -101,6 +101,7 @@ export default function TasksPage() {
   const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeTaskLabel, setActiveTaskLabel] = useState<string | null>(null);
+  const [showFirstTaskPrompt, setShowFirstTaskPrompt] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,11 +143,14 @@ export default function TasksPage() {
         );
         setProjectId(activeProject.projectId);
         setProjectFilterId(activeProject.projectId);
+        const hasTaskInProject = tasksData.some((task) => task.projectId === activeProject.projectId);
+        setShowFirstTaskPrompt(!hasTaskInProject);
       } else {
         setActiveProjectId(null);
         setActiveProjectTitle(null);
         setActiveProjectTypology(null);
         setProjectFilterId('');
+        setShowFirstTaskPrompt(false);
       }
       const activeTask = getActiveTaskContext();
       if (activeTask) {
@@ -293,8 +297,35 @@ export default function TasksPage() {
     });
     showToast('Tâche active mise à jour.', 'success');
     if (redirectToEmails) {
-      router.push('/emails');
+      const hasLinkedEmails = Boolean(task.linkedEmails && task.linkedEmails.length > 0);
+      if (hasLinkedEmails) {
+        router.push('/emails');
+      } else {
+        showToast('Aucun email lié à cette tâche.', 'success');
+      }
     }
+  }
+
+  async function onCreateFirstTask(): Promise<void> {
+    const token = getAccessToken();
+    const targetProjectId = activeProjectId ?? projectId;
+    if (!token || !description || !targetProjectId) return;
+    await apiClient.createTask(token, {
+      projectId: targetProjectId,
+      description,
+      privateComment: privateComment || undefined,
+      priority,
+      orderNumber,
+      status: status || 'TODO',
+      assigneeId: assigneeId || undefined,
+      companyOwnerContactId: companyOwnerContactId || undefined,
+      visibleToClient: false,
+    });
+    showToast('Tâche créée.', 'success');
+    setShowFirstTaskPrompt(false);
+    setDescription('');
+    setPrivateComment('');
+    await load();
   }
 
   function onCancelEdit(): void {
@@ -414,6 +445,108 @@ export default function TasksPage() {
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       {!activeProjectId ? (
         <p className="text-sm text-[#5b5952]">Sélectionne d abord un contexte projet dans Projects.</p>
+      ) : null}
+      {showFirstTaskPrompt && activeProjectId ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-4xl rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+            <h2 className="text-lg font-semibold text-[var(--brand)]">Créer la première tâche</h2>
+            <div className="mt-3 grid gap-4">
+              <div className="grid gap-3 lg:grid-cols-12">
+                <select
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  disabled={!!activeProjectId}
+                  className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-4"
+                >
+                  <option value="">Projet</option>
+                  {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                </select>
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Description"
+                  className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-8"
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+                <input
+                  type="number"
+                  min={1}
+                  value={orderNumber}
+                  onChange={(e) => setOrderNumber(Number(e.target.value) || 1)}
+                  placeholder="Rang"
+                  className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-2"
+                />
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(Number(e.target.value))}
+                  className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-2"
+                >
+                  <option value={1}>Priorité 1</option>
+                  <option value={2}>Priorité 2</option>
+                  <option value={3}>Priorité 3</option>
+                </select>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-2"
+                >
+                  <option value="TODO">À faire</option>
+                  <option value="IN_PROGRESS">En cours</option>
+                  <option value="WAITING">En attente</option>
+                  <option value="DONE">Fait</option>
+                </select>
+                <select
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                  className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3"
+                >
+                  <option value="">Responsable interne</option>
+                  {users.map((item) => (
+                    <option key={item.user.id} value={item.user.id}>
+                      {userDisplayName(item.user)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={companyOwnerContactId}
+                  onChange={(e) => setCompanyOwnerContactId(e.target.value)}
+                  className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3"
+                >
+                  <option value="">Responsable société</option>
+                  {contacts.map((contact) => (
+                    <option key={contact.id} value={contact.id}>
+                      {contact.firstName} {contact.lastName}{contact.society?.name ? ` (${contact.society.name})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <textarea
+                value={privateComment}
+                onChange={(e) => setPrivateComment(e.target.value)}
+                placeholder="Commentaire interne"
+                rows={3}
+                className="min-h-24 rounded border border-[var(--line)] px-3 py-2"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { void onCreateFirstTask(); }}
+                  className="rounded bg-[var(--brand)] px-3 py-2 text-white"
+                >
+                  Valider
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFirstTaskPrompt(false)}
+                  className="rounded border border-[var(--line)] px-3 py-2"
+                >
+                  Refuser
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : null}
       {showTaskForm || editingTaskId ? (
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">

@@ -3,6 +3,29 @@ import { TaskStatus } from '@prisma/client';
 import { FinanceService } from '../finance/finance.service';
 import { PrismaService } from '../prisma.service';
 
+function isWeekend(date: Date): boolean {
+  const day = date.getUTCDay();
+  return day === 0 || day === 6;
+}
+
+function toUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function businessDaysBetween(start: Date, end: Date): number {
+  if (end < start) return 0;
+  const cursor = toUtcDay(start);
+  const endUtc = toUtcDay(end);
+  let days = 0;
+  while (cursor <= endUtc) {
+    if (!isWeekend(cursor)) {
+      days += 1;
+    }
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return days;
+}
+
 @Injectable()
 export class DashboardService {
   constructor(
@@ -65,7 +88,7 @@ export class DashboardService {
       };
     }
 
-    const [taskGroups, projectGroups, financeKpisList, upcomingTasks] = await Promise.all([
+    const [taskGroups, projectGroups, financeKpisList, upcomingTasks, taskProgressRows] = await Promise.all([
       this.prisma.task.groupBy({
         by: ['workspaceId', 'status'],
         where: { workspaceId: { in: workspaceIds } },
@@ -95,6 +118,18 @@ export class DashboardService {
           },
         },
         take: 200,
+      }),
+      this.prisma.task.findMany({
+        where: { workspaceId: { in: workspaceIds } },
+        select: {
+          workspaceId: true,
+          planningStartDate: true,
+          planningEndDate: true,
+          plannedDurationDays: true,
+          overrunDays: true,
+          progressPercent: true,
+          fte: true,
+        },
       }),
     ]);
 
@@ -130,6 +165,39 @@ export class DashboardService {
       entry.total += count;
     }
 
+    const progressByWorkspace = new Map<string, number>();
+    const weightedByWorkspace = new Map<string, { weightedDone: number; weightedTotal: number }>();
+    for (const workspaceId of workspaceIds) {
+      weightedByWorkspace.set(workspaceId, { weightedDone: 0, weightedTotal: 0 });
+    }
+    for (const task of taskProgressRows) {
+      const entry = weightedByWorkspace.get(task.workspaceId);
+      if (!entry) continue;
+      const hasPlanningRange = Boolean(
+        task.planningStartDate
+          && task.planningEndDate
+          && task.planningEndDate >= task.planningStartDate,
+      );
+      const baseDuration = Math.max(1, Number(task.plannedDurationDays ?? 5));
+      const plannedDuration = hasPlanningRange && task.planningStartDate && task.planningEndDate
+        ? Math.max(1, businessDaysBetween(task.planningStartDate, task.planningEndDate))
+        : baseDuration;
+      const overrun = Math.max(0, Number(task.overrunDays ?? 0));
+      const effectiveDuration = plannedDuration + overrun;
+      const fte = Math.max(0.1, Number(task.fte ?? 1));
+      const progress = Math.min(100, Math.max(0, Number(task.progressPercent ?? 0)));
+      const weight = effectiveDuration * fte;
+      entry.weightedTotal += weight;
+      entry.weightedDone += weight * (progress / 100);
+    }
+    for (const workspaceId of workspaceIds) {
+      const entry = weightedByWorkspace.get(workspaceId);
+      const progressPercent = entry && entry.weightedTotal > 0
+        ? Math.round((entry.weightedDone / entry.weightedTotal) * 100)
+        : 0;
+      progressByWorkspace.set(workspaceId, progressPercent);
+    }
+
     const projectCountByWorkspace = new Map<string, number>();
     for (const group of projectGroups) {
       projectCountByWorkspace.set(group.workspaceId, group._count._all);
@@ -143,9 +211,7 @@ export class DashboardService {
         done: 0,
         total: 0,
       };
-      const progressPercent = taskStats.total > 0
-        ? Math.round((taskStats.done / taskStats.total) * 100)
-        : 0;
+      const progressPercent = progressByWorkspace.get(membership.workspaceId) ?? 0;
       const kpis = financeKpisList[index] ?? {
         billedRevenue: 0,
         collectedRevenue: 0,

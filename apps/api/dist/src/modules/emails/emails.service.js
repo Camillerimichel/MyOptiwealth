@@ -57,7 +57,8 @@ let EmailsService = class EmailsService {
             },
             orderBy: { receivedAt: 'desc' },
         });
-        return emails.filter((email) => !this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
+        const deduped = this.dedupeInboxEmails(emails);
+        return deduped.filter((email) => !this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
     }
     async listIgnoredForUser(userId) {
         const workspaceIds = await this.getWorkspaceIdsForUser(userId);
@@ -76,7 +77,8 @@ let EmailsService = class EmailsService {
             },
             orderBy: { receivedAt: 'desc' },
         });
-        return emails.filter((email) => this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
+        const deduped = this.dedupeInboxEmails(emails);
+        return deduped.filter((email) => this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
     }
     async listLinkCatalogForUser(userId) {
         const workspaceIds = await this.getWorkspaceIdsForUser(userId);
@@ -274,7 +276,6 @@ let EmailsService = class EmailsService {
             select: {
                 id: true,
                 workspaceId: true,
-                projectId: true,
                 metadata: true,
             },
         });
@@ -295,9 +296,6 @@ let EmailsService = class EmailsService {
         }
         if (membership.role === client_1.WorkspaceRole.VIEWER) {
             throw new common_1.BadRequestException('Droits insuffisants pour ignorer cet email.');
-        }
-        if (email.projectId) {
-            throw new common_1.BadRequestException("Email deja affecte, impossible de l'ignorer.");
         }
         const metadata = this.mergeMetadata(email.metadata, {
             inboxIgnored: true,
@@ -875,6 +873,29 @@ let EmailsService = class EmailsService {
             return { filename, contentType, size };
         })
             .filter((item) => Boolean(item));
+    }
+    dedupeInboxEmails(emails) {
+        const byExternalId = new Map();
+        for (const email of emails) {
+            const key = String(email.externalMessageId || '');
+            const list = byExternalId.get(key) ?? [];
+            list.push(email);
+            byExternalId.set(key, list);
+        }
+        const deduped = [...byExternalId.values()].map((group) => {
+            const ordered = [...group].sort((left, right) => {
+                const leftIgnored = this.readMetadataBoolean(left.metadata, 'inboxIgnored') ? 1 : 0;
+                const rightIgnored = this.readMetadataBoolean(right.metadata, 'inboxIgnored') ? 1 : 0;
+                if (leftIgnored !== rightIgnored)
+                    return rightIgnored - leftIgnored;
+                const byUpdated = right.updatedAt.getTime() - left.updatedAt.getTime();
+                if (byUpdated !== 0)
+                    return byUpdated;
+                return right.receivedAt.getTime() - left.receivedAt.getTime();
+            });
+            return ordered[0];
+        });
+        return deduped.sort((left, right) => right.receivedAt.getTime() - left.receivedAt.getTime());
     }
 };
 exports.EmailsService = EmailsService;

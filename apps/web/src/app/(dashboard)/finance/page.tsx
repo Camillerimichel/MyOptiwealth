@@ -367,8 +367,8 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
   }
 
   return (
-    <section className="grid gap-6">
-      <h1 className="text-2xl font-semibold text-[var(--brand)]">Finance</h1>
+    <section className="grid gap-6" aria-labelledby="finance-page-title">
+      <h1 id="finance-page-title" className="text-2xl font-semibold text-[var(--brand)]">Finance</h1>
       <div className="rounded-lg border-2 border-[var(--brand)] bg-[#efe7d4] px-4 py-3 text-base font-bold text-[#2f2b23]">
         <p>Workspace: {activeWorkspaceName ?? 'Aucun'}</p>
         <p className="pl-6">
@@ -389,8 +389,8 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
         ) : null}
       </div>
 
-      {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-sm text-[#5b5952]" role="status" aria-live="polite">Chargement...</p> : null}
+      {error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null}
       {!activeProjectId ? (
         <p className="text-sm text-[#5b5952]">Aucun projet actif: affichage de tous les devis du workspace.</p>
       ) : null}
@@ -412,8 +412,9 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
         <h2 className="font-semibold">Nouveau devis</h2>
-        <form onSubmit={onCreateQuote} className="mt-3 grid gap-2 lg:grid-cols-7">
+        <form onSubmit={onCreateQuote} className="mt-3 grid gap-2 lg:grid-cols-7" aria-label="Créer un devis">
           <select
+            aria-label="Projet du devis"
             value={createProjectId}
             onChange={(e) => setCreateProjectId(e.target.value)}
             disabled={Boolean(activeProjectId)}
@@ -424,31 +425,31 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
               <option key={project.id} value={project.id}>{project.name}</option>
             ))}
           </select>
-          <input value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} placeholder="Montant devis" className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={quoteIssuedAt} onChange={(e) => setQuoteIssuedAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={quoteDueAt} onChange={(e) => setQuoteDueAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
-          <button disabled={!createProjectId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1">Créer devis</button>
+          <input aria-label="Montant du devis" value={quoteAmount} onChange={(e) => setQuoteAmount(e.target.value)} placeholder="Montant devis" className="rounded border border-[var(--line)] px-3 py-2" />
+          <input aria-label="Date du devis" type="date" value={quoteIssuedAt} onChange={(e) => setQuoteIssuedAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
+          <input aria-label="Date d'échéance du devis" type="date" value={quoteDueAt} onChange={(e) => setQuoteDueAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
+          <button type="submit" disabled={!createProjectId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-1">Créer devis</button>
         </form>
       </article>
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
         <h2 className="font-semibold">Nouvelle facture (liée à un devis)</h2>
-        <form onSubmit={onCreateInvoice} className="mt-3 grid gap-2 lg:grid-cols-8">
-          <select value={invoiceQuoteId} onChange={(e) => setInvoiceQuoteId(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3">
+        <form onSubmit={onCreateInvoice} className="mt-3 grid gap-2 lg:grid-cols-8" aria-label="Créer une facture">
+          <select aria-label="Devis parent de la facture" value={invoiceQuoteId} onChange={(e) => setInvoiceQuoteId(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3">
             <option value="">Devis parent</option>
             {quoteOptions.map((quote) => (
               <option key={quote.id} value={quote.id}>{getQuoteDisplayName(quote)}</option>
             ))}
           </select>
-          <input value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} placeholder="Montant facture" className="rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={invoiceIssuedAt} onChange={(e) => setInvoiceIssuedAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
-          <input type="date" value={invoiceDueAt} onChange={(e) => setInvoiceDueAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
-          <select value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value as 'PENDING' | 'PAID')} className="rounded border border-[var(--line)] px-3 py-2"> 
+          <input aria-label="Montant de la facture" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} placeholder="Montant facture" className="rounded border border-[var(--line)] px-3 py-2" />
+          <input aria-label="Date de facture" type="date" value={invoiceIssuedAt} onChange={(e) => setInvoiceIssuedAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
+          <input aria-label="Date d'échéance de facture" type="date" value={invoiceDueAt} onChange={(e) => setInvoiceDueAt(e.target.value)} className="w-44 rounded border border-[var(--line)] px-3 py-2" />
+          <select aria-label="Statut de la facture" value={invoiceStatus} onChange={(e) => setInvoiceStatus(e.target.value as 'PENDING' | 'PAID')} className="rounded border border-[var(--line)] px-3 py-2">
             <option value="PENDING">En attente</option>
             <option value="PAID">Payee</option>
           </select>
-          <input value={invoiceAccountingRef} onChange={(e) => setInvoiceAccountingRef(e.target.value)} placeholder="Ref comptable (optionnel)" className="rounded border border-[var(--line)] px-3 py-2" />
-          <button disabled={!invoiceQuoteId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-8">Créer facture</button>
+          <input aria-label="Référence comptable de la facture" value={invoiceAccountingRef} onChange={(e) => setInvoiceAccountingRef(e.target.value)} placeholder="Ref comptable (optionnel)" className="rounded border border-[var(--line)] px-3 py-2" />
+          <button type="submit" disabled={!invoiceQuoteId} className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50 lg:col-span-8">Créer facture</button>
         </form>
       </article>
 
@@ -486,10 +487,10 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
                     <td className="px-2 py-2 text-right text-green-700">{euro(item.totals.paidInvoicesTotal)}</td>
                     <td className="px-2 py-2 text-right text-orange-700">{euro(pendingFromQuote)}</td>
                     <td className="px-2 py-2">
-                      <button onClick={() => toggleQuoteDetails(item.quote.id)} className="mr-2 rounded border border-[var(--line)] px-2 py-1 text-xs">
+                      <button type="button" onClick={() => toggleQuoteDetails(item.quote.id)} className="mr-2 rounded border border-[var(--line)] px-2 py-1 text-xs">
                         {expandedQuoteIds[item.quote.id] ? 'Masquer factures' : 'Voir factures'}
                       </button>
-                      <button onClick={() => onEditQuote(item.quote)} className="rounded border border-[var(--line)] px-2 py-1 text-xs">Modifier devis</button>
+                      <button type="button" onClick={() => onEditQuote(item.quote)} className="rounded border border-[var(--line)] px-2 py-1 text-xs">Modifier devis</button>
                     </td>
                   </tr>
                       );
@@ -512,8 +513,8 @@ function getQuoteDisplayName(item: FinanceOverviewItem['quote']): string {
                           <strong>Nom final :</strong> {getEditingQuoteNamePreview()}
                         </div>
                         <div className="mt-2 flex gap-2">
-                          <button onClick={() => { void onSaveEdit(); }} className="rounded bg-[var(--brand)] px-2 py-1 text-xs text-white">Enregistrer</button>
-                          <button onClick={() => setEditingDocId(null)} className="rounded border border-[var(--line)] px-2 py-1 text-xs">Annuler</button>
+                          <button type="button" onClick={() => { void onSaveEdit(); }} className="rounded bg-[var(--brand)] px-2 py-1 text-xs text-white">Enregistrer</button>
+                          <button type="button" onClick={() => setEditingDocId(null)} className="rounded border border-[var(--line)] px-2 py-1 text-xs">Annuler</button>
                         </div>
                       </td>
                     </tr>

@@ -14,6 +14,27 @@ const common_1 = require("@nestjs/common");
 const client_1 = require("@prisma/client");
 const finance_service_1 = require("../finance/finance.service");
 const prisma_service_1 = require("../prisma.service");
+function isWeekend(date) {
+    const day = date.getUTCDay();
+    return day === 0 || day === 6;
+}
+function toUtcDay(date) {
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+function businessDaysBetween(start, end) {
+    if (end < start)
+        return 0;
+    const cursor = toUtcDay(start);
+    const endUtc = toUtcDay(end);
+    let days = 0;
+    while (cursor <= endUtc) {
+        if (!isWeekend(cursor)) {
+            days += 1;
+        }
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return days;
+}
 let DashboardService = class DashboardService {
     constructor(prisma, financeService) {
         this.prisma = prisma;
@@ -70,7 +91,7 @@ let DashboardService = class DashboardService {
                 workspaces: [],
             };
         }
-        const [taskGroups, projectGroups, financeKpisList, upcomingTasks] = await Promise.all([
+        const [taskGroups, projectGroups, financeKpisList, upcomingTasks, taskProgressRows] = await Promise.all([
             this.prisma.task.groupBy({
                 by: ['workspaceId', 'status'],
                 where: { workspaceId: { in: workspaceIds } },
@@ -101,6 +122,18 @@ let DashboardService = class DashboardService {
                 },
                 take: 200,
             }),
+            this.prisma.task.findMany({
+                where: { workspaceId: { in: workspaceIds } },
+                select: {
+                    workspaceId: true,
+                    planningStartDate: true,
+                    planningEndDate: true,
+                    plannedDurationDays: true,
+                    overrunDays: true,
+                    progressPercent: true,
+                    fte: true,
+                },
+            }),
         ]);
         const taskByWorkspace = new Map();
         for (const workspaceId of workspaceIds) {
@@ -127,6 +160,37 @@ let DashboardService = class DashboardService {
                 entry.done += count;
             entry.total += count;
         }
+        const progressByWorkspace = new Map();
+        const weightedByWorkspace = new Map();
+        for (const workspaceId of workspaceIds) {
+            weightedByWorkspace.set(workspaceId, { weightedDone: 0, weightedTotal: 0 });
+        }
+        for (const task of taskProgressRows) {
+            const entry = weightedByWorkspace.get(task.workspaceId);
+            if (!entry)
+                continue;
+            const hasPlanningRange = Boolean(task.planningStartDate
+                && task.planningEndDate
+                && task.planningEndDate >= task.planningStartDate);
+            const baseDuration = Math.max(1, Number(task.plannedDurationDays ?? 5));
+            const plannedDuration = hasPlanningRange && task.planningStartDate && task.planningEndDate
+                ? Math.max(1, businessDaysBetween(task.planningStartDate, task.planningEndDate))
+                : baseDuration;
+            const overrun = Math.max(0, Number(task.overrunDays ?? 0));
+            const effectiveDuration = plannedDuration + overrun;
+            const fte = Math.max(0.1, Number(task.fte ?? 1));
+            const progress = Math.min(100, Math.max(0, Number(task.progressPercent ?? 0)));
+            const weight = effectiveDuration * fte;
+            entry.weightedTotal += weight;
+            entry.weightedDone += weight * (progress / 100);
+        }
+        for (const workspaceId of workspaceIds) {
+            const entry = weightedByWorkspace.get(workspaceId);
+            const progressPercent = entry && entry.weightedTotal > 0
+                ? Math.round((entry.weightedDone / entry.weightedTotal) * 100)
+                : 0;
+            progressByWorkspace.set(workspaceId, progressPercent);
+        }
         const projectCountByWorkspace = new Map();
         for (const group of projectGroups) {
             projectCountByWorkspace.set(group.workspaceId, group._count._all);
@@ -139,9 +203,7 @@ let DashboardService = class DashboardService {
                 done: 0,
                 total: 0,
             };
-            const progressPercent = taskStats.total > 0
-                ? Math.round((taskStats.done / taskStats.total) * 100)
-                : 0;
+            const progressPercent = progressByWorkspace.get(membership.workspaceId) ?? 0;
             const kpis = financeKpisList[index] ?? {
                 billedRevenue: 0,
                 collectedRevenue: 0,

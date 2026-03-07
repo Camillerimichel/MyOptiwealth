@@ -52,7 +52,8 @@ export class EmailsService {
       },
       orderBy: { receivedAt: 'desc' },
     });
-    return emails.filter((email) => !this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
+    const deduped = this.dedupeInboxEmails(emails);
+    return deduped.filter((email) => !this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
   }
 
   async listIgnoredForUser(userId: string) {
@@ -72,7 +73,8 @@ export class EmailsService {
       },
       orderBy: { receivedAt: 'desc' },
     });
-    return emails.filter((email) => this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
+    const deduped = this.dedupeInboxEmails(emails);
+    return deduped.filter((email) => this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
   }
 
   async listLinkCatalogForUser(userId: string) {
@@ -300,7 +302,6 @@ export class EmailsService {
       select: {
         id: true,
         workspaceId: true,
-        projectId: true,
         metadata: true,
       },
     });
@@ -323,10 +324,6 @@ export class EmailsService {
     if (membership.role === WorkspaceRole.VIEWER) {
       throw new BadRequestException('Droits insuffisants pour ignorer cet email.');
     }
-    if (email.projectId) {
-      throw new BadRequestException("Email deja affecte, impossible de l'ignorer.");
-    }
-
     const metadata = this.mergeMetadata(email.metadata, {
       inboxIgnored: true,
       inboxIgnoredAt: new Date().toISOString(),
@@ -985,5 +982,29 @@ export class EmailsService {
         return { filename, contentType, size };
       })
       .filter((item): item is { filename: string; contentType: string; size: number } => Boolean(item));
+  }
+
+  private dedupeInboxEmails<T extends { externalMessageId: string; metadata: unknown; receivedAt: Date; updatedAt: Date }>(emails: T[]): T[] {
+    const byExternalId = new Map<string, T[]>();
+    for (const email of emails) {
+      const key = String(email.externalMessageId || '');
+      const list = byExternalId.get(key) ?? [];
+      list.push(email);
+      byExternalId.set(key, list);
+    }
+
+    const deduped = [...byExternalId.values()].map((group) => {
+      const ordered = [...group].sort((left, right) => {
+        const leftIgnored = this.readMetadataBoolean(left.metadata, 'inboxIgnored') ? 1 : 0;
+        const rightIgnored = this.readMetadataBoolean(right.metadata, 'inboxIgnored') ? 1 : 0;
+        if (leftIgnored !== rightIgnored) return rightIgnored - leftIgnored;
+        const byUpdated = right.updatedAt.getTime() - left.updatedAt.getTime();
+        if (byUpdated !== 0) return byUpdated;
+        return right.receivedAt.getTime() - left.receivedAt.getTime();
+      });
+      return ordered[0];
+    });
+
+    return deduped.sort((left, right) => right.receivedAt.getTime() - left.receivedAt.getTime());
   }
 }

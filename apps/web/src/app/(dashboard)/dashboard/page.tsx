@@ -143,13 +143,21 @@ export default function DashboardPage() {
       {[...data.workspaces]
         .sort((left, right) => WORKSPACE_NAME_COLLATOR.compare(left.workspace.name, right.workspace.name))
         .map((item) => {
-        const totalTasks = item.taskStats.total || 1;
         const segments = [
           { label: 'À faire', value: item.taskStats.todo, color: '#d1d5db' },
           { label: 'En cours', value: item.taskStats.inProgress, color: '#22c55e' },
           { label: 'En attente', value: item.taskStats.waiting, color: '#f59e0b' },
           { label: 'Fait', value: item.taskStats.done, color: '#111827' },
         ];
+        const totalTasks = item.taskStats.total;
+        const segmentTotal = segments.reduce((sum, segment) => sum + segment.value, 0);
+        const normalizedTaskTotal = segmentTotal > 0 ? segmentTotal : 1;
+        const workspaceProgressPercent = Math.max(0, Math.min(100, Math.round(item.progressPercent)));
+        const billedRevenue = item.finance.billedRevenue;
+        const collectedRevenue = item.finance.collectedRevenue;
+        const financeProgressPercent = billedRevenue > 0
+          ? Math.round((collectedRevenue / billedRevenue) * 100)
+          : 0;
 
         return (
           <article key={item.workspace.id} className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
@@ -165,12 +173,12 @@ export default function DashboardPage() {
                   <div
                     className="h-full rounded-full"
                     style={{
-                      width: `${Math.max(0, Math.min(100, item.progressPercent))}%`,
-                      backgroundColor: progressColor(item.progressPercent),
+                      width: `${workspaceProgressPercent}%`,
+                      backgroundColor: progressColor(workspaceProgressPercent),
                     }}
                   />
                 </div>
-                <p className="mt-2 text-right text-xl font-semibold text-[#2f2b23]">{item.progressPercent}%</p>
+                <p className="mt-2 text-right text-xl font-semibold text-[#2f2b23]">{workspaceProgressPercent}%</p>
               </div>
 
               <div
@@ -190,7 +198,7 @@ export default function DashboardPage() {
                   {segments.map((segment) => (
                     <div
                       key={segment.label}
-                      style={{ width: `${(segment.value / totalTasks) * 100}%`, backgroundColor: segment.color }}
+                      style={{ width: `${(segment.value / normalizedTaskTotal) * 100}%`, backgroundColor: segment.color }}
                       title={`${segment.label}: ${segment.value}`}
                     />
                   ))}
@@ -221,6 +229,18 @@ export default function DashboardPage() {
                 className="cursor-pointer rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4 text-left transition hover:bg-[#f2eee4]"
               >
                 <p className="mb-2 text-xs uppercase tracking-[0.08em] text-[#6a6861]">Finances</p>
+                <div className="mb-3">
+                  <div className="mb-1 flex items-center justify-between text-xs text-[#5b5952]">
+                    <span>Taux d&apos;encaissement</span>
+                    <span className="font-semibold text-[#2f2b23]">{Math.max(0, Math.min(100, financeProgressPercent))}%</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-[#e8e5dd]">
+                    <div
+                      className="h-full rounded-full bg-[#0f766e]"
+                      style={{ width: `${Math.max(0, Math.min(100, financeProgressPercent))}%` }}
+                    />
+                  </div>
+                </div>
                 <table className="w-full border-collapse text-sm">
                   <tbody>
                     <tr className="border-b border-[var(--line)]">

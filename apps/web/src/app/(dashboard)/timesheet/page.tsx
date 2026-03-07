@@ -11,6 +11,7 @@ import { apiClient } from '@/lib/api-client';
 import { getAccessToken } from '@/lib/auth';
 
 type Project = { id: string; name: string; progressPercent: number; missionType?: string | null };
+type TaskWorkflowStatus = 'TODO' | 'IN_PROGRESS' | 'WAITING' | 'DONE';
 type Task = {
   id: string;
   projectId: string;
@@ -24,6 +25,7 @@ type Task = {
   startsAfterTaskId?: string | null;
   progressPercent?: number;
   fte?: number;
+  status: TaskWorkflowStatus;
 };
 
 type TaskPlanState = {
@@ -33,9 +35,9 @@ type TaskPlanState = {
   overrunDays: number;
   progressPercent: number;
   fte: number;
+  status: TaskWorkflowStatus;
 };
 
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 type SortKey = 'default' | 'start' | 'end' | 'progress';
 type TimesheetView = 'saisie' | 'gantt';
 type TaskDateLogAction = 'load' | 'sync' | 'save';
@@ -153,7 +155,6 @@ export default function TimesheetPage() {
   const [ganttDayWidth, setGanttDayWidth] = useState(10);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const [lastSavedPlanByTaskId, setLastSavedPlanByTaskId] = useState<Record<string, TaskPlanState>>({});
-  const [saveStatusByTaskId, setSaveStatusByTaskId] = useState<Record<string, SaveStatus>>({});
   const [taskDateLogs, setTaskDateLogs] = useState<TaskDateLogRow[]>([]);
 
   const planByTaskIdRef = useRef<Record<string, TaskPlanState>>({});
@@ -223,6 +224,7 @@ export default function TimesheetPage() {
         startsAfterTaskId: task.startsAfterTaskId,
         progressPercent: task.progressPercent,
         fte: task.fte,
+        status: (task.status as TaskWorkflowStatus) ?? 'TODO',
       })));
 
       setPlanByTaskId((prev) => {
@@ -235,10 +237,10 @@ export default function TimesheetPage() {
             overrunDays: task.overrunDays ?? prev[task.id]?.overrunDays ?? 0,
             progressPercent: task.progressPercent ?? prev[task.id]?.progressPercent ?? 0,
             fte: task.fte ?? prev[task.id]?.fte ?? 1,
+            status: (task.status as TaskWorkflowStatus) ?? prev[task.id]?.status ?? 'TODO',
           };
         }
         setLastSavedPlanByTaskId(next);
-        setSaveStatusByTaskId({});
         return next;
       });
 
@@ -331,6 +333,7 @@ export default function TimesheetPage() {
       overrunDays: 0,
       progressPercent: 0,
       fte: 1,
+      status: 'TODO',
     };
   }, [planByTaskId]);
 
@@ -344,6 +347,7 @@ export default function TimesheetPage() {
         overrunDays: 0,
         progressPercent: 0,
         fte: 1,
+        status: 'TODO',
       };
       return {
         ...prev,
@@ -693,12 +697,10 @@ export default function TimesheetPage() {
         durationDays: Math.max(1, cfg.durationDays),
         message: "Impossible d'enregistrer: aucune date de départ saisie (sans dépendance).",
       }]);
-      setSaveStatusByTaskId((prev) => ({ ...prev, [taskId]: 'error' }));
       return;
     }
 
     try {
-      setSaveStatusByTaskId((prev) => ({ ...prev, [taskId]: 'saving' }));
       pushTaskDateLogs([{
         action: 'save',
         level: 'info',
@@ -718,6 +720,7 @@ export default function TimesheetPage() {
         planningEndDate: endDate ? `${endDate}T00:00:00.000Z` : null,
         progressPercent: Math.min(100, Math.max(0, cfg.progressPercent)),
         fte: Math.max(0.1, cfg.fte),
+        status: cfg.status,
       });
       setLastSavedPlanByTaskId((prev) => ({
         ...prev,
@@ -728,9 +731,9 @@ export default function TimesheetPage() {
           overrunDays: Math.max(0, cfg.overrunDays),
           progressPercent: Math.min(100, Math.max(0, cfg.progressPercent)),
           fte: Math.max(0.1, cfg.fte),
+          status: cfg.status,
         },
       }));
-      setSaveStatusByTaskId((prev) => ({ ...prev, [taskId]: 'saved' }));
       pushTaskDateLogs([{
         action: 'save',
         level: 'info',
@@ -754,7 +757,6 @@ export default function TimesheetPage() {
         durationDays: cfg.durationDays,
         message: 'Erreur enregistrement base',
       }]);
-      setSaveStatusByTaskId((prev) => ({ ...prev, [taskId]: 'error' }));
     }
   }, []);
 
@@ -771,6 +773,7 @@ export default function TimesheetPage() {
         || current.overrunDays !== saved.overrunDays
         || current.progressPercent !== saved.progressPercent
         || current.fte !== saved.fte
+        || current.status !== saved.status
       );
 
       if (changed) {
@@ -915,12 +918,13 @@ export default function TimesheetPage() {
   }, [projectTasks]);
 
   return (
-    <section className="grid gap-6">
-      <h1 className="text-2xl font-semibold text-[var(--brand)]">Timesheet</h1>
+    <section className="grid gap-6" aria-labelledby="timesheet-page-title">
+      <h1 id="timesheet-page-title" className="text-2xl font-semibold text-[var(--brand)]">Timesheet</h1>
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={onSyncCalendarFromTasks}
+          aria-label="Mettre à jour le calendrier à partir des dates des tâches"
           className="rounded bg-[var(--brand)] px-3 py-2 font-semibold text-white"
         >
           Mise à jour du calendrier
@@ -930,6 +934,7 @@ export default function TimesheetPage() {
         <button
           type="button"
           onClick={() => setView('saisie')}
+          aria-label="Afficher la vue saisie"
           className={`px-4 py-2 text-sm font-semibold ${view === 'saisie' ? 'bg-[#f2eee4] text-[var(--brand)]' : 'text-[#5b5952]'}`}
         >
           Saisie
@@ -937,6 +942,7 @@ export default function TimesheetPage() {
         <button
           type="button"
           onClick={() => setView('gantt')}
+          aria-label="Afficher la vue Gantt"
           className={`border-l border-[var(--line)] px-4 py-2 text-sm font-semibold ${view === 'gantt' ? 'bg-[#f2eee4] text-[var(--brand)]' : 'text-[#5b5952]'}`}
         >
           Gantt
@@ -961,18 +967,18 @@ export default function TimesheetPage() {
           </button>
         ) : null}
       </div>
-      {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-sm text-[#5b5952]" role="status" aria-live="polite">Chargement...</p> : null}
+      {error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null}
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
         <div className="grid gap-3 lg:grid-cols-2">
           <div className="w-[360px]">
-            <label className="mb-1 block text-xs text-[#5b5952]">Workspace</label>
-            <input value={activeWorkspaceName ?? ''} disabled className="w-full rounded border border-[var(--line)] bg-[#f3f2ef] px-3 py-2" />
+            <label htmlFor="timesheet-workspace" className="mb-1 block text-xs text-[#5b5952]">Workspace</label>
+            <input id="timesheet-workspace" value={activeWorkspaceName ?? ''} disabled className="w-full rounded border border-[var(--line)] bg-[#f3f2ef] px-3 py-2" />
           </div>
           <div className="w-[360px]">
-            <label className="mb-1 block text-xs text-[#5b5952]">Projet</label>
-            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full rounded border border-[var(--line)] px-3 py-2">
+            <label htmlFor="timesheet-project" className="mb-1 block text-xs text-[#5b5952]">Projet</label>
+            <select id="timesheet-project" value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full rounded border border-[var(--line)] px-3 py-2">
               <option value="">Choisir un projet</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>{project.name}</option>
@@ -1033,7 +1039,7 @@ export default function TimesheetPage() {
                     </th>
                     <th className="px-2 py-2">ETP</th>
                     <th className="px-2 py-2">État</th>
-                    <th className="px-2 py-2">Statut</th>
+                    <th className="px-2 py-2">Statut tâche</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1137,15 +1143,16 @@ export default function TimesheetPage() {
                           </span>
                         </td>
                         <td className="px-2 py-2 text-xs">
-                          {saveStatusByTaskId[task.id] === 'saving' ? (
-                            <span className="text-[#5b5952]">Enregistrement...</span>
-                          ) : null}
-                          {saveStatusByTaskId[task.id] === 'saved' ? (
-                            <span className="text-green-700">Enregistré</span>
-                          ) : null}
-                          {saveStatusByTaskId[task.id] === 'error' ? (
-                            <span className="text-red-700">Erreur d&apos;enregistrement</span>
-                          ) : null}
+                          <select
+                            value={cfg.status}
+                            onChange={(e) => updateTaskPlan(task.id, { status: e.target.value as TaskWorkflowStatus })}
+                            className="rounded border border-[var(--line)] px-2 py-1"
+                          >
+                            <option value="TODO">À faire</option>
+                            <option value="IN_PROGRESS">En cours</option>
+                            <option value="WAITING">En attente</option>
+                            <option value="DONE">Fait</option>
+                          </select>
                         </td>
                       </tr>
                     );

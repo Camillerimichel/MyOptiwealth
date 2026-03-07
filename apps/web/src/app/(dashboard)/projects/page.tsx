@@ -104,6 +104,9 @@ export default function ProjectsPage() {
   const [activeTaskLabel, setActiveTaskLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSingleProjectPrompt, setShowSingleProjectPrompt] = useState(false);
+  const [showFirstProjectPrompt, setShowFirstProjectPrompt] = useState(false);
+  const [singleProjectCandidate, setSingleProjectCandidate] = useState<Project | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
     const token = getAccessToken();
@@ -174,6 +177,19 @@ export default function ProjectsPage() {
         setActiveTaskLabel(activeTask.taskDescription);
       } else {
         setActiveTaskLabel(null);
+      }
+      if (projectsData.length === 1) {
+        setSingleProjectCandidate(projectsData[0]);
+        setShowSingleProjectPrompt(true);
+        setShowFirstProjectPrompt(false);
+      } else if (projectsData.length === 0) {
+        setSingleProjectCandidate(null);
+        setShowSingleProjectPrompt(false);
+        setShowFirstProjectPrompt(true);
+      } else {
+        setSingleProjectCandidate(null);
+        setShowSingleProjectPrompt(false);
+        setShowFirstProjectPrompt(false);
       }
     } catch {
       setProjects([]);
@@ -316,9 +332,26 @@ export default function ProjectsPage() {
     await loadProjectContacts(editingProjectId);
   }
 
+  async function onCreateFirstProject(): Promise<void> {
+    const token = getAccessToken();
+    if (!token || !name || !societyId || saving) return;
+    try {
+      setSaving(true);
+      await apiClient.createProject(token, { name, societyId, missionType });
+      showToast('Projet créé.', 'success');
+      setName('');
+      setShowFirstProjectPrompt(false);
+      await load();
+    } catch (createError) {
+      showToast(createError instanceof Error ? createError.message : 'Enregistrement impossible.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <section className="grid gap-6">
-      <h1 className="text-2xl font-semibold text-[var(--brand)]">Projects</h1>
+    <section className="grid gap-6" aria-labelledby="projects-page-title">
+      <h1 id="projects-page-title" className="text-2xl font-semibold text-[var(--brand)]">Projects</h1>
       <div className="rounded-lg border-2 border-[var(--brand)] bg-[#efe7d4] px-4 py-3 text-base font-bold text-[#2f2b23]">
         <p>Workspace: {activeWorkspaceName ?? 'Aucun'}</p>
         <p className="pl-6">
@@ -342,18 +375,18 @@ export default function ProjectsPage() {
           </button>
         ) : null}
       </div>
-      {loading ? <p className="text-sm text-[#5b5952]">Chargement...</p> : null}
-      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {loading ? <p className="text-sm text-[#5b5952]" role="status" aria-live="polite">Chargement...</p> : null}
+      {error ? <p className="text-sm text-red-700" role="alert">{error}</p> : null}
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <form onSubmit={onCreate} className="grid gap-2 lg:grid-cols-4">
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom projet" className="rounded border border-[var(--line)] px-3 py-2" />
+        <form onSubmit={onCreate} className="grid gap-2 lg:grid-cols-4" aria-label="Créer ou modifier un projet">
+          <input aria-label="Nom du projet" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nom projet" className="rounded border border-[var(--line)] px-3 py-2" />
           <input
             value={defaultSocietyName || 'Aucune société par défaut sur ce workspace'}
             readOnly
             disabled
             className="rounded border border-[var(--line)] bg-[#f3f2ef] px-3 py-2 text-[#5b5952]"
           />
-          <select value={missionType} onChange={(e) => setMissionType(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
+          <select aria-label="Typologie du projet" value={missionType} onChange={(e) => setMissionType(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
             {missionTypes.map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -385,6 +418,83 @@ export default function ProjectsPage() {
           </p>
         ) : null}
       </article>
+      {showSingleProjectPrompt && singleProjectCandidate ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+            <h2 className="text-lg font-semibold text-[var(--brand)]">Projet unique détecté</h2>
+            <p className="mt-2 text-sm text-[#4f4d45]">{singleProjectCandidate.name}</p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSingleProjectPrompt(false);
+                  onEditProject(singleProjectCandidate);
+                }}
+                className="rounded border border-[var(--line)] px-3 py-2"
+              >
+                Modifier
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSingleProjectPrompt(false);
+                  onSetProjectContext(singleProjectCandidate);
+                }}
+                className="rounded bg-[var(--brand)] px-3 py-2 text-white"
+              >
+                Aller vers les tâches
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showFirstProjectPrompt ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+            <h2 className="text-lg font-semibold text-[var(--brand)]">Créer le premier projet</h2>
+            <div className="mt-3 grid gap-2 lg:grid-cols-3">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Nom projet"
+                className="rounded border border-[var(--line)] px-3 py-2"
+              />
+              <input
+                value={defaultSocietyName || 'Aucune société par défaut sur ce workspace'}
+                readOnly
+                disabled
+                className="rounded border border-[var(--line)] bg-[#f3f2ef] px-3 py-2 text-[#5b5952]"
+              />
+              <select value={missionType} onChange={(e) => setMissionType(e.target.value)} className="rounded border border-[var(--line)] px-3 py-2">
+                {missionTypes.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void onCreateFirstProject();
+                }}
+                disabled={!societyId || !name || saving}
+                className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Valider
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowFirstProjectPrompt(false)}
+                className="rounded border border-[var(--line)] px-3 py-2"
+              >
+                Refuser
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {editingProjectId ? (
         <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
           <h2 className="font-semibold text-[var(--brand)]">Intervenants du projet</h2>
