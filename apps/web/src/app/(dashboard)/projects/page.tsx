@@ -438,6 +438,17 @@ export default function ProjectsPage() {
                 type="button"
                 onClick={() => {
                   setShowSingleProjectPrompt(false);
+                  setEditingProjectId(null);
+                  setName('');
+                }}
+                className="rounded border border-[var(--line)] px-3 py-2"
+              >
+                Ajouter un projet
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSingleProjectPrompt(false);
                   onSetProjectContext(singleProjectCandidate);
                 }}
                 className="rounded bg-[var(--brand)] px-3 py-2 text-white"

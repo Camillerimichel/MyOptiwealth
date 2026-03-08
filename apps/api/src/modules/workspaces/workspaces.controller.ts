@@ -18,6 +18,7 @@ import { Response } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
+import { AddWorkspaceNoteDto } from './dto/add-workspace-note.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateWorkspaceSettingsDto } from './dto/update-workspace-settings.dto';
 import { WorkspacesService } from './workspaces.service';
@@ -110,5 +111,23 @@ export class WorkspacesController {
   @WorkspaceRoles(WorkspaceRole.ADMIN)
   updateSettings(@CurrentUser() user: AuthUser, @Body() dto: UpdateWorkspaceSettingsDto) {
     return this.workspacesService.updateSettings(user.activeWorkspaceId, user.sub, dto);
+  }
+
+  @Get('notes/current')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR, WorkspaceRole.VIEWER)
+  listNotes(@CurrentUser() user: AuthUser) {
+    return this.workspacesService.listWorkspaceNotes(user.activeWorkspaceId);
+  }
+
+  @Get('notes/all')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR, WorkspaceRole.VIEWER)
+  listNotesAll(@CurrentUser() user: AuthUser) {
+    return this.workspacesService.listWorkspaceNotesAll(user.sub);
+  }
+
+  @Post('notes/current')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR, WorkspaceRole.VIEWER)
+  addNote(@CurrentUser() user: AuthUser, @Body() dto: AddWorkspaceNoteDto) {
+    return this.workspacesService.appendWorkspaceNote(user.activeWorkspaceId, user.sub, dto.content);
   }
 }

@@ -588,6 +588,32 @@ export const apiClient = {
     >('/emails', { token });
   },
 
+  listLinkedEmails(token: string) {
+    return request<
+      Array<{
+        id: string;
+        externalMessageId: string;
+        subject: string;
+        fromAddress: string;
+        toAddresses: string[];
+        receivedAt: string;
+        metadata?: {
+          preview?: string;
+          attachments?: Array<{ filename?: string; contentType?: string; size?: number }>;
+        } | null;
+        workspace: { id: string; name: string };
+        project: { id: string; name: string } | null;
+        tasks: Array<{
+          task: {
+            id: string;
+            description: string;
+            projectId: string;
+          };
+        }>;
+      }>
+    >('/emails/linked', { token });
+  },
+
   listUnassignedInboxEmails(token: string) {
     return request<
       Array<{
@@ -668,8 +694,8 @@ export const apiClient = {
     payload: {
       emailId: string;
       workspaceId: string;
-      projectId: string;
-      taskId: string;
+      projectId?: string;
+      taskId?: string;
       externalMessageId: string;
       fromAddress: string;
       toAddresses: string[];
@@ -943,8 +969,49 @@ export const apiClient = {
       signatureApiBaseUrl?: string;
       signatureApiKey?: string;
     },
-  ) {
+    ) {
     return request('/workspaces/settings/current', { method: 'POST', token, body: payload });
+  },
+
+  listWorkspaceNotes(token: string) {
+    return request<
+      Array<{
+        id: string;
+        content: string;
+        createdAt: string;
+        author: {
+          id: string;
+          email: string;
+          firstName?: string | null;
+          lastName?: string | null;
+        } | null;
+      }>
+    >('/workspaces/notes/current', { token });
+  },
+
+  listWorkspaceNotesAll(token: string) {
+    return request<
+      Array<{
+        id: string;
+        workspace: { id: string; name: string } | null;
+        content: string;
+        createdAt: string;
+        author: {
+          id: string;
+          email: string;
+          firstName?: string | null;
+          lastName?: string | null;
+        } | null;
+      }>
+    >('/workspaces/notes/all', { token });
+  },
+
+  appendWorkspaceNote(token: string, content: string) {
+    return request<{ success: boolean }>('/workspaces/notes/current', {
+      method: 'POST',
+      token,
+      body: { content },
+    });
   },
 
   listUsers(token: string) {

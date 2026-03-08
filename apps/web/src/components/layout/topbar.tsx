@@ -38,6 +38,13 @@ type SearchEmail = {
   taskLabels?: string[];
   metadata?: { preview?: string } | null;
 };
+type SearchWorkspaceNote = {
+  id: string;
+  content: string;
+  createdAt: string;
+  authorLabel: string;
+  workspaceName: string;
+};
 
 const RESULTS_PER_PAGE = 5;
 
@@ -99,12 +106,19 @@ export function Topbar() {
   const [searchProjects, setSearchProjects] = useState<SearchProject[]>([]);
   const [searchTasks, setSearchTasks] = useState<SearchTask[]>([]);
   const [searchEmails, setSearchEmails] = useState<SearchEmail[]>([]);
+  const [searchNotes, setSearchNotes] = useState<SearchWorkspaceNote[]>([]);
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [noteLoading, setNoteLoading] = useState(false);
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
   const [pageByCategory, setPageByCategory] = useState({
     contacts: 1,
     workspaces: 1,
     projects: 1,
     tasks: 1,
     emails: 1,
+    notes: 1,
   });
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -124,6 +138,32 @@ export function Topbar() {
     router.push('/login');
   }, [router]);
 
+  const loadWorkspaceNotes = useCallback(async (): Promise<void> => {
+    const token = getAccessToken();
+    if (!token) {
+      setNoteError('Session introuvable. Reconnectez-vous.');
+      return;
+    }
+    try {
+      setNoteLoading(true);
+      setNoteError(null);
+      const notesData = await apiClient.listWorkspaceNotes(token);
+      setSearchNotes(notesData.map((note) => ({
+        id: note.id,
+        content: String(note.content ?? ''),
+        createdAt: String(note.createdAt ?? ''),
+        authorLabel: [note.author?.firstName, note.author?.lastName].filter(Boolean).join(' ').trim()
+          || note.author?.email
+          || 'Auteur inconnu',
+        workspaceName: currentWorkspaceName,
+      })));
+    } catch {
+      setNoteError('Impossible de charger les notes.');
+    } finally {
+      setNoteLoading(false);
+    }
+  }, [currentWorkspaceName]);
+
   const loadSearchData = useCallback(async (): Promise<void> => {
     const token = getAccessToken();
     if (!token) {
@@ -134,12 +174,13 @@ export function Topbar() {
     try {
       setSearchLoading(true);
       setSearchError(null);
-      const [contactsData, workspacesData, projectsData, tasksData, emailsData] = await Promise.all([
+      const [contactsData, workspacesData, projectsData, tasksData, emailsData, notesData] = await Promise.all([
         apiClient.listContactsAll(token),
         apiClient.listWorkspaces(token),
         apiClient.listProjects(token),
         apiClient.listKanban(token),
         apiClient.listLinkedEmails(token),
+        apiClient.listWorkspaceNotesAll(token),
       ]);
 
       setSearchContacts(contactsData);
@@ -160,6 +201,15 @@ export function Topbar() {
         projectName: email.project?.name ?? '',
         taskLabels: Array.isArray(email.tasks) ? email.tasks.map((item) => String(item.task.description ?? '')) : [],
         metadata: email.metadata,
+      })));
+      setSearchNotes(notesData.map((note) => ({
+        id: note.id,
+        content: String(note.content ?? ''),
+        createdAt: String(note.createdAt ?? ''),
+        authorLabel: [note.author?.firstName, note.author?.lastName].filter(Boolean).join(' ').trim()
+          || note.author?.email
+          || 'Auteur inconnu',
+        workspaceName: note.workspace?.name ?? 'Workspace inconnu',
       })));
     } catch {
       setSearchError('Impossible de charger les données de recherche.');
@@ -284,26 +334,37 @@ export function Topbar() {
     });
   }, [searchEmails, normalizedSearchQuery]);
 
+  const filteredNotes = useMemo(() => {
+    if (!normalizedSearchQuery) return [];
+    return searchNotes.filter((note) => {
+      const label = `${note.content} ${note.authorLabel} ${note.workspaceName} ${new Date(note.createdAt).toLocaleString('fr-FR')}`;
+      return matchesText(label, normalizedSearchQuery);
+    });
+  }, [searchNotes, normalizedSearchQuery]);
+
   const contactsTotalPages = Math.max(1, Math.ceil(filteredContacts.length / RESULTS_PER_PAGE));
   const workspacesTotalPages = Math.max(1, Math.ceil(filteredWorkspaces.length / RESULTS_PER_PAGE));
   const projectsTotalPages = Math.max(1, Math.ceil(filteredProjects.length / RESULTS_PER_PAGE));
   const tasksTotalPages = Math.max(1, Math.ceil(filteredTasks.length / RESULTS_PER_PAGE));
   const emailsTotalPages = Math.max(1, Math.ceil(filteredEmails.length / RESULTS_PER_PAGE));
+  const notesTotalPages = Math.max(1, Math.ceil(filteredNotes.length / RESULTS_PER_PAGE));
 
   const contactsPage = Math.min(pageByCategory.contacts, contactsTotalPages);
   const workspacesPage = Math.min(pageByCategory.workspaces, workspacesTotalPages);
   const projectsPage = Math.min(pageByCategory.projects, projectsTotalPages);
   const tasksPage = Math.min(pageByCategory.tasks, tasksTotalPages);
   const emailsPage = Math.min(pageByCategory.emails, emailsTotalPages);
+  const notesPage = Math.min(pageByCategory.notes, notesTotalPages);
 
   const pagedContacts = filteredContacts.slice((contactsPage - 1) * RESULTS_PER_PAGE, contactsPage * RESULTS_PER_PAGE);
   const pagedWorkspaces = filteredWorkspaces.slice((workspacesPage - 1) * RESULTS_PER_PAGE, workspacesPage * RESULTS_PER_PAGE);
   const pagedProjects = filteredProjects.slice((projectsPage - 1) * RESULTS_PER_PAGE, projectsPage * RESULTS_PER_PAGE);
   const pagedTasks = filteredTasks.slice((tasksPage - 1) * RESULTS_PER_PAGE, tasksPage * RESULTS_PER_PAGE);
   const pagedEmails = filteredEmails.slice((emailsPage - 1) * RESULTS_PER_PAGE, emailsPage * RESULTS_PER_PAGE);
+  const pagedNotes = filteredNotes.slice((notesPage - 1) * RESULTS_PER_PAGE, notesPage * RESULTS_PER_PAGE);
 
   const setCategoryPage = useCallback((
-    category: 'contacts' | 'workspaces' | 'projects' | 'tasks' | 'emails',
+    category: 'contacts' | 'workspaces' | 'projects' | 'tasks' | 'emails' | 'notes',
     nextPage: number,
   ): void => {
     setPageByCategory((prev) => ({
@@ -319,6 +380,7 @@ export function Topbar() {
       projects: 1,
       tasks: 1,
       emails: 1,
+      notes: 1,
     });
   }, [normalizedSearchQuery]);
 
@@ -339,6 +401,11 @@ export function Topbar() {
     await loadSearchData();
   }
 
+  async function openNoteModal(): Promise<void> {
+    setNoteModalOpen(true);
+    await loadWorkspaceNotes();
+  }
+
   function closeSearchModal(): void {
     setSearchModalOpen(false);
     setSearchQuery('');
@@ -348,7 +415,31 @@ export function Topbar() {
       projects: 1,
       tasks: 1,
       emails: 1,
+      notes: 1,
     });
+  }
+
+  function closeNoteModal(): void {
+    setNoteModalOpen(false);
+    setNoteDraft('');
+    setNoteError(null);
+  }
+
+  async function onAppendNote(): Promise<void> {
+    const token = getAccessToken();
+    const content = noteDraft.trim();
+    if (!token || !content || noteSaving) return;
+    try {
+      setNoteSaving(true);
+      await apiClient.appendWorkspaceNote(token, content);
+      setNoteDraft('');
+      showToast('Note ajoutée.', 'success');
+      await loadWorkspaceNotes();
+    } catch (appendError) {
+      setNoteError(appendError instanceof Error ? appendError.message : 'Ajout impossible.');
+    } finally {
+      setNoteSaving(false);
+    }
   }
 
   return (
@@ -395,6 +486,15 @@ export function Topbar() {
             className="rounded border border-[var(--line)] px-3 py-2 text-sm hover:bg-[#f8f5eb]"
           >
             Recherche
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void openNoteModal();
+            }}
+            className="rounded border border-[var(--line)] px-3 py-2 text-sm hover:bg-[#f8f5eb]"
+          >
+            Note
           </button>
           <button
             type="button"
@@ -617,7 +717,7 @@ export function Topbar() {
                 )}
               </section>
 
-              <section className="rounded-lg border border-[var(--line)] bg-[#faf8f2] p-4 md:col-span-2">
+              <section className="rounded-lg border border-[var(--line)] bg-[#faf8f2] p-4">
                 <h3 className="mb-2 text-sm font-semibold text-[var(--brand)]">Mails ({filteredEmails.length})</h3>
                 {filteredEmails.length === 0 ? (
                   <p className="text-xs text-[#6a6861]">Aucun résultat</p>
@@ -660,7 +760,116 @@ export function Topbar() {
                   </>
                 )}
               </section>
+
+              <section className="rounded-lg border border-[var(--line)] bg-[#faf8f2] p-4">
+                <h3 className="mb-2 text-sm font-semibold text-[var(--brand)]">Notes ({filteredNotes.length})</h3>
+                {filteredNotes.length === 0 ? (
+                  <p className="text-xs text-[#6a6861]">Aucun résultat</p>
+                ) : (
+                  <>
+                  <ul className="grid gap-1">
+                    {pagedNotes.map((note) => (
+                      <li key={note.id}>
+                        <Link
+                          href="/dashboard"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            closeSearchModal();
+                            void openNoteModal();
+                          }}
+                          className="text-sm text-[#2f2b23] underline-offset-2 hover:underline"
+                        >
+                          {note.content.slice(0, 120)} ({note.workspaceName})
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-3 flex items-center justify-between text-xs text-[#6a6861]">
+                    <span>Page {notesPage}/{notesTotalPages}</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={notesPage <= 1}
+                        onClick={() => setCategoryPage('notes', notesPage - 1)}
+                        className="rounded border border-[var(--line)] px-2 py-1 disabled:opacity-40"
+                      >
+                        Précédente
+                      </button>
+                      <button
+                        type="button"
+                        disabled={notesPage >= notesTotalPages}
+                        onClick={() => setCategoryPage('notes', notesPage + 1)}
+                        className="rounded border border-[var(--line)] px-2 py-1 disabled:opacity-40"
+                      >
+                        Suivante
+                      </button>
+                    </div>
+                  </div>
+                  </>
+                )}
+              </section>
             </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {noteModalOpen ? (
+        <div className="fixed inset-0 z-50 bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="workspace-notes-title">
+          <div className="mx-auto mt-6 flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-[var(--line)] bg-white p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 id="workspace-notes-title" className="text-xl font-semibold text-[var(--brand)]">Notes du workspace</h2>
+              <button
+                type="button"
+                onClick={closeNoteModal}
+                className="rounded border border-[var(--line)] px-3 py-2 text-sm hover:bg-[#f8f5eb]"
+              >
+                Fermer
+              </button>
+            </div>
+
+            <p className="mb-3 text-xs text-[#5b5952]">
+              Journal incrémentiel: chaque ajout est conservé, horodaté et signé.
+            </p>
+            <div className="mb-4 grid gap-2">
+              <textarea
+                value={noteDraft}
+                onChange={(event) => setNoteDraft(event.target.value)}
+                placeholder="Ajouter une note..."
+                className="min-h-[110px] rounded border border-[var(--line)] px-3 py-2 text-sm"
+              />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onAppendNote();
+                  }}
+                  disabled={!noteDraft.trim() || noteSaving}
+                  className="rounded bg-[var(--brand)] px-3 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Ajouter la note
+                </button>
+              </div>
+            </div>
+
+            {noteLoading ? <p className="mb-2 text-sm text-[#5b5952]">Chargement des notes...</p> : null}
+            {noteError ? <p className="mb-2 text-sm text-red-700">{noteError}</p> : null}
+
+            <div className="min-h-0 overflow-y-auto pr-1">
+              <div className="grid gap-2">
+                {searchNotes.length === 0 ? (
+                  <p className="text-sm text-[#5b5952]">Aucune note pour ce workspace.</p>
+                ) : (
+                  searchNotes.map((note) => (
+                    <div key={note.id} className="rounded border border-[var(--line)] bg-[#faf9f6] p-3">
+                      <p className="mb-2 text-xs text-[#5b5952]">
+                        {new Date(note.createdAt).toLocaleString('fr-FR')} • {note.authorLabel}
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm text-[#2f2b23]">{note.content}</p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>

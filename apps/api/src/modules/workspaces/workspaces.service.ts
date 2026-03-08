@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { WorkspaceRole } from '@prisma/client';
 import { EncryptionService } from '../../common/crypto/encryption.service';
 import { AuditService } from '../audit/audit.service';
@@ -471,5 +471,122 @@ export class WorkspacesService {
       imapPort: platformSettings?.imapPort ?? null,
       imapUser: platformSettings?.imapUser ?? null,
     };
+  }
+
+  async listWorkspaceNotes(workspaceId: string) {
+    const notes = await this.prisma.auditLog.findMany({
+      where: {
+        workspaceId,
+        action: 'WORKSPACE_NOTE_APPENDED',
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return notes.map((note) => {
+      const metadata = (note.metadata ?? {}) as Record<string, unknown>;
+      const content = typeof metadata.content === 'string' ? metadata.content : '';
+      return {
+        id: note.id,
+        content,
+        createdAt: note.createdAt,
+        author: note.user
+          ? {
+            id: note.user.id,
+            email: note.user.email,
+            firstName: note.user.firstName ?? null,
+            lastName: note.user.lastName ?? null,
+          }
+          : null,
+      };
+    });
+  }
+
+  async listWorkspaceNotesAll(userId: string) {
+    const memberships = await this.prisma.userWorkspaceRole.findMany({
+      where: { userId },
+      select: {
+        workspaceId: true,
+      },
+    });
+    const workspaceIds = memberships.map((item) => item.workspaceId);
+    if (workspaceIds.length === 0) return [];
+
+    const notes = await this.prisma.auditLog.findMany({
+      where: {
+        workspaceId: { in: workspaceIds },
+        action: 'WORKSPACE_NOTE_APPENDED',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return notes.map((note) => {
+      const metadata = (note.metadata ?? {}) as Record<string, unknown>;
+      const content = typeof metadata.content === 'string' ? metadata.content : '';
+      return {
+        id: note.id,
+        workspace: note.workspace
+          ? {
+            id: note.workspace.id,
+            name: note.workspace.name,
+          }
+          : null,
+        content,
+        createdAt: note.createdAt,
+        author: note.user
+          ? {
+            id: note.user.id,
+            email: note.user.email,
+            firstName: note.user.firstName ?? null,
+            lastName: note.user.lastName ?? null,
+          }
+          : null,
+      };
+    });
+  }
+
+  async appendWorkspaceNote(workspaceId: string, userId: string, content: string) {
+    const trimmed = content.trim();
+    if (!trimmed) {
+      throw new BadRequestException('Note vide interdite');
+    }
+
+    await this.auditService.log(
+      workspaceId,
+      'WORKSPACE_NOTE_APPENDED',
+      { content: trimmed },
+      userId,
+    );
+
+    return { success: true };
   }
 }
