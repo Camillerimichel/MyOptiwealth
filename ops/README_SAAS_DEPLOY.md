@@ -28,6 +28,12 @@ cd /var/www/myoptiwealth
 bash ops/saas-deploy-local.sh
 ```
 
+- Fast web-only deploy (UI changes only):
+```bash
+cd /var/www/myoptiwealth
+bash ops/saas-deploy-web-local.sh
+```
+
 ## 3) PM2
 
 - Ecosystem file: `ops/ecosystem.saas.config.cjs`
