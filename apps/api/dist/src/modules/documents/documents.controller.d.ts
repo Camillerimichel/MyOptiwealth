@@ -4,6 +4,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { SendSignatureRequestDto } from './dto/send-signature-request.dto';
 import { SignDocumentDto } from './dto/sign-document.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
+import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DocumentsService } from './documents.service';
 interface AuthUser {
     sub: string;
@@ -61,6 +62,33 @@ export declare class DocumentsController {
             collectedAmount: import("@prisma/client/runtime/library").Decimal;
             estimatedMargin: import("@prisma/client/runtime/library").Decimal;
         } | null;
+        task: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            updatedAt: Date;
+            description: string;
+            projectId: string;
+            projectPhaseId: string | null;
+            startsAfterTaskId: string | null;
+            privateComment: string | null;
+            startDate: Date | null;
+            expectedEndDate: Date | null;
+            actualEndDate: Date | null;
+            planningStartDate: Date | null;
+            plannedDurationDays: number | null;
+            overrunDays: number;
+            planningEndDate: Date | null;
+            progressPercent: number;
+            fte: number;
+            orderNumber: number;
+            priority: number;
+            status: import(".prisma/client").$Enums.TaskStatus;
+            dueDate: Date | null;
+            assigneeId: string | null;
+            companyOwnerContactId: string | null;
+            visibleToClient: boolean;
+        } | null;
         id: string;
         createdAt: Date;
         workspaceId: string;
@@ -68,6 +96,7 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -77,7 +106,7 @@ export declare class DocumentsController {
         signatureCertificate: string | null;
         signatureState: string | null;
     }[]>;
-    create(user: AuthUser, dto: CreateDocumentDto): import(".prisma/client").Prisma.Prisma__DocumentClient<{
+    create(user: AuthUser, dto: CreateDocumentDto): Promise<{
         id: string;
         createdAt: Date;
         workspaceId: string;
@@ -85,6 +114,7 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -93,7 +123,7 @@ export declare class DocumentsController {
         version: number;
         signatureCertificate: string | null;
         signatureState: string | null;
-    }, never, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    }>;
     upload(user: AuthUser, dto: UploadDocumentDto, file: UploadedBinaryFile): Promise<{
         id: string;
         createdAt: Date;
@@ -102,6 +132,25 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        societyId: string | null;
+        contactId: string | null;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    }>;
+    update(user: AuthUser, id: string, dto: UpdateDocumentDto): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -119,6 +168,7 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -137,6 +187,7 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -154,6 +205,7 @@ export declare class DocumentsController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;

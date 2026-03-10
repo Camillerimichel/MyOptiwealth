@@ -10,6 +10,7 @@ export declare class DocumentStorageService {
     private readonly s3Client?;
     constructor(configService: ConfigService);
     store(workspaceId: string, originalName: string, contentType: string, buffer: Buffer): Promise<StoredFile>;
+    private sanitizeFileName;
     storeByKey(key: string, contentType: string, buffer: Buffer): Promise<StoredFile>;
 }
 export {};

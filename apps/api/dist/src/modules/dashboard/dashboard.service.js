@@ -91,16 +91,15 @@ let DashboardService = class DashboardService {
                 workspaces: [],
             };
         }
-        const [taskGroups, projectGroups, financeKpisList, upcomingTasks, taskProgressRows] = await Promise.all([
+        const [taskGroups, projects, financeKpisList, upcomingTasks, taskProgressRows] = await Promise.all([
             this.prisma.task.groupBy({
                 by: ['workspaceId', 'status'],
                 where: { workspaceId: { in: workspaceIds } },
                 _count: { _all: true },
             }),
-            this.prisma.project.groupBy({
-                by: ['workspaceId'],
+            this.prisma.project.findMany({
                 where: { workspaceId: { in: workspaceIds } },
-                _count: { _all: true },
+                select: { id: true, name: true, missionType: true, workspaceId: true },
             }),
             Promise.all(workspaceIds.map((workspaceId) => this.financeService.kpis(workspaceId))),
             this.prisma.task.findMany({
@@ -191,9 +190,19 @@ let DashboardService = class DashboardService {
                 : 0;
             progressByWorkspace.set(workspaceId, progressPercent);
         }
-        const projectCountByWorkspace = new Map();
-        for (const group of projectGroups) {
-            projectCountByWorkspace.set(group.workspaceId, group._count._all);
+        const projectsByWorkspace = new Map();
+        for (const project of projects) {
+            const list = projectsByWorkspace.get(project.workspaceId) ?? [];
+            list.push({
+                id: project.id,
+                name: project.name,
+                missionType: project.missionType,
+            });
+            projectsByWorkspace.set(project.workspaceId, list);
+        }
+        for (const [workspaceId, list] of projectsByWorkspace.entries()) {
+            list.sort((left, right) => left.name.localeCompare(right.name, 'fr', { sensitivity: 'base' }));
+            projectsByWorkspace.set(workspaceId, list);
         }
         const workspaces = memberships.map((membership, index) => {
             const taskStats = taskByWorkspace.get(membership.workspaceId) ?? {
@@ -211,7 +220,8 @@ let DashboardService = class DashboardService {
             };
             return {
                 workspace: membership.workspace,
-                projectCount: projectCountByWorkspace.get(membership.workspaceId) ?? 0,
+                projects: projectsByWorkspace.get(membership.workspaceId) ?? [],
+                projectCount: (projectsByWorkspace.get(membership.workspaceId) ?? []).length,
                 progressPercent,
                 taskStats,
                 finance: {

@@ -1,27 +1,30 @@
 # MyOptiWealth
 
-Plateforme de pilotage risques/assurance (frontend Next.js + API Node/Express + MySQL).
+Plateforme de pilotage risques/assurance (SaaS: `apps/web` + `apps/api`).
 
 ## Environnement production (VPS)
 - Domaine: https://myoptiwealth.fr
-- Frontend: PM2 `myoptiwealth-frontend` (port 3401)
-- API: PM2 `myoptiwealth-api` (port 3400)
+- Frontend: PM2 `myoptiwealth-saas-web` (port 3002)
+- API: PM2 `myoptiwealth-saas-api` (port 7000)
 - Racine projet: `/var/www/myoptiwealth`
 
-## Démarrage local/serveur
-```bash
-cd /var/www/myoptiwealth
-npm install
-npm run build
-pm2 start /var/www/myoptiwealth/ecosystem.config.cjs
-```
-
 ## Déploiement
-- Manuel local (sans pull):
+- Standard (avec pull):
 ```bash
-bash /var/www/myoptiwealth/ops/deploy-local.sh
+bash /var/www/myoptiwealth/ops/saas-deploy.sh
+```
+- Local (sans pull):
+```bash
+bash /var/www/myoptiwealth/ops/saas-deploy-local.sh
+```
+- Web uniquement (changement UI):
+```bash
+bash /var/www/myoptiwealth/ops/saas-deploy-web-local.sh
 ```
 - CI/CD GitHub Actions (push sur `main`): `.github/workflows/deploy.yml`
+
+## Compatibilité scripts legacy
+- `ops/deploy.sh`, `ops/deploy-local.sh` et `ops/deploy-frontend.sh` redirigent désormais vers les scripts SaaS.
 
 ## Sauvegarde base
 - Script backup: `/var/www/myoptiwealth/ops/backup-db.sh`

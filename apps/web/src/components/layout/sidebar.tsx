@@ -23,7 +23,15 @@ const links = [
   { href: '/documents', label: 'Documents' },
   { href: '/timesheet', label: 'Timesheet' },
   { href: '/finance', label: 'Finance' },
-  { href: '/boite-mail', label: 'Boite mail' },
+  {
+    href: '/boite-mail',
+    label: 'Boite mail',
+    sectionKey: 'boite-mail',
+    children: [
+      { href: '/boite-mail', label: 'Globale' },
+      { href: '/boite-mail-inbox', label: 'Inbox' },
+    ],
+  },
   {
     href: '/settings',
     label: 'Settings',
@@ -68,7 +76,7 @@ export function Sidebar() {
           }
 
           const children = link.children ?? [];
-          const sectionIsActive = isActive(link.href);
+          const sectionIsActive = isActive(link.href) || children.some((child) => isActive(child.href));
           const isSectionOpen = openSection === link.sectionKey || sectionIsActive;
 
           return (

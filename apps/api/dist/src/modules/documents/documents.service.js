@@ -32,7 +32,7 @@ let DocumentsService = class DocumentsService {
     async list(workspaceId) {
         const documents = await this.prisma.document.findMany({
             where: { workspaceId },
-            include: { project: true, society: true, contact: true },
+            include: { project: true, task: true, society: true, contact: true },
             orderBy: { createdAt: 'desc' },
         });
         const withFlags = await Promise.all(documents.map(async (document) => ({
@@ -41,13 +41,42 @@ let DocumentsService = class DocumentsService {
         })));
         return withFlags;
     }
-    create(workspaceId, userId, dto) {
+    async resolveTaskScope(workspaceId, projectId, taskId) {
+        const normalizedProjectId = projectId?.trim() || undefined;
+        const normalizedTaskId = taskId?.trim() || undefined;
+        if (!normalizedTaskId) {
+            return { projectId: normalizedProjectId, taskId: undefined };
+        }
+        const task = await this.prisma.task.findFirst({
+            where: {
+                id: normalizedTaskId,
+                workspaceId,
+            },
+            select: {
+                id: true,
+                projectId: true,
+            },
+        });
+        if (!task) {
+            throw new common_1.BadRequestException('Task introuvable dans ce workspace');
+        }
+        if (normalizedProjectId && normalizedProjectId !== task.projectId) {
+            throw new common_1.BadRequestException('Task et projet incohérents');
+        }
+        return {
+            projectId: task.projectId,
+            taskId: task.id,
+        };
+    }
+    async create(workspaceId, userId, dto) {
+        const scope = await this.resolveTaskScope(workspaceId, dto.projectId, dto.taskId);
         return this.prisma.document.create({
             data: {
                 workspaceId,
                 title: dto.title,
                 storagePath: dto.storagePath,
-                projectId: dto.projectId,
+                projectId: scope.projectId,
+                taskId: scope.taskId,
                 societyId: dto.societyId,
                 contactId: dto.contactId,
             },
@@ -57,18 +86,38 @@ let DocumentsService = class DocumentsService {
         if (!file) {
             throw new common_1.BadRequestException('Missing uploaded file');
         }
+        const scope = await this.resolveTaskScope(workspaceId, dto.projectId, dto.taskId);
         const stored = await this.storageService.store(workspaceId, file.originalname, file.mimetype, file.buffer);
         const document = await this.prisma.document.create({
             data: {
                 workspaceId,
-                title: dto.title,
+                title: dto.title?.trim() ? dto.title.trim() : file.originalname,
                 storagePath: stored.storagePath,
-                projectId: dto.projectId,
+                projectId: scope.projectId,
+                taskId: scope.taskId,
                 societyId: dto.societyId,
                 contactId: dto.contactId,
             },
         });
         await this.auditService.log(workspaceId, 'DOCUMENT_UPLOADED', { documentId: document.id, storagePath: document.storagePath }, userId);
+        return document;
+    }
+    async update(workspaceId, userId, id, dto) {
+        const nextTitle = dto.title?.trim();
+        if (!nextTitle) {
+            throw new common_1.BadRequestException('Titre requis');
+        }
+        const updated = await this.prisma.document.updateMany({
+            where: { id, workspaceId },
+            data: { title: nextTitle },
+        });
+        if (updated.count === 0) {
+            throw new common_1.NotFoundException('Document not found in workspace');
+        }
+        const document = await this.prisma.document.findUniqueOrThrow({
+            where: { id },
+        });
+        await this.auditService.log(workspaceId, 'DOCUMENT_UPDATED', { documentId: id, fields: ['title'] }, userId);
         return document;
     }
     async sendForSignature(workspaceId, userId, documentId, dto) {
@@ -205,7 +254,10 @@ let DocumentsService = class DocumentsService {
         catch {
             throw new common_1.BadRequestException('Fichier document introuvable sur le stockage.');
         }
-        const filename = (0, path_1.basename)(localPath) || `${document.title}.bin`;
+        const filename = this.extractOriginalFileName(document.storagePath)
+            || (document.title && document.title.trim())
+            || (0, path_1.basename)(localPath)
+            || 'document.bin';
         const contentType = this.detectContentType(localPath);
         return { buffer, filename, contentType };
     }
@@ -236,6 +288,17 @@ let DocumentsService = class DocumentsService {
         if (extension === '.txt')
             return 'text/plain';
         return 'application/octet-stream';
+    }
+    extractOriginalFileName(storagePath) {
+        const normalized = storagePath.replace(/\\/g, '/');
+        const leaf = normalized.split('/').pop() ?? '';
+        if (!leaf)
+            return null;
+        const markerIndex = leaf.indexOf('__');
+        if (markerIndex < 0)
+            return null;
+        const candidate = leaf.slice(markerIndex + 2).trim();
+        return candidate || null;
     }
     resolveLocalPath(storagePath) {
         if (storagePath.startsWith('file://')) {

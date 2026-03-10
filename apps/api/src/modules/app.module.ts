@@ -32,7 +32,7 @@ import { ObservabilityModule } from './observability/observability.module';
       throttlers: [
         {
           ttl: 60_000,
-          limit: 120,
+          limit: 600,
         },
       ],
     }),

@@ -6,6 +6,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { SendSignatureRequestDto } from './dto/send-signature-request.dto';
 import { SignatureWebhookDto } from './dto/signature-webhook.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
+import { UpdateDocumentDto } from './dto/update-document.dto';
 import { SignatureService } from './signature.service';
 import { DocumentStorageService } from './storage.service';
 export declare class DocumentsService {
@@ -60,6 +61,33 @@ export declare class DocumentsService {
             collectedAmount: import("@prisma/client/runtime/library").Decimal;
             estimatedMargin: import("@prisma/client/runtime/library").Decimal;
         } | null;
+        task: {
+            id: string;
+            createdAt: Date;
+            workspaceId: string;
+            updatedAt: Date;
+            description: string;
+            projectId: string;
+            projectPhaseId: string | null;
+            startsAfterTaskId: string | null;
+            privateComment: string | null;
+            startDate: Date | null;
+            expectedEndDate: Date | null;
+            actualEndDate: Date | null;
+            planningStartDate: Date | null;
+            plannedDurationDays: number | null;
+            overrunDays: number;
+            planningEndDate: Date | null;
+            progressPercent: number;
+            fte: number;
+            orderNumber: number;
+            priority: number;
+            status: import(".prisma/client").$Enums.TaskStatus;
+            dueDate: Date | null;
+            assigneeId: string | null;
+            companyOwnerContactId: string | null;
+            visibleToClient: boolean;
+        } | null;
         id: string;
         createdAt: Date;
         workspaceId: string;
@@ -67,6 +95,7 @@ export declare class DocumentsService {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -76,7 +105,8 @@ export declare class DocumentsService {
         signatureCertificate: string | null;
         signatureState: string | null;
     }[]>;
-    create(workspaceId: string, userId: string, dto: CreateDocumentDto): import(".prisma/client").Prisma.Prisma__DocumentClient<{
+    private resolveTaskScope;
+    create(workspaceId: string, userId: string, dto: CreateDocumentDto): Promise<{
         id: string;
         createdAt: Date;
         workspaceId: string;
@@ -84,6 +114,7 @@ export declare class DocumentsService {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -92,7 +123,7 @@ export declare class DocumentsService {
         version: number;
         signatureCertificate: string | null;
         signatureState: string | null;
-    }, never, import("@prisma/client/runtime/library").DefaultArgs, import(".prisma/client").Prisma.PrismaClientOptions>;
+    }>;
     uploadAndCreate(workspaceId: string, userId: string, dto: UploadDocumentDto, file: {
         originalname: string;
         mimetype: string;
@@ -105,6 +136,25 @@ export declare class DocumentsService {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
+        status: import(".prisma/client").$Enums.DocumentStatus;
+        societyId: string | null;
+        contactId: string | null;
+        storagePath: string;
+        signatureRequestId: string | null;
+        version: number;
+        signatureCertificate: string | null;
+        signatureState: string | null;
+    }>;
+    update(workspaceId: string, userId: string, id: string, dto: UpdateDocumentDto): Promise<{
+        id: string;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        signatureProvider: string | null;
+        title: string;
+        projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -122,6 +172,7 @@ export declare class DocumentsService {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -139,6 +190,7 @@ export declare class DocumentsService {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -156,6 +208,7 @@ export declare class DocumentsService {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -173,6 +226,7 @@ export declare class DocumentsService {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;
@@ -192,6 +246,7 @@ export declare class DocumentsService {
     }>;
     private decryptOrRaw;
     private detectContentType;
+    private extractOriginalFileName;
     private resolveLocalPath;
     private canViewStoragePath;
 }

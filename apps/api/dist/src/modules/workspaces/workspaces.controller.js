@@ -23,6 +23,7 @@ const client_1 = require("@prisma/client");
 const auth_service_1 = require("../auth/auth.service");
 const create_workspace_dto_1 = require("./dto/create-workspace.dto");
 const delete_workspace_dto_1 = require("./dto/delete-workspace.dto");
+const add_workspace_note_dto_1 = require("./dto/add-workspace-note.dto");
 const update_workspace_dto_1 = require("./dto/update-workspace.dto");
 const update_workspace_settings_dto_1 = require("./dto/update-workspace-settings.dto");
 const workspaces_service_1 = require("./workspaces.service");
@@ -67,6 +68,15 @@ let WorkspacesController = class WorkspacesController {
     }
     updateSettings(user, dto) {
         return this.workspacesService.updateSettings(user.activeWorkspaceId, user.sub, dto);
+    }
+    listNotes(user) {
+        return this.workspacesService.listWorkspaceNotes(user.activeWorkspaceId);
+    }
+    listNotesAll(user) {
+        return this.workspacesService.listWorkspaceNotesAll(user.sub);
+    }
+    addNote(user, dto) {
+        return this.workspacesService.appendWorkspaceNote(user.activeWorkspaceId, user.sub, dto.content);
     }
 };
 exports.WorkspacesController = WorkspacesController;
@@ -130,6 +140,31 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_workspace_settings_dto_1.UpdateWorkspaceSettingsDto]),
     __metadata("design:returntype", void 0)
 ], WorkspacesController.prototype, "updateSettings", null);
+__decorate([
+    (0, common_1.Get)('notes/current'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR, client_1.WorkspaceRole.VIEWER),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], WorkspacesController.prototype, "listNotes", null);
+__decorate([
+    (0, common_1.Get)('notes/all'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR, client_1.WorkspaceRole.VIEWER),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], WorkspacesController.prototype, "listNotesAll", null);
+__decorate([
+    (0, common_1.Post)('notes/current'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR, client_1.WorkspaceRole.VIEWER),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, add_workspace_note_dto_1.AddWorkspaceNoteDto]),
+    __metadata("design:returntype", void 0)
+], WorkspacesController.prototype, "addNote", null);
 exports.WorkspacesController = WorkspacesController = __decorate([
     (0, common_1.Controller)('workspaces'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, workspace_role_guard_1.WorkspaceRoleGuard),

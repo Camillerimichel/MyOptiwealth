@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/api-client';
 import {
   clearActiveProjectContext,
   clearActiveTaskContext,
+  getActiveProjectContext,
   setActiveProjectContext,
 } from '@/lib/active-task';
 import { WorkspaceDashboardOverviewPayload } from '@/types/api';
@@ -23,37 +24,74 @@ function progressColor(percent: number): string {
   return '#dc2626';
 }
 
+function priorityLabel(priority: number): string {
+  if (priority === 3) return 'Urgent';
+  if (priority === 2) return 'Important';
+  return 'Normal';
+}
+
 const WORKSPACE_NAME_COLLATOR = new Intl.Collator('fr', { sensitivity: 'base' });
 
 export default function DashboardPage() {
   const [data, setData] = useState<WorkspaceDashboardOverviewPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
+  const [activeProjectTitle, setActiveProjectTitle] = useState<string | null>(null);
   const token = useMemo(
     () => (typeof window === 'undefined' ? null : localStorage.getItem('mw_access_token')),
     [],
   );
 
+  const refreshActiveContext = useCallback((payload?: WorkspaceDashboardOverviewPayload | null): void => {
+    if (typeof window === 'undefined') return;
+    const source = payload ?? data;
+    const workspaceId = window.localStorage.getItem('mw_active_workspace_id');
+    const workspaceName = source?.workspaces.find((item) => item.workspace.id === workspaceId)?.workspace.name ?? null;
+    setActiveWorkspaceName(workspaceName);
+    setActiveProjectTitle(getActiveProjectContext()?.projectTitle ?? null);
+  }, [data]);
+
   useEffect(() => {
     if (!token) return;
     void apiClient
       .dashboardWorkspacesOverview(token)
-      .then((payload) => setData(payload))
+      .then((payload) => {
+        setData(payload);
+        refreshActiveContext(payload);
+      })
       .catch(() => setError('Impossible de charger le dashboard.'));
-  }, [token]);
+  }, [token, refreshActiveContext]);
 
-  const openWorkspacePage = useCallback(async (workspaceId: string, path: '/timesheet' | '/finance'): Promise<void> => {
+  useEffect(() => {
+    const onWorkspaceChanged = (): void => {
+      refreshActiveContext();
+    };
+    const onProjectChanged = (): void => {
+      refreshActiveContext();
+    };
+    window.addEventListener('mw_workspace_changed', onWorkspaceChanged);
+    window.addEventListener('mw_active_project_changed', onProjectChanged);
+    return () => {
+      window.removeEventListener('mw_workspace_changed', onWorkspaceChanged);
+      window.removeEventListener('mw_active_project_changed', onProjectChanged);
+    };
+  }, [refreshActiveContext]);
+
+  const openDashboardPage = useCallback(async (
+    workspaceId: string,
+    path: '/timesheet' | '/finance',
+    project?: { id: string; name: string; missionType?: string | null },
+  ): Promise<void> => {
     const currentToken = typeof window !== 'undefined' ? localStorage.getItem('mw_access_token') : null;
     if (!currentToken) return;
     const switched = await apiClient.switchWorkspace(currentToken, workspaceId);
     localStorage.setItem('mw_access_token', switched.accessToken);
     localStorage.setItem('mw_active_workspace_id', switched.activeWorkspaceId);
-    const projects = await apiClient.listProjects(switched.accessToken);
-    if (projects.length === 1) {
-      const only = projects[0];
+    if (project) {
       setActiveProjectContext({
-        projectId: only.id,
-        projectTitle: only.name,
-        projectTypology: only.missionType ?? null,
+        projectId: project.id,
+        projectTitle: project.name,
+        projectTypology: project.missionType ?? null,
         workspaceId: switched.activeWorkspaceId,
       });
     } else {
@@ -77,6 +115,16 @@ export default function DashboardPage() {
   return (
     <section className="grid gap-5">
       <h1 className="text-2xl font-semibold text-[var(--brand)]">Dashboard</h1>
+
+      <article className="rounded-xl border border-[var(--line)] bg-white p-4 shadow-panel">
+        <h2 className="mb-2 text-base font-semibold text-[var(--brand)]">Niveau actif</h2>
+        <p className="text-sm text-[#4f4d45]">
+          Workspace: <span className="font-semibold">{activeWorkspaceName ?? 'Aucun'}</span>
+        </p>
+        <p className="text-sm text-[#4f4d45]">
+          Projet: <span className="font-semibold">{activeProjectTitle ?? 'Aucun (niveau workspace)'}</span>
+        </p>
+      </article>
 
       <div className="grid gap-4 xl:grid-cols-2">
         <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
@@ -113,7 +161,7 @@ export default function DashboardPage() {
                     <th className="w-28 px-2 py-2">Échéance</th>
                     <th className="px-2 py-2">Tâche</th>
                     <th className="w-32 px-2 py-2">Workspace</th>
-                    <th className="w-10 px-2 py-2">P</th>
+                    <th className="w-28 px-2 py-2">Priorité</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -130,7 +178,7 @@ export default function DashboardPage() {
                           {task.workspace.name}
                         </span>
                       </td>
-                      <td className="px-2 py-2 font-semibold">P{task.priority}</td>
+                      <td className="px-2 py-2 font-semibold">{priorityLabel(task.priority)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -149,7 +197,6 @@ export default function DashboardPage() {
           { label: 'En attente', value: item.taskStats.waiting, color: '#f59e0b' },
           { label: 'Fait', value: item.taskStats.done, color: '#111827' },
         ];
-        const totalTasks = item.taskStats.total;
         const segmentTotal = segments.reduce((sum, segment) => sum + segment.value, 0);
         const normalizedTaskTotal = segmentTotal > 0 ? segmentTotal : 1;
         const workspaceProgressPercent = Math.max(0, Math.min(100, Math.round(item.progressPercent)));
@@ -184,11 +231,11 @@ export default function DashboardPage() {
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => { void openWorkspacePage(item.workspace.id, '/timesheet'); }}
+                onClick={() => { void openDashboardPage(item.workspace.id, '/timesheet'); }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    void openWorkspacePage(item.workspace.id, '/timesheet');
+                    void openDashboardPage(item.workspace.id, '/timesheet');
                   }
                 }}
                 className="cursor-pointer rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4 text-left transition hover:bg-[#f2eee4]"
@@ -219,11 +266,11 @@ export default function DashboardPage() {
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => { void openWorkspacePage(item.workspace.id, '/finance'); }}
+                onClick={() => { void openDashboardPage(item.workspace.id, '/finance'); }}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    void openWorkspacePage(item.workspace.id, '/finance');
+                    void openDashboardPage(item.workspace.id, '/finance');
                   }
                 }}
                 className="cursor-pointer rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-4 text-left transition hover:bg-[#f2eee4]"
@@ -259,6 +306,35 @@ export default function DashboardPage() {
                 </table>
               </div>
             </div>
+
+            {item.projects.length > 1 ? (
+              <div className="mt-4 rounded-lg border border-[var(--line)] bg-[#f9f7f2] p-3">
+                <p className="mb-2 text-xs uppercase tracking-[0.08em] text-[#6a6861]">Niveau projet</p>
+                <ul className="grid gap-2 text-sm">
+                  {item.projects.map((project) => (
+                    <li key={project.id} className="flex flex-wrap items-center justify-between gap-2 rounded border border-[var(--line)] bg-white px-2 py-2">
+                      <span className="font-medium text-[#2f2b23]">{project.name}</span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { void openDashboardPage(item.workspace.id, '/timesheet', project); }}
+                          className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                        >
+                          Timesheet projet
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { void openDashboardPage(item.workspace.id, '/finance', project); }}
+                          className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                        >
+                          Finance projet
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </article>
         );
       })}

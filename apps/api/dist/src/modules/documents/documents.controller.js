@@ -24,6 +24,7 @@ const create_document_dto_1 = require("./dto/create-document.dto");
 const send_signature_request_dto_1 = require("./dto/send-signature-request.dto");
 const sign_document_dto_1 = require("./dto/sign-document.dto");
 const upload_document_dto_1 = require("./dto/upload-document.dto");
+const update_document_dto_1 = require("./dto/update-document.dto");
 const documents_service_1 = require("./documents.service");
 let DocumentsController = class DocumentsController {
     constructor(documentsService) {
@@ -37,6 +38,9 @@ let DocumentsController = class DocumentsController {
     }
     upload(user, dto, file) {
         return this.documentsService.uploadAndCreate(user.activeWorkspaceId, user.sub, dto, file);
+    }
+    update(user, id, dto) {
+        return this.documentsService.update(user.activeWorkspaceId, user.sub, id, dto);
     }
     sendSignature(user, id, dto) {
         return this.documentsService.sendForSignature(user.activeWorkspaceId, user.sub, id, dto);
@@ -86,6 +90,16 @@ __decorate([
     __metadata("design:paramtypes", [Object, upload_document_dto_1.UploadDocumentDto, Object]),
     __metadata("design:returntype", void 0)
 ], DocumentsController.prototype, "upload", null);
+__decorate([
+    (0, common_1.Patch)(':id'),
+    (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, update_document_dto_1.UpdateDocumentDto]),
+    __metadata("design:returntype", void 0)
+], DocumentsController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)(':id/send-signature'),
     (0, workspace_roles_decorator_1.WorkspaceRoles)(client_1.WorkspaceRole.ADMIN, client_1.WorkspaceRole.COLLABORATOR),

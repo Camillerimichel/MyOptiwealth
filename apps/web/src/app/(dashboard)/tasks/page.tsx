@@ -76,6 +76,12 @@ function userDisplayName(user: { email: string; firstName?: string | null; lastN
   return fullName || user.email;
 }
 
+function priorityLabel(priority: number): string {
+  if (priority === 3) return 'Urgent';
+  if (priority === 2) return 'Important';
+  return 'Normal';
+}
+
 function normalizeSocietyName(name: string): string {
   return name
     .normalize('NFD')
@@ -515,9 +521,9 @@ export default function TasksPage() {
                   onChange={(e) => setPriority(Number(e.target.value))}
                   className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-2"
                 >
-                  <option value={1}>Priorité 1</option>
-                  <option value={2}>Priorité 2</option>
-                  <option value={3}>Priorité 3</option>
+                  <option value={1}>Normal</option>
+                  <option value={2}>Important</option>
+                  <option value={3}>Urgent</option>
                 </select>
                 <select
                   value={status}
@@ -616,9 +622,9 @@ export default function TasksPage() {
               onChange={(e) => setPriority(Number(e.target.value))}
               className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-2"
             >
-              <option value={1}>Priorité 1</option>
-              <option value={2}>Priorité 2</option>
-              <option value={3}>Priorité 3</option>
+              <option value={1}>Normal</option>
+              <option value={2}>Important</option>
+              <option value={3}>Urgent</option>
             </select>
             <select
               value={status}
@@ -773,7 +779,7 @@ export default function TasksPage() {
                     </span>
                   </td>
                   <td className="px-2 py-2 font-medium">N{task.orderNumber}</td>
-                  <td className="px-2 py-2">P{task.priority}</td>
+                  <td className="px-2 py-2">{priorityLabel(task.priority)}</td>
                   <td
                     className="cursor-pointer px-2 py-2 hover:bg-[#f7f3e8]"
                     onClick={() => onSelectTask(task, true)}

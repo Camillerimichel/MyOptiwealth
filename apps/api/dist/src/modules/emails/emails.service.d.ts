@@ -41,6 +41,35 @@ export declare class EmailsService {
         subject: string;
         receivedAt: Date;
     })[]>;
+    listLinkedForUser(userId: string): Promise<({
+        workspace: {
+            id: string;
+            name: string;
+        };
+        project: {
+            id: string;
+            name: string;
+        } | null;
+        tasks: {
+            task: {
+                id: string;
+                description: string;
+                projectId: string;
+            };
+        }[];
+    } & {
+        id: string;
+        metadata: Prisma.JsonValue;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        projectId: string | null;
+        externalMessageId: string;
+        fromAddress: string;
+        toAddresses: string[];
+        subject: string;
+        receivedAt: Date;
+    })[]>;
     listUnassignedForUser(userId: string): Promise<({
         workspace: {
             id: string;
@@ -139,6 +168,7 @@ export declare class EmailsService {
         restored: boolean;
     }>;
     private upsertMetadataGlobalByEmailId;
+    private resolveTargetLinkSelection;
     private upsertMetadataInternal;
     private upsertMetadataInternalForWorkspace;
     syncFromImap(workspaceId: string): Promise<{

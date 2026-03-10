@@ -1,4 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { DashboardService } from './dashboard.service';
@@ -10,6 +11,7 @@ interface AuthUser {
 
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard)
+@SkipThrottle()
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 

@@ -10,6 +10,7 @@ export interface DashboardPayload {
 
 export interface WorkspaceDashboardOverviewItem {
   workspace: { id: string; name: string };
+  projects: Array<{ id: string; name: string; missionType?: string | null }>;
   projectCount: number;
   progressPercent: number;
   taskStats: {

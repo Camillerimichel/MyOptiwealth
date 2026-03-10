@@ -9,22 +9,16 @@ export declare class WorkspacesService {
     private readonly auditService;
     private readonly encryptionService;
     constructor(prisma: PrismaService, auditService: AuditService, encryptionService: EncryptionService);
-    listForUser(userId: string): Promise<({
-        workspace: {
-            id: string;
-            createdAt: Date;
-            name: string;
-            updatedAt: Date;
-        };
-    } & {
-        id: string;
-        createdAt: Date;
-        workspaceId: string;
-        userId: string;
-        updatedAt: Date;
+    listForUser(userId: string): Promise<{
         role: import(".prisma/client").$Enums.WorkspaceRole;
         isDefault: boolean;
-    })[]>;
+        workspace: {
+            id: string;
+            name: string;
+        };
+        associatedSocietyId: string | null;
+        associatedSocietyName: string | null;
+    }[]>;
     private getGlobalProjectTypologies;
     private requireAdminMembership;
     createByPlatformAdmin(userId: string, _isPlatformAdmin: boolean, dto: CreateWorkspaceDto): Promise<{
@@ -79,5 +73,34 @@ export declare class WorkspacesService {
         projectTypologies: import("@prisma/client/runtime/library").JsonValue;
         signatureProvider: string | null;
         signatureApiBaseUrl: string | null;
+    }>;
+    listWorkspaceNotes(workspaceId: string): Promise<{
+        id: string;
+        content: string;
+        createdAt: Date;
+        author: {
+            id: string;
+            email: string;
+            firstName: string | null;
+            lastName: string | null;
+        } | null;
+    }[]>;
+    listWorkspaceNotesAll(userId: string): Promise<{
+        id: string;
+        workspace: {
+            id: string;
+            name: string;
+        } | null;
+        content: string;
+        createdAt: Date;
+        author: {
+            id: string;
+            email: string;
+            firstName: string | null;
+            lastName: string | null;
+        } | null;
+    }[]>;
+    appendWorkspaceNote(workspaceId: string, userId: string, content: string): Promise<{
+        success: boolean;
     }>;
 }

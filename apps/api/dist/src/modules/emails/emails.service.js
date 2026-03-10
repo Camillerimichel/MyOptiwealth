@@ -40,6 +40,39 @@ let EmailsService = class EmailsService {
             orderBy: { receivedAt: 'desc' },
         });
     }
+    async listLinkedForUser(userId) {
+        const workspaceIds = await this.getWorkspaceIdsForUser(userId);
+        if (workspaceIds.length === 0) {
+            return [];
+        }
+        return this.prisma.emailMessage.findMany({
+            where: {
+                workspaceId: { in: workspaceIds },
+                OR: [
+                    { metadata: { path: ['inboxValidated'], equals: true } },
+                    { projectId: { not: null } },
+                    { tasks: { some: {} } },
+                ],
+                receivedAt: { gte: this.getWindowStartDate() },
+            },
+            include: {
+                workspace: { select: { id: true, name: true } },
+                project: { select: { id: true, name: true } },
+                tasks: {
+                    select: {
+                        task: {
+                            select: {
+                                id: true,
+                                description: true,
+                                projectId: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: { receivedAt: 'desc' },
+        });
+    }
     async listUnassignedForUser(userId) {
         const workspaceIds = await this.getWorkspaceIdsForUser(userId);
         if (workspaceIds.length === 0) {
@@ -58,7 +91,11 @@ let EmailsService = class EmailsService {
             orderBy: { receivedAt: 'desc' },
         });
         const deduped = this.dedupeInboxEmails(emails);
-        return deduped.filter((email) => !this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
+        return deduped.filter((email) => {
+            if (this.readMetadataBoolean(email.metadata, 'inboxValidated'))
+                return false;
+            return !this.readMetadataBoolean(email.metadata, 'inboxIgnored');
+        });
     }
     async listIgnoredForUser(userId) {
         const workspaceIds = await this.getWorkspaceIdsForUser(userId);
@@ -78,7 +115,11 @@ let EmailsService = class EmailsService {
             orderBy: { receivedAt: 'desc' },
         });
         const deduped = this.dedupeInboxEmails(emails);
-        return deduped.filter((email) => this.readMetadataBoolean(email.metadata, 'inboxIgnored'));
+        return deduped.filter((email) => {
+            if (this.readMetadataBoolean(email.metadata, 'inboxValidated'))
+                return false;
+            return this.readMetadataBoolean(email.metadata, 'inboxIgnored');
+        });
     }
     async listLinkCatalogForUser(userId) {
         const workspaceIds = await this.getWorkspaceIdsForUser(userId);
@@ -363,48 +404,6 @@ let EmailsService = class EmailsService {
                 orderBy: { updatedAt: 'desc' },
                 select: { id: true, workspaceId: true, externalMessageId: true, fromAddress: true, toAddresses: true, subject: true, metadata: true },
             });
-        if (!sourceEmail) {
-            const targetAlreadyExisting = await this.prisma.emailMessage.findUnique({
-                where: {
-                    workspaceId_externalMessageId: {
-                        workspaceId: dto.workspaceId,
-                        externalMessageId: dto.externalMessageId,
-                    },
-                },
-                select: { id: true, fromAddress: true, toAddresses: true, subject: true, externalMessageId: true, workspaceId: true },
-            });
-            if (!targetAlreadyExisting) {
-                throw new common_1.BadRequestException('Email introuvable.');
-            }
-            return this.prisma.$transaction(async (tx) => {
-                const targetEmail = await tx.emailMessage.update({
-                    where: { id: targetAlreadyExisting.id },
-                    data: {
-                        projectId: dto.projectId,
-                        fromAddress: targetAlreadyExisting.fromAddress,
-                        toAddresses: targetAlreadyExisting.toAddresses,
-                        subject: targetAlreadyExisting.subject,
-                    },
-                });
-                await tx.taskEmail.deleteMany({ where: { emailId: targetEmail.id } });
-                await tx.taskEmail.create({
-                    data: { taskId: dto.taskId, emailId: targetEmail.id },
-                });
-                return targetEmail;
-            });
-        }
-        const sourceMembership = await this.prisma.userWorkspaceRole.findUnique({
-            where: {
-                userId_workspaceId: {
-                    userId,
-                    workspaceId: sourceEmail.workspaceId,
-                },
-            },
-            select: { id: true },
-        });
-        if (!sourceMembership) {
-            throw new common_1.BadRequestException('Accès refusé à cet email.');
-        }
         const targetMembership = await this.prisma.userWorkspaceRole.findUnique({
             where: {
                 userId_workspaceId: {
@@ -420,22 +419,61 @@ let EmailsService = class EmailsService {
         if (targetMembership.role === client_1.WorkspaceRole.VIEWER) {
             throw new common_1.BadRequestException('Droits insuffisants pour affecter cet email.');
         }
-        const project = await this.prisma.project.findFirst({
-            where: { id: dto.projectId, workspaceId: dto.workspaceId },
+        const selection = await this.resolveTargetLinkSelection(dto.workspaceId, dto.projectId, dto.taskId);
+        const validationLevel = selection.taskId ? 'task' : (selection.projectId ? 'project' : 'workspace');
+        const validationPatch = {
+            inboxValidated: true,
+            inboxValidationLevel: validationLevel,
+            inboxValidatedAt: new Date().toISOString(),
+            inboxValidatedBy: userId,
+            inboxIgnored: false,
+            inboxIgnoredAt: null,
+            inboxIgnoredBy: null,
+        };
+        if (!sourceEmail) {
+            const targetAlreadyExisting = await this.prisma.emailMessage.findUnique({
+                where: {
+                    workspaceId_externalMessageId: {
+                        workspaceId: dto.workspaceId,
+                        externalMessageId: dto.externalMessageId,
+                    },
+                },
+                select: { id: true, fromAddress: true, toAddresses: true, subject: true, externalMessageId: true, workspaceId: true, metadata: true },
+            });
+            if (!targetAlreadyExisting) {
+                throw new common_1.BadRequestException('Email introuvable.');
+            }
+            return this.prisma.$transaction(async (tx) => {
+                const targetEmail = await tx.emailMessage.update({
+                    where: { id: targetAlreadyExisting.id },
+                    data: {
+                        projectId: selection.projectId,
+                        fromAddress: targetAlreadyExisting.fromAddress,
+                        toAddresses: targetAlreadyExisting.toAddresses,
+                        subject: targetAlreadyExisting.subject,
+                        metadata: this.mergeMetadata(targetAlreadyExisting.metadata, validationPatch),
+                    },
+                });
+                await tx.taskEmail.deleteMany({ where: { emailId: targetEmail.id } });
+                if (selection.taskId) {
+                    await tx.taskEmail.create({
+                        data: { taskId: selection.taskId, emailId: targetEmail.id },
+                    });
+                }
+                return targetEmail;
+            });
+        }
+        const sourceMembership = await this.prisma.userWorkspaceRole.findUnique({
+            where: {
+                userId_workspaceId: {
+                    userId,
+                    workspaceId: sourceEmail.workspaceId,
+                },
+            },
             select: { id: true },
         });
-        if (!project) {
-            throw new common_1.BadRequestException('Projet invalide pour ce workspace.');
-        }
-        const task = await this.prisma.task.findFirst({
-            where: { id: dto.taskId, workspaceId: dto.workspaceId },
-            select: { id: true, projectId: true },
-        });
-        if (!task) {
-            throw new common_1.BadRequestException('Tache invalide pour ce workspace.');
-        }
-        if (task.projectId !== dto.projectId) {
-            throw new common_1.BadRequestException('La tache ne correspond pas au projet sélectionné.');
+        if (!sourceMembership) {
+            throw new common_1.BadRequestException('Accès refusé à cet email.');
         }
         const linkedEmail = await this.prisma.$transaction(async (tx) => {
             const targetEmail = await tx.emailMessage.upsert({
@@ -449,8 +487,8 @@ let EmailsService = class EmailsService {
                     fromAddress: sourceEmail.fromAddress,
                     toAddresses: sourceEmail.toAddresses,
                     subject: sourceEmail.subject,
-                    metadata: sourceEmail.metadata ?? {},
-                    projectId: dto.projectId,
+                    metadata: this.mergeMetadata(sourceEmail.metadata, validationPatch),
+                    projectId: selection.projectId,
                 },
                 create: {
                     workspaceId: dto.workspaceId,
@@ -459,19 +497,21 @@ let EmailsService = class EmailsService {
                     toAddresses: sourceEmail.toAddresses,
                     subject: sourceEmail.subject,
                     receivedAt: new Date(),
-                    metadata: sourceEmail.metadata ?? {},
-                    projectId: dto.projectId,
+                    metadata: this.mergeMetadata(sourceEmail.metadata, validationPatch),
+                    projectId: selection.projectId,
                 },
             });
             await tx.taskEmail.deleteMany({
                 where: { emailId: targetEmail.id },
             });
-            await tx.taskEmail.create({
-                data: {
-                    taskId: dto.taskId,
-                    emailId: targetEmail.id,
-                },
-            });
+            if (selection.taskId) {
+                await tx.taskEmail.create({
+                    data: {
+                        taskId: selection.taskId,
+                        emailId: targetEmail.id,
+                    },
+                });
+            }
             if (sourceEmail.id !== targetEmail.id) {
                 await tx.taskEmail.deleteMany({ where: { emailId: sourceEmail.id } });
                 await tx.emailContact.deleteMany({ where: { emailId: sourceEmail.id } });
@@ -479,8 +519,39 @@ let EmailsService = class EmailsService {
             }
             return targetEmail;
         });
-        void this.importAttachmentsAsDocuments(sourceEmail.externalMessageId, dto.workspaceId, dto.projectId, dto.taskId, linkedEmail.id).catch(() => undefined);
+        if (selection.projectId && selection.taskId) {
+            void this.importAttachmentsAsDocuments(sourceEmail.externalMessageId, dto.workspaceId, selection.projectId, selection.taskId, linkedEmail.id).catch(() => undefined);
+        }
         return linkedEmail;
+    }
+    async resolveTargetLinkSelection(workspaceId, requestedProjectId, requestedTaskId) {
+        let projectId = null;
+        let taskId = null;
+        if (requestedProjectId) {
+            const project = await this.prisma.project.findFirst({
+                where: { id: requestedProjectId, workspaceId },
+                select: { id: true },
+            });
+            if (!project) {
+                throw new common_1.BadRequestException('Projet invalide pour ce workspace.');
+            }
+            projectId = project.id;
+        }
+        if (requestedTaskId) {
+            const task = await this.prisma.task.findFirst({
+                where: { id: requestedTaskId, workspaceId },
+                select: { id: true, projectId: true },
+            });
+            if (!task) {
+                throw new common_1.BadRequestException('Tache invalide pour ce workspace.');
+            }
+            if (projectId && task.projectId !== projectId) {
+                throw new common_1.BadRequestException('La tache ne correspond pas au projet sélectionné.');
+            }
+            taskId = task.id;
+            projectId = task.projectId;
+        }
+        return { projectId, taskId };
     }
     async upsertMetadataInternal(workspaceId, dto) {
         return this.upsertMetadataInternalForWorkspace(undefined, workspaceId, dto);
@@ -642,40 +713,50 @@ let EmailsService = class EmailsService {
                     attachmentsMeta = [];
                 }
             }
-            await this.prisma.emailMessage.upsert({
+            const externalMessageId = String(message.uid);
+            const metadataPatch = {
+                source: 'imap-sync',
+                preview,
+                bodyText,
+                attachments: attachmentsMeta,
+            };
+            const existing = await this.prisma.emailMessage.findUnique({
                 where: {
                     workspaceId_externalMessageId: {
                         workspaceId,
-                        externalMessageId: String(message.uid),
+                        externalMessageId,
                     },
                 },
-                update: {
-                    fromAddress,
-                    toAddresses,
-                    subject,
-                    receivedAt,
-                    metadata: {
-                        source: 'imap-sync',
-                        preview,
-                        bodyText,
-                        attachments: attachmentsMeta,
-                    },
-                },
-                create: {
-                    workspaceId,
-                    externalMessageId: String(message.uid),
-                    fromAddress,
-                    toAddresses,
-                    subject,
-                    receivedAt,
-                    metadata: {
-                        source: 'imap-sync',
-                        preview,
-                        bodyText,
-                        attachments: attachmentsMeta,
-                    },
+                select: {
+                    id: true,
+                    metadata: true,
                 },
             });
+            if (existing) {
+                await this.prisma.emailMessage.update({
+                    where: { id: existing.id },
+                    data: {
+                        fromAddress,
+                        toAddresses,
+                        subject,
+                        receivedAt,
+                        metadata: this.mergeMetadata(existing.metadata, metadataPatch),
+                    },
+                });
+            }
+            else {
+                await this.prisma.emailMessage.create({
+                    data: {
+                        workspaceId,
+                        externalMessageId,
+                        fromAddress,
+                        toAddresses,
+                        subject,
+                        receivedAt,
+                        metadata: metadataPatch,
+                    },
+                });
+            }
             synced += 1;
         }
         await client.logout();
@@ -808,7 +889,8 @@ let EmailsService = class EmailsService {
                 data: {
                     workspaceId,
                     projectId,
-                    title: `PJ email - ${originalName}`,
+                    taskId,
+                    title: originalName,
                     storagePath: stored.storagePath,
                 },
             });
@@ -884,6 +966,10 @@ let EmailsService = class EmailsService {
         }
         const deduped = [...byExternalId.values()].map((group) => {
             const ordered = [...group].sort((left, right) => {
+                const leftValidated = this.readMetadataBoolean(left.metadata, 'inboxValidated') ? 1 : 0;
+                const rightValidated = this.readMetadataBoolean(right.metadata, 'inboxValidated') ? 1 : 0;
+                if (leftValidated !== rightValidated)
+                    return rightValidated - leftValidated;
                 const leftIgnored = this.readMetadataBoolean(left.metadata, 'inboxIgnored') ? 1 : 0;
                 const rightIgnored = this.readMetadataBoolean(right.metadata, 'inboxIgnored') ? 1 : 0;
                 if (leftIgnored !== rightIgnored)

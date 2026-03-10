@@ -9,34 +9,14 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UploadDocumentDto = void 0;
+exports.UpdateDocumentDto = void 0;
 const class_validator_1 = require("class-validator");
-class UploadDocumentDto {
+class UpdateDocumentDto {
 }
-exports.UploadDocumentDto = UploadDocumentDto;
+exports.UpdateDocumentDto = UpdateDocumentDto;
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], UploadDocumentDto.prototype, "title", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UploadDocumentDto.prototype, "projectId", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UploadDocumentDto.prototype, "taskId", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UploadDocumentDto.prototype, "societyId", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], UploadDocumentDto.prototype, "contactId", void 0);
-//# sourceMappingURL=upload-document.dto.js.map
+], UpdateDocumentDto.prototype, "title", void 0);
+//# sourceMappingURL=update-document.dto.js.map

@@ -37,13 +37,48 @@ let WorkspacesService = class WorkspacesService {
         this.auditService = auditService;
         this.encryptionService = encryptionService;
     }
-    listForUser(userId) {
-        return this.prisma.userWorkspaceRole.findMany({
+    async listForUser(userId) {
+        const memberships = await this.prisma.userWorkspaceRole.findMany({
             where: { userId },
-            include: {
-                workspace: true,
+            select: {
+                role: true,
+                isDefault: true,
+                workspace: {
+                    select: {
+                        id: true,
+                        name: true,
+                        settings: {
+                            select: {
+                                associatedSocietyId: true,
+                            },
+                        },
+                        societies: {
+                            select: {
+                                id: true,
+                                name: true,
+                            },
+                        },
+                    },
+                },
             },
-        }).then((memberships) => memberships.sort(compareWorkspaceByName));
+        });
+        const enrichedMemberships = memberships.map((membership) => {
+            const associatedSocietyId = membership.workspace.settings?.associatedSocietyId ?? null;
+            const associatedSocietyName = associatedSocietyId
+                ? (membership.workspace.societies.find((society) => society.id === associatedSocietyId)?.name ?? null)
+                : null;
+            return {
+                role: membership.role,
+                isDefault: membership.isDefault,
+                workspace: {
+                    id: membership.workspace.id,
+                    name: membership.workspace.name,
+                },
+                associatedSocietyId,
+                associatedSocietyName,
+            };
+        });
+        return enrichedMemberships.sort(compareWorkspaceByName);
     }
     async getGlobalProjectTypologies() {
         const recentSettings = await this.prisma.workspaceSettings.findMany({
@@ -397,6 +432,111 @@ let WorkspacesService = class WorkspacesService {
             imapPort: platformSettings?.imapPort ?? null,
             imapUser: platformSettings?.imapUser ?? null,
         };
+    }
+    async listWorkspaceNotes(workspaceId) {
+        const notes = await this.prisma.auditLog.findMany({
+            where: {
+                workspaceId,
+                action: 'WORKSPACE_NOTE_APPENDED',
+            },
+            orderBy: {
+                createdAt: 'asc',
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+            },
+        });
+        return notes.map((note) => {
+            const metadata = (note.metadata ?? {});
+            const content = typeof metadata.content === 'string' ? metadata.content : '';
+            return {
+                id: note.id,
+                content,
+                createdAt: note.createdAt,
+                author: note.user
+                    ? {
+                        id: note.user.id,
+                        email: note.user.email,
+                        firstName: note.user.firstName ?? null,
+                        lastName: note.user.lastName ?? null,
+                    }
+                    : null,
+            };
+        });
+    }
+    async listWorkspaceNotesAll(userId) {
+        const memberships = await this.prisma.userWorkspaceRole.findMany({
+            where: { userId },
+            select: {
+                workspaceId: true,
+            },
+        });
+        const workspaceIds = memberships.map((item) => item.workspaceId);
+        if (workspaceIds.length === 0)
+            return [];
+        const notes = await this.prisma.auditLog.findMany({
+            where: {
+                workspaceId: { in: workspaceIds },
+                action: 'WORKSPACE_NOTE_APPENDED',
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            include: {
+                workspace: {
+                    select: {
+                        id: true,
+                        name: true,
+                    },
+                },
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+            },
+        });
+        return notes.map((note) => {
+            const metadata = (note.metadata ?? {});
+            const content = typeof metadata.content === 'string' ? metadata.content : '';
+            return {
+                id: note.id,
+                workspace: note.workspace
+                    ? {
+                        id: note.workspace.id,
+                        name: note.workspace.name,
+                    }
+                    : null,
+                content,
+                createdAt: note.createdAt,
+                author: note.user
+                    ? {
+                        id: note.user.id,
+                        email: note.user.email,
+                        firstName: note.user.firstName ?? null,
+                        lastName: note.user.lastName ?? null,
+                    }
+                    : null,
+            };
+        });
+    }
+    async appendWorkspaceNote(workspaceId, userId, content) {
+        const trimmed = content.trim();
+        if (!trimmed) {
+            throw new common_1.BadRequestException('Note vide interdite');
+        }
+        await this.auditService.log(workspaceId, 'WORKSPACE_NOTE_APPENDED', { content: trimmed }, userId);
+        return { success: true };
     }
 };
 exports.WorkspacesService = WorkspacesService;

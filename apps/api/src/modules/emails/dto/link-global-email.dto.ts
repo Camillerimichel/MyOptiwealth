@@ -1,4 +1,4 @@
-import { IsArray, IsNotEmpty, IsString } from 'class-validator';
+import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class LinkGlobalEmailDto {
   @IsString()
@@ -9,13 +9,13 @@ export class LinkGlobalEmailDto {
   @IsNotEmpty()
   workspaceId!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  projectId!: string;
+  projectId?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  taskId!: string;
+  taskId?: string;
 
   @IsString()
   @IsNotEmpty()

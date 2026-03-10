@@ -8,11 +8,11 @@ export declare class DashboardService {
         tasksToday: ({
             project: {
                 id: string;
-                createdAt: Date;
                 workspaceId: string;
-                name: string;
-                updatedAt: Date;
                 progressPercent: number;
+                createdAt: Date;
+                updatedAt: Date;
+                name: string;
                 societyId: string;
                 missionType: string | null;
                 currentPhase: import(".prisma/client").$Enums.ProjectPhaseCode;
@@ -23,13 +23,11 @@ export declare class DashboardService {
             };
         } & {
             id: string;
-            createdAt: Date;
             workspaceId: string;
-            updatedAt: Date;
-            description: string;
             projectId: string;
             projectPhaseId: string | null;
             startsAfterTaskId: string | null;
+            description: string;
             privateComment: string | null;
             startDate: Date | null;
             expectedEndDate: Date | null;
@@ -47,6 +45,8 @@ export declare class DashboardService {
             assigneeId: string | null;
             companyOwnerContactId: string | null;
             visibleToClient: boolean;
+            createdAt: Date;
+            updatedAt: Date;
         })[];
         globalKpis: {
             billedRevenue: number;
@@ -56,16 +56,16 @@ export declare class DashboardService {
         };
         calendarPreview: {
             id: string;
-            createdAt: Date;
             workspaceId: string;
-            updatedAt: Date;
-            title: string;
+            projectId: string | null;
             description: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            taskId: string | null;
+            title: string;
             eventType: import(".prisma/client").$Enums.CalendarEventType;
             startAt: Date;
             endAt: Date;
-            projectId: string | null;
-            taskId: string | null;
             visioLink: string | null;
             alertMinutes: number | null;
         }[];
@@ -96,6 +96,11 @@ export declare class DashboardService {
                 id: string;
                 name: string;
             };
+            projects: {
+                id: string;
+                name: string;
+                missionType: string | null;
+            }[];
             projectCount: number;
             progressPercent: number;
             taskStats: {

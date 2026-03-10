@@ -40,6 +40,35 @@ export declare class EmailsController {
         subject: string;
         receivedAt: Date;
     })[]>;
+    listLinked(user: AuthUser): Promise<({
+        workspace: {
+            id: string;
+            name: string;
+        };
+        project: {
+            id: string;
+            name: string;
+        } | null;
+        tasks: {
+            task: {
+                id: string;
+                description: string;
+                projectId: string;
+            };
+        }[];
+    } & {
+        id: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue;
+        createdAt: Date;
+        workspaceId: string;
+        updatedAt: Date;
+        projectId: string | null;
+        externalMessageId: string;
+        fromAddress: string;
+        toAddresses: string[];
+        subject: string;
+        receivedAt: Date;
+    })[]>;
     listUnassigned(user: AuthUser): Promise<({
         workspace: {
             id: string;

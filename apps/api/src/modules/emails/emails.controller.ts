@@ -23,6 +23,11 @@ export class EmailsController {
     return this.emailsService.list(user.activeWorkspaceId);
   }
 
+  @Get('linked')
+  listLinked(@CurrentUser() user: AuthUser) {
+    return this.emailsService.listLinkedForUser(user.sub);
+  }
+
   @Get('inbox/unassigned')
   listUnassigned(@CurrentUser() user: AuthUser) {
     return this.emailsService.listUnassignedForUser(user.sub);

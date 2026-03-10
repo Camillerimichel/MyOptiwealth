@@ -13,6 +13,7 @@ export declare class DocumentsWebhookController {
         signatureProvider: string | null;
         title: string;
         projectId: string | null;
+        taskId: string | null;
         status: import(".prisma/client").$Enums.DocumentStatus;
         societyId: string | null;
         contactId: string | null;

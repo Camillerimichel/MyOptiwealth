@@ -31,6 +31,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
+], CreateDocumentDto.prototype, "taskId", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
 ], CreateDocumentDto.prototype, "societyId", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),

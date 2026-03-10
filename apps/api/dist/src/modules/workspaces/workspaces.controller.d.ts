@@ -3,6 +3,7 @@ import { Response } from 'express';
 import { AuthService } from '../auth/auth.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { DeleteWorkspaceDto } from './dto/delete-workspace.dto';
+import { AddWorkspaceNoteDto } from './dto/add-workspace-note.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateWorkspaceSettingsDto } from './dto/update-workspace-settings.dto';
 import { WorkspacesService } from './workspaces.service';
@@ -19,22 +20,16 @@ export declare class WorkspacesController {
     constructor(workspacesService: WorkspacesService, authService: AuthService, configService: ConfigService);
     private refreshCookieName;
     private isCookieSecure;
-    list(user: AuthUser): Promise<({
-        workspace: {
-            id: string;
-            createdAt: Date;
-            name: string;
-            updatedAt: Date;
-        };
-    } & {
-        id: string;
-        createdAt: Date;
-        workspaceId: string;
-        userId: string;
-        updatedAt: Date;
+    list(user: AuthUser): Promise<{
         role: import(".prisma/client").$Enums.WorkspaceRole;
         isDefault: boolean;
-    })[]>;
+        workspace: {
+            id: string;
+            name: string;
+        };
+        associatedSocietyId: string | null;
+        associatedSocietyName: string | null;
+    }[]>;
     create(user: AuthUser, dto: CreateWorkspaceDto): Promise<{
         id: string;
         createdAt: Date;
@@ -88,6 +83,35 @@ export declare class WorkspacesController {
         projectTypologies: import("@prisma/client/runtime/library").JsonValue;
         signatureProvider: string | null;
         signatureApiBaseUrl: string | null;
+    }>;
+    listNotes(user: AuthUser): Promise<{
+        id: string;
+        content: string;
+        createdAt: Date;
+        author: {
+            id: string;
+            email: string;
+            firstName: string | null;
+            lastName: string | null;
+        } | null;
+    }[]>;
+    listNotesAll(user: AuthUser): Promise<{
+        id: string;
+        workspace: {
+            id: string;
+            name: string;
+        } | null;
+        content: string;
+        createdAt: Date;
+        author: {
+            id: string;
+            email: string;
+            firstName: string | null;
+            lastName: string | null;
+        } | null;
+    }[]>;
+    addNote(user: AuthUser, dto: AddWorkspaceNoteDto): Promise<{
+        success: boolean;
     }>;
 }
 export {};

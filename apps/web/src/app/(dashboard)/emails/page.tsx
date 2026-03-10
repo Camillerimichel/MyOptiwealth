@@ -23,6 +23,7 @@ type EmailMessage = {
     preview?: string;
     attachments?: Array<{ filename?: string; contentType?: string; size?: number }>;
     documentsSaved?: boolean;
+    inboxValidated?: boolean;
   } | null;
   project?: { id: string; name: string } | null;
   tasks: Array<{ taskId: string }>;
@@ -113,16 +114,20 @@ export default function EmailsPage() {
       setActiveTaskLabel(activeTask?.taskDescription ?? null);
 
       const filtered = emailsData.filter((email) => {
-        if (!activeProject?.projectId || !activeTask?.taskId) {
-          return false;
-        }
-        const ignored = Boolean((email.metadata as { inboxIgnored?: boolean } | null | undefined)?.inboxIgnored);
+        const metadata = email.metadata as { inboxIgnored?: boolean; inboxValidated?: boolean } | null | undefined;
+        const ignored = Boolean(metadata?.inboxIgnored);
         if (ignored) {
           return false;
         }
-        const emailInProject = email.project?.id === activeProject.projectId;
-        const emailInTask = email.tasks.some((link) => link.taskId === activeTask.taskId);
-        return emailInProject && emailInTask;
+
+        // En mode "Tasks": afficher tous les emails rattachés à des tâches.
+        if (activeTask?.taskId) {
+          return email.tasks.length > 0;
+        }
+
+        // En mode "Projects" (ou sans tâche active): afficher les emails liés à un projet
+        // ainsi que ceux validés au niveau workspace.
+        return Boolean(email.project?.id) || Boolean(metadata?.inboxValidated);
       });
 
       setEmails(filtered);

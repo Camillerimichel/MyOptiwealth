@@ -41,9 +41,21 @@ let DocumentStorageService = class DocumentStorageService {
         }
     }
     async store(workspaceId, originalName, contentType, buffer) {
-        const extension = (0, path_1.extname)(originalName) || '.bin';
-        const key = `${workspaceId}/${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
+        const safeOriginalName = this.sanitizeFileName(originalName);
+        const key = `${workspaceId}/${Date.now()}-${Math.random().toString(36).slice(2)}__${safeOriginalName}`;
         return this.storeByKey(key, contentType, buffer);
+    }
+    sanitizeFileName(filename) {
+        const raw = (0, path_1.basename)(filename || 'document.bin').trim();
+        const cleaned = raw
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9._-]+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '');
+        if (!cleaned)
+            return `document${(0, path_1.extname)(raw) || '.bin'}`;
+        return cleaned;
     }
     async storeByKey(key, contentType, buffer) {
         if (this.driver === 's3' && this.s3Client && this.s3Bucket) {

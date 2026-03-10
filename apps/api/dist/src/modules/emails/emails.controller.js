@@ -29,6 +29,9 @@ let EmailsController = class EmailsController {
     list(user) {
         return this.emailsService.list(user.activeWorkspaceId);
     }
+    listLinked(user) {
+        return this.emailsService.listLinkedForUser(user.sub);
+    }
     listUnassigned(user) {
         return this.emailsService.listUnassignedForUser(user.sub);
     }
@@ -68,6 +71,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], EmailsController.prototype, "list", null);
+__decorate([
+    (0, common_1.Get)('linked'),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], EmailsController.prototype, "listLinked", null);
 __decorate([
     (0, common_1.Get)('inbox/unassigned'),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
