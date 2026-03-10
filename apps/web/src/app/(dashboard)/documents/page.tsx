@@ -19,6 +19,7 @@ type DocumentItem = {
   canView?: boolean;
   createdAt: string;
   project?: { id: string; name: string } | null;
+  task?: { id: string; description: string } | null;
 };
 const LEGACY_MISSION_LABELS: Record<string, string> = {
   WEALTH_STRATEGY: 'Strategie patrimoniale',
@@ -28,8 +29,7 @@ const LEGACY_MISSION_LABELS: Record<string, string> = {
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [title, setTitle] = useState('');
-  const [storagePath, setStoragePath] = useState('');
+  const [uploadTitle, setUploadTitle] = useState('');
   const [certificate, setCertificate] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [signerEmail, setSignerEmail] = useState('');
@@ -40,35 +40,12 @@ export default function DocumentsPage() {
   const [activeProjectTypology, setActiveProjectTypology] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeTaskLabel, setActiveTaskLabel] = useState<string | null>(null);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
   const [showCreationPanel, setShowCreationPanel] = useState(false);
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
+  const [editingDocumentTitle, setEditingDocumentTitle] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  function normalizePathPart(value: string): string {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 64) || 'document';
-  }
-
-  const buildDefaultStoragePath = useCallback((nextTitle: string): string => {
-    const workspaceKey = normalizePathPart(activeWorkspaceName ?? 'workspace');
-    if (!activeProjectTitle) {
-      return `documents/${workspaceKey}/global`;
-    }
-    const projectKey = normalizePathPart(activeProjectTitle);
-    if (!activeTaskLabel) {
-      return `documents/${workspaceKey}/${projectKey}/global`;
-    }
-    const taskKey = normalizePathPart(activeTaskLabel);
-    return `documents/${workspaceKey}/${projectKey}/${taskKey}`;
-  }, [activeWorkspaceName, activeProjectTitle, activeTaskLabel]);
 
   const load = useCallback(async (): Promise<void> => {
     const token = getAccessToken();
@@ -90,7 +67,6 @@ export default function DocumentsPage() {
         typeof window !== 'undefined'
           ? window.localStorage.getItem('mw_active_workspace_id')
           : null;
-      setActiveWorkspaceId(workspaceId);
       const workspaceName = workspaceData.find((item) => item.workspace.id === workspaceId)?.workspace.name ?? null;
       setActiveWorkspaceName(workspaceName);
       const activeProject = getActiveProjectContext();
@@ -129,17 +105,6 @@ export default function DocumentsPage() {
   }, [load]);
 
   useEffect(() => {
-    if (
-      !storagePath.trim()
-      || storagePath.startsWith('documents/global/')
-      || storagePath.startsWith('documents/workspace/')
-      || storagePath.endsWith('/document')
-    ) {
-      setStoragePath(buildDefaultStoragePath(title));
-    }
-  }, [activeProjectId, activeTaskId, activeWorkspaceId, title, storagePath, buildDefaultStoragePath]);
-
-  useEffect(() => {
     const onTaskChanged = (): void => {
       void load();
     };
@@ -154,21 +119,6 @@ export default function DocumentsPage() {
     };
   }, [load]);
 
-  async function onCreate(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const token = getAccessToken();
-    if (!token || !title || !storagePath) return;
-    await apiClient.createDocument(token, {
-      title,
-      storagePath,
-      projectId: activeProjectId ?? undefined,
-    });
-    setTitle('');
-    setStoragePath('');
-    showToast('Document créé.', 'success');
-    await load();
-  }
-
   async function onSign(documentId: string): Promise<void> {
     const token = getAccessToken();
     if (!token) return;
@@ -177,18 +127,19 @@ export default function DocumentsPage() {
     await load();
   }
 
-  async function onUpload(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function onCreateAndUpload(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     const token = getAccessToken();
-    if (!token || !selectedFile || !title) return;
+    if (!token || !selectedFile) return;
     await apiClient.uploadDocument(token, {
       file: selectedFile,
-      title,
+      title: uploadTitle.trim() || undefined,
       projectId: activeProjectId ?? undefined,
+      taskId: activeTaskId ?? undefined,
     });
     setSelectedFile(null);
-    setTitle('');
-    showToast('Document uploadé.', 'success');
+    setUploadTitle('');
+    showToast('Document créé.', 'success');
     await load();
   }
 
@@ -212,6 +163,21 @@ export default function DocumentsPage() {
     await load();
   }
 
+  function onStartEdit(document: DocumentItem): void {
+    setEditingDocumentId(document.id);
+    setEditingDocumentTitle(document.title);
+  }
+
+  async function onSaveDocumentTitle(): Promise<void> {
+    const token = getAccessToken();
+    if (!token || !editingDocumentId || !editingDocumentTitle.trim()) return;
+    await apiClient.updateDocument(token, editingDocumentId, { title: editingDocumentTitle.trim() });
+    setEditingDocumentId(null);
+    setEditingDocumentTitle('');
+    showToast('Intitulé du document mis à jour.', 'success');
+    await load();
+  }
+
   async function onView(documentId: string): Promise<void> {
     const token = getAccessToken();
     if (!token) return;
@@ -230,31 +196,18 @@ export default function DocumentsPage() {
     const blobUrl = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = `${normalizePathPart(documentTitle || 'document')}.pdf`;
+    link.download = documentTitle || 'document';
     link.click();
     window.setTimeout(() => {
       window.URL.revokeObjectURL(blobUrl);
     }, 60000);
   }
 
-  function documentStatusLabel(status: string): string {
-    switch (status) {
-      case 'DRAFT':
-        return 'Brouillon';
-      case 'SENT':
-        return 'Envoyé';
-      case 'SIGNED':
-        return 'Signé';
-      case 'ARCHIVED':
-        return 'Stocké';
-      default:
-        return status;
-    }
-  }
-
-  const filteredDocuments = activeProjectId
-    ? documents.filter((item) => item.project?.id === activeProjectId)
-    : documents;
+  const filteredDocuments = activeTaskId
+    ? documents.filter((item) => item.task?.id === activeTaskId)
+    : activeProjectId
+      ? documents.filter((item) => item.project?.id === activeProjectId)
+      : documents;
   const canShowSignatureActions = signerEmail.trim().length > 0 && signerName.trim().length > 0;
 
   return (
@@ -285,42 +238,43 @@ export default function DocumentsPage() {
         <p className="text-sm text-[#5b5952]">Aucun contexte projet actif: affichage de tous les documents du workspace.</p>
       ) : null}
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
-        <p className="mb-3 text-base font-semibold text-[var(--brand)]">Création de documents</p>
+        <p className="mb-3 text-base font-semibold text-[var(--brand)]">Document</p>
         <div className="mb-3">
           <button
             type="button"
             onClick={() => setShowCreationPanel((current) => !current)}
             className="rounded border border-[var(--line)] px-3 py-2 text-sm"
           >
-            {showCreationPanel ? 'Masquer' : 'Visualiser'}
+            {showCreationPanel ? 'Fermer' : 'Créer'}
           </button>
         </div>
         {showCreationPanel ? (
           <>
-            <form onSubmit={onCreate} className="grid gap-2 lg:grid-cols-3">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre" className="rounded border border-[var(--line)] px-3 py-2" />
+            <form onSubmit={onCreateAndUpload} className="grid gap-2 lg:grid-cols-3">
               <input
-                value={storagePath}
-                onChange={(e) => setStoragePath(e.target.value)}
-                placeholder="Chemin de stockage (ex: documents/workspace/projet/global)"
+                value={uploadTitle}
+                onChange={(e) => setUploadTitle(e.target.value)}
+                placeholder="Titre du document (optionnel)"
                 className="rounded border border-[var(--line)] px-3 py-2"
               />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setStoragePath(buildDefaultStoragePath(title))}
-                  className="rounded border border-[var(--line)] px-3 py-2 text-[#4f4d45]"
-                >
-                  Path défaut
-                </button>
-                <button className="rounded bg-[var(--brand)] px-3 py-2 text-white">Valider</button>
-              </div>
+              <input
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setSelectedFile(file);
+                }}
+                className="rounded border border-[var(--line)] px-3 py-2"
+              />
+              <button
+                disabled={!selectedFile}
+                className="rounded bg-[var(--brand)] px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Valider
+              </button>
             </form>
-            <form onSubmit={onUpload} className="mt-3 grid gap-2 lg:grid-cols-3">
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Titre fichier à uploader" className="rounded border border-[var(--line)] px-3 py-2" />
-              <input type="file" onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)} className="rounded border border-[var(--line)] px-3 py-2" />
-              <button className="rounded border border-[var(--line)] px-3 py-2">Uploader fichier</button>
-            </form>
+            {selectedFile ? (
+              <p className="mt-2 text-xs text-[#5b5952]">Fichier sélectionné: {selectedFile.name}</p>
+            ) : null}
             <div className="mt-3 grid gap-2 lg:grid-cols-3">
               <input
                 value={signerEmail}
@@ -357,7 +311,6 @@ export default function DocumentsPage() {
               <tr className="border-b border-[var(--line)] text-left text-[#5b5952]">
                 <th className="px-2 py-2">Titre</th>
                 <th className="px-2 py-2">Date dépôt</th>
-                <th className="px-2 py-2">Statut</th>
                 <th className="px-2 py-2">Storage path</th>
                 <th className="px-2 py-2">Actions</th>
               </tr>
@@ -365,14 +318,40 @@ export default function DocumentsPage() {
             <tbody>
               {filteredDocuments.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-2 py-3 text-[#5b5952]">Aucun document.</td>
+                  <td colSpan={4} className="px-2 py-3 text-[#5b5952]">Aucun document.</td>
                 </tr>
               ) : null}
               {filteredDocuments.map((item) => (
                 <tr key={item.id} className="border-b border-[var(--line)]">
-                  <td className="px-2 py-2 font-medium">{item.title}</td>
+                  <td className="px-2 py-2 font-medium">
+                    {editingDocumentId === item.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={editingDocumentTitle}
+                          onChange={(e) => setEditingDocumentTitle(e.target.value)}
+                          className="min-w-[220px] rounded border border-[var(--line)] px-2 py-1 text-sm"
+                        />
+                        <button
+                          onClick={() => { void onSaveDocumentTitle(); }}
+                          className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                        >
+                          Enregistrer
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingDocumentId(null);
+                            setEditingDocumentTitle('');
+                          }}
+                          className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    ) : (
+                      item.title
+                    )}
+                  </td>
                   <td className="px-2 py-2">{new Date(item.createdAt).toLocaleDateString('fr-FR')}</td>
-                  <td className="px-2 py-2">{documentStatusLabel(item.status)}</td>
                   <td className="max-w-[320px] px-2 py-2">
                     <div className="group">
                       <span className="block truncate">{item.storagePath}</span>
@@ -390,7 +369,13 @@ export default function DocumentsPage() {
                           className="rounded border border-[var(--line)] px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
                           title={item.canView ? 'Ouvrir le document' : 'Visualisation indisponible (fichier absent)'}
                         >
-                          Visualiser
+                          Ouvrir
+                        </button>
+                        <button
+                          onClick={() => onStartEdit(item)}
+                          className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                        >
+                          Modifier
                         </button>
                         <button
                           onClick={() => { void onDownload(item.id, item.title); }}

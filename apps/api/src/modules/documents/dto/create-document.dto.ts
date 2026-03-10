@@ -13,6 +13,10 @@ export class CreateDocumentDto {
 
   @IsOptional()
   @IsString()
+  taskId?: string;
+
+  @IsOptional()
+  @IsString()
   societyId?: string;
 
   @IsOptional()

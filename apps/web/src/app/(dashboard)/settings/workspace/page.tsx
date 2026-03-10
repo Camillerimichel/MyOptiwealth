@@ -9,6 +9,7 @@ type WorkspaceMembership = {
   workspace: { id: string; name: string };
   role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER';
   isDefault: boolean;
+  associatedSocietyName: string | null;
 };
 type Society = { id: string; name: string };
 
@@ -56,6 +57,7 @@ export default function WorkspaceSettingsPage() {
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [editingWorkspaceName, setEditingWorkspaceName] = useState('');
   const [editingAssociatedSocietyId, setEditingAssociatedSocietyId] = useState('');
+  const [editingAssociatedSocietyName, setEditingAssociatedSocietyName] = useState<string | null>(null);
 
   const uniqueAllSocieties = useMemo(() => dedupeSocietiesByName(allSocieties), [allSocieties]);
   const uniqueSocieties = useMemo(() => dedupeSocietiesByName(societies), [societies]);
@@ -130,10 +132,11 @@ export default function WorkspaceSettingsPage() {
     await load();
   }
 
-  function onStartEdit(workspaceId: string, name: string): void {
+  function onStartEdit(workspaceId: string, name: string, associatedSocietyName: string | null): void {
     setEditingWorkspaceId(workspaceId);
     setEditingWorkspaceName(name);
     setEditingAssociatedSocietyId('');
+    setEditingAssociatedSocietyName(associatedSocietyName);
   }
 
   async function onSaveWorkspaceEdit(): Promise<void> {
@@ -148,6 +151,7 @@ export default function WorkspaceSettingsPage() {
       setEditingWorkspaceId(null);
       setEditingWorkspaceName('');
       setEditingAssociatedSocietyId('');
+      setEditingAssociatedSocietyName(null);
       await load();
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Modification impossible.', 'error');
@@ -286,7 +290,7 @@ export default function WorkspaceSettingsPage() {
                     Switch
                   </button>
                   <button
-                    onClick={() => onStartEdit(item.workspace.id, item.workspace.name)}
+                    onClick={() => onStartEdit(item.workspace.id, item.workspace.name, item.associatedSocietyName)}
                     className="rounded border border-[var(--line)] px-2 py-1 text-xs"
                   >
                     Modifier
@@ -312,7 +316,11 @@ export default function WorkspaceSettingsPage() {
                     onChange={(e) => setEditingAssociatedSocietyId(e.target.value)}
                     className="rounded border border-[var(--line)] px-3 py-2 text-sm"
                   >
-                    <option value="">Société associée inchangée</option>
+                    <option value="">
+                      {editingAssociatedSocietyName
+                        ? `Société associée actuelle : ${editingAssociatedSocietyName}`
+                        : 'Aucune société associée'}
+                    </option>
                     {uniqueAllSocieties.map((society) => (
                       <option key={society.id} value={society.id}>
                         {society.name}
@@ -331,6 +339,7 @@ export default function WorkspaceSettingsPage() {
                         setEditingWorkspaceId(null);
                         setEditingWorkspaceName('');
                         setEditingAssociatedSocietyId('');
+                        setEditingAssociatedSocietyName(null);
                       }}
                       className="rounded border border-[var(--line)] px-3 py-2 text-xs"
                     >

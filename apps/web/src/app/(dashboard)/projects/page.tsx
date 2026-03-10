@@ -304,6 +304,7 @@ export default function ProjectsPage() {
     setProjectContactIdToAdd('');
     setProjectContactRoleToAdd('');
     await loadProjectContacts(editingProjectId);
+    await load();
   }
 
   const workspaceSocietyNameKeySet = new Set(workspaceSocietyNameKeys);
@@ -322,6 +323,7 @@ export default function ProjectsPage() {
     });
     showToast('Rôle projet mis à jour.', 'success');
     await loadProjectContacts(editingProjectId);
+    await load();
   }
 
   async function onRemoveProjectContact(contactId: string): Promise<void> {
@@ -330,6 +332,7 @@ export default function ProjectsPage() {
     await apiClient.removeProjectContact(token, editingProjectId, contactId);
     showToast('Intervenant retiré du projet.', 'success');
     await loadProjectContacts(editingProjectId);
+    await load();
   }
 
   async function onCreateFirstProject(): Promise<void> {
@@ -432,7 +435,7 @@ export default function ProjectsPage() {
                 }}
                 className="rounded border border-[var(--line)] px-3 py-2"
               >
-                Modifier
+                Voir
               </button>
               <button
                 type="button"

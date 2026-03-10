@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { mkdir, writeFile } from 'fs/promises';
-import { extname } from 'path';
+import { basename, extname } from 'path';
 
 interface StoredFile {
   storagePath: string;
@@ -47,9 +47,21 @@ export class DocumentStorageService {
     contentType: string,
     buffer: Buffer,
   ): Promise<StoredFile> {
-    const extension = extname(originalName) || '.bin';
-    const key = `${workspaceId}/${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
+    const safeOriginalName = this.sanitizeFileName(originalName);
+    const key = `${workspaceId}/${Date.now()}-${Math.random().toString(36).slice(2)}__${safeOriginalName}`;
     return this.storeByKey(key, contentType, buffer);
+  }
+
+  private sanitizeFileName(filename: string): string {
+    const raw = basename(filename || 'document.bin').trim();
+    const cleaned = raw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9._-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    if (!cleaned) return `document${extname(raw) || '.bin'}`;
+    return cleaned;
   }
 
   async storeByKey(

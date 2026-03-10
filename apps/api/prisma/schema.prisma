@@ -294,6 +294,7 @@ model Task {
   companyOwnerContact Contact? @relation("TaskCompanyOwner", fields: [companyOwnerContactId], references: [id], onDelete: SetNull)
   contacts        TaskContact[]
   linkedEmails    TaskEmail[]
+  documents       Document[]
   timeEntries     TimeEntry[]
 
   @@index([workspaceId])
@@ -382,6 +383,7 @@ model Document {
   id                    String         @id @default(cuid())
   workspaceId           String
   projectId             String?
+  taskId                String?
   societyId             String?
   contactId             String?
   title                 String
@@ -396,11 +398,13 @@ model Document {
   updatedAt             DateTime       @updatedAt
   workspace             Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   project               Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task                  Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
   society               Society?       @relation(fields: [societyId], references: [id], onDelete: SetNull)
   contact               Contact?       @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
   @@index([projectId])
+  @@index([taskId])
   @@index([societyId])
   @@index([contactId])
   @@index([signatureRequestId])

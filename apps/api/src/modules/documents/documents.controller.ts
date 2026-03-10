@@ -23,6 +23,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { SendSignatureRequestDto } from './dto/send-signature-request.dto';
 import { SignDocumentDto } from './dto/sign-document.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
+import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DocumentsService } from './documents.service';
 
 interface AuthUser {
@@ -61,6 +62,16 @@ export class DocumentsController {
     @UploadedFile() file: UploadedBinaryFile,
   ) {
     return this.documentsService.uploadAndCreate(user.activeWorkspaceId, user.sub, dto, file);
+  }
+
+  @Patch(':id')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR)
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateDocumentDto,
+  ) {
+    return this.documentsService.update(user.activeWorkspaceId, user.sub, id, dto);
   }
 
   @Post(':id/send-signature')

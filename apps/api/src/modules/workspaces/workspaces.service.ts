@@ -41,13 +41,51 @@ export class WorkspacesService {
     private readonly encryptionService: EncryptionService,
   ) {}
 
-  listForUser(userId: string) {
-    return this.prisma.userWorkspaceRole.findMany({
+  async listForUser(userId: string) {
+    const memberships = await this.prisma.userWorkspaceRole.findMany({
       where: { userId },
-      include: {
-        workspace: true,
+      select: {
+        role: true,
+        isDefault: true,
+        workspace: {
+          select: {
+            id: true,
+            name: true,
+            settings: {
+              select: {
+                associatedSocietyId: true,
+              },
+            },
+            societies: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
-    }).then((memberships) => memberships.sort(compareWorkspaceByName));
+    });
+
+    const enrichedMemberships = memberships.map((membership) => {
+      const associatedSocietyId = membership.workspace.settings?.associatedSocietyId ?? null;
+      const associatedSocietyName = associatedSocietyId
+        ? (membership.workspace.societies.find((society) => society.id === associatedSocietyId)?.name ?? null)
+        : null;
+
+      return {
+        role: membership.role,
+        isDefault: membership.isDefault,
+        workspace: {
+          id: membership.workspace.id,
+          name: membership.workspace.name,
+        },
+        associatedSocietyId,
+        associatedSocietyName,
+      };
+    });
+
+    return enrichedMemberships.sort(compareWorkspaceByName);
   }
 
   private async getGlobalProjectTypologies(): Promise<string[]> {

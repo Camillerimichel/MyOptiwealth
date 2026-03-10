@@ -740,13 +740,14 @@ export const apiClient = {
         canView?: boolean;
         createdAt: string;
         project?: { id: string; name: string } | null;
+        task?: { id: string; description: string } | null;
       }>
     >('/documents', { token });
   },
 
   createDocument(
     token: string,
-    payload: { title: string; storagePath: string; projectId?: string; societyId?: string; contactId?: string },
+    payload: { title: string; storagePath: string; projectId?: string; taskId?: string; societyId?: string; contactId?: string },
   ) {
     return request('/documents', { method: 'POST', token, body: payload });
   },
@@ -755,19 +756,29 @@ export const apiClient = {
     token: string,
     payload: {
       file: File;
-      title: string;
+      title?: string;
       projectId?: string;
+      taskId?: string;
       societyId?: string;
       contactId?: string;
     },
   ) {
     const form = new FormData();
     form.append('file', payload.file);
-    form.append('title', payload.title);
+    if (payload.title) form.append('title', payload.title);
     if (payload.projectId) form.append('projectId', payload.projectId);
+    if (payload.taskId) form.append('taskId', payload.taskId);
     if (payload.societyId) form.append('societyId', payload.societyId);
     if (payload.contactId) form.append('contactId', payload.contactId);
     return uploadWithAuth('/documents/upload', token, form);
+  },
+
+  updateDocument(
+    token: string,
+    id: string,
+    payload: { title: string },
+  ) {
+    return request(`/documents/${id}`, { method: 'PATCH', token, body: payload });
   },
 
   sendForSignature(
@@ -905,7 +916,15 @@ export const apiClient = {
   },
 
   listWorkspaces(token: string) {
-    return request<Array<{ workspace: { id: string; name: string }; role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER'; isDefault: boolean }>>('/workspaces', { token });
+    return request<
+      Array<{
+        workspace: { id: string; name: string };
+        role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER';
+        isDefault: boolean;
+        associatedSocietyId: string | null;
+        associatedSocietyName: string | null;
+      }>
+    >('/workspaces', { token });
   },
 
   createWorkspace(token: string, payload: { name: string; associatedSocietyId: string }) {

@@ -34,7 +34,7 @@ type Task = {
   assignee?: { id: string; email: string } | null;
   companyOwnerContact?: { id: string; firstName: string; lastName: string; society?: { name: string } | null } | null;
 };
-type Project = { id: string; name: string; progressPercent: number; missionType?: string | null };
+type Project = { id: string; name: string; progressPercent: number; missionType?: string | null; societyId?: string };
 type UserOption = { user: { id: string; email: string; firstName?: string | null; lastName?: string | null }; role: string };
 type ContactOption = { id: string; firstName: string; lastName: string; society?: { id: string; name: string } | null };
 const LEGACY_MISSION_LABELS: Record<string, string> = {
@@ -76,6 +76,14 @@ function userDisplayName(user: { email: string; firstName?: string | null; lastN
   return fullName || user.email;
 }
 
+function normalizeSocietyName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
 export default function TasksPage() {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -99,6 +107,8 @@ export default function TasksPage() {
   const [activeProjectTitle, setActiveProjectTitle] = useState<string | null>(null);
   const [activeProjectTypology, setActiveProjectTypology] = useState<string | null>(null);
   const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
+  const [activeWorkspaceAssociatedSocietyId, setActiveWorkspaceAssociatedSocietyId] = useState<string | null>(null);
+  const [activeWorkspaceAssociatedSocietyName, setActiveWorkspaceAssociatedSocietyName] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeTaskLabel, setActiveTaskLabel] = useState<string | null>(null);
   const [showFirstTaskPrompt, setShowFirstTaskPrompt] = useState(false);
@@ -131,7 +141,10 @@ export default function TasksPage() {
           ? window.localStorage.getItem('mw_active_workspace_id')
           : null;
       const workspaceName = workspacesData.find((item) => item.workspace.id === workspaceId)?.workspace.name ?? null;
+      const activeWorkspace = workspacesData.find((item) => item.workspace.id === workspaceId);
       setActiveWorkspaceName(workspaceName);
+      setActiveWorkspaceAssociatedSocietyId(activeWorkspace?.associatedSocietyId ?? null);
+      setActiveWorkspaceAssociatedSocietyName(activeWorkspace?.associatedSocietyName ?? null);
       const activeProject = getActiveProjectContext();
       if (activeProject && projectsData.some((project) => project.id === activeProject.projectId)) {
         const selectedProject = projectsData.find((project) => project.id === activeProject.projectId);
@@ -249,6 +262,7 @@ export default function TasksPage() {
         : undefined;
     setShowTaskForm(true);
     setEditingTaskId(task.id);
+    setProjectId(task.projectId);
     setDescription(task.description);
     setPrivateComment(task.privateComment ?? '');
     setPriority(task.priority);
@@ -385,6 +399,25 @@ export default function TasksPage() {
     return sorted;
   }, [tasks, activeProjectId, projectFilterId, sortBy, sortDirection]);
 
+  const companyOwnerContactOptions = useMemo(() => {
+    if (!activeWorkspaceAssociatedSocietyId && !activeWorkspaceAssociatedSocietyName) return contacts;
+    const normalizedWorkspaceSocietyName = normalizeSocietyName(activeWorkspaceAssociatedSocietyName ?? '');
+    return contacts.filter((contact) => {
+      if (!contact.society) return false;
+      if (activeWorkspaceAssociatedSocietyId && contact.society.id === activeWorkspaceAssociatedSocietyId) return true;
+      if (normalizedWorkspaceSocietyName && normalizeSocietyName(contact.society.name) === normalizedWorkspaceSocietyName) return true;
+      return false;
+    });
+  }, [contacts, activeWorkspaceAssociatedSocietyId, activeWorkspaceAssociatedSocietyName]);
+
+  useEffect(() => {
+    if (!companyOwnerContactId) return;
+    const isStillAllowed = companyOwnerContactOptions.some((contact) => contact.id === companyOwnerContactId);
+    if (!isStillAllowed) {
+      setCompanyOwnerContactId('');
+    }
+  }, [companyOwnerContactId, companyOwnerContactOptions]);
+
   function onSort(column: 'status' | 'rank' | 'priority' | 'description'): void {
     if (sortBy === column) {
       setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
@@ -514,7 +547,7 @@ export default function TasksPage() {
                   className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3"
                 >
                   <option value="">Responsable société</option>
-                  {contacts.map((contact) => (
+                  {companyOwnerContactOptions.map((contact) => (
                     <option key={contact.id} value={contact.id}>
                       {contact.firstName} {contact.lastName}{contact.society?.name ? ` (${contact.society.name})` : ''}
                     </option>
@@ -615,7 +648,7 @@ export default function TasksPage() {
               className="rounded border border-[var(--line)] px-3 py-2 lg:col-span-3"
             >
               <option value="">Responsable société</option>
-              {contacts.map((contact) => (
+              {companyOwnerContactOptions.map((contact) => (
                 <option key={contact.id} value={contact.id}>
                   {contact.firstName} {contact.lastName}{contact.society?.name ? ` (${contact.society.name})` : ''}
                 </option>
