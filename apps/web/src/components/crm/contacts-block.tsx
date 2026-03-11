@@ -216,7 +216,7 @@ export function ContactsBlock({
     setPhone('');
     setBranch('');
     setRole('');
-    setSocietyId(activeSocietyId || '');
+    setSocietyId(selectedSociety?.id ?? '');
   }
 
   function formatRole(value?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null): string {
@@ -244,13 +244,13 @@ export function ContactsBlock({
         })
         : contacts
     );
-  const uniqueSocieties = societies.reduce<Society[]>((acc, society) => {
-    const key = societyKeyFromName(society.name);
-    const exists = acc.some((item) => societyKeyFromName(item.name) === key);
-    if (!exists) acc.push(society);
-    return acc;
-  }, []);
-  const sortedUniqueSocieties = [...uniqueSocieties].sort(compareByName);
+  const sortedSocieties = [...societies].sort(compareByName);
+
+  useEffect(() => {
+    if (!isFormOpen || editingContactId || societyId) return;
+    if (!selectedSociety?.id) return;
+    setSocietyId(selectedSociety.id);
+  }, [isFormOpen, editingContactId, societyId, selectedSociety]);
 
   return (
     <article id="contacts" className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
@@ -274,13 +274,24 @@ export function ContactsBlock({
           <p>
             Filtre societe actif: <span className="font-semibold">{selectedSociety.name}</span>
           </p>
-          <button
-            type="button"
-            onClick={() => router.push('/crm/contacts')}
-            className="rounded border border-[var(--line)] px-2 py-1 text-xs"
-          >
-            Retirer filtre
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onStartCreate}
+              className="h-7 w-7 rounded bg-[var(--brand)] text-base leading-none text-white"
+              aria-label={`Ajouter un contact pour ${selectedSociety.name}`}
+              title={`Ajouter un contact pour ${selectedSociety.name}`}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push('/crm/contacts')}
+              className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+            >
+              Retirer filtre
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -343,7 +354,7 @@ export function ContactsBlock({
               className="h-10 rounded border border-[var(--line)] bg-white px-3"
             >
               <option value="">Aucune societe</option>
-              {sortedUniqueSocieties.map((society) => (
+              {sortedSocieties.map((society) => (
                 <option key={society.id} value={society.id}>
                   {society.name}
                 </option>
