@@ -390,19 +390,17 @@ export default function TimesheetPage() {
       const progress = Math.min(100, Math.max(0, Number(cfg.progressPercent || 0)));
       const fte = Math.max(0.1, Number(cfg.fte || 1));
 
-      let start: Date | null = null;
+      let proposedStartFromDependency: Date | null = null;
       if (cfg.startsAfterTaskId && cfg.startsAfterTaskId !== taskId && taskMap.has(cfg.startsAfterTaskId) && !stack.has(cfg.startsAfterTaskId)) {
         const nextStack = new Set(stack);
         nextStack.add(taskId);
         const predecessor = computeOne(cfg.startsAfterTaskId, nextStack);
         if (predecessor.end) {
-          start = addBusinessDays(predecessor.end, 1);
+          proposedStartFromDependency = addBusinessDays(predecessor.end, 1);
         }
       }
 
-      if (!start) {
-        start = cfgStart ?? planningStart ?? null;
-      }
+      const start = cfgStart ?? proposedStartFromDependency ?? planningStart ?? null;
       let effective = plannedDuration;
       let end: Date | null = null;
       if (start) {
@@ -1092,10 +1090,9 @@ export default function TimesheetPage() {
                         <td className="px-2 py-2">
                           <input
                             type="date"
-                            value={hasDependency ? computedStart : cfg.startDate}
+                            value={cfg.startDate || (hasDependency ? computedStart : '')}
                             onChange={(e) => updateTaskPlan(task.id, { startDate: e.target.value })}
-                            disabled={hasDependency}
-                            className="rounded border border-[var(--line)] px-2 py-1 disabled:bg-[#f3f2ef]"
+                            className="rounded border border-[var(--line)] px-2 py-1"
                           />
                         </td>
                         <td className="px-2 py-2">

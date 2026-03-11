@@ -285,6 +285,7 @@ export const apiClient = {
         id: string;
         firstName: string;
         lastName: string;
+        branch?: string | null;
         email?: string | null;
         phone?: string | null;
         role?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null;
@@ -301,6 +302,7 @@ export const apiClient = {
         id: string;
         firstName: string;
         lastName: string;
+        branch?: string | null;
         email?: string | null;
         phone?: string | null;
         role?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null;
@@ -318,6 +320,7 @@ export const apiClient = {
       lastName: string;
       email?: string;
       phone?: string;
+      branch?: string;
       role?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL';
       societyId?: string;
     },
@@ -333,11 +336,16 @@ export const apiClient = {
       lastName?: string;
       email?: string | null;
       phone?: string | null;
+      branch?: string | null;
       role?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null;
       societyId?: string | null;
     },
   ) {
     return request(`/crm/contacts/${contactId}`, { method: 'PATCH', token, body: payload });
+  },
+
+  deleteContact(token: string, contactId: string) {
+    return request<{ success: boolean }>(`/crm/contacts/${contactId}`, { method: 'DELETE', token });
   },
 
   listProjects(token: string) {
@@ -1034,7 +1042,7 @@ export const apiClient = {
   },
 
   listUsers(token: string) {
-    return request<Array<{ user: { id: string; email: string; firstName?: string | null; lastName?: string | null }; role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER'; isDefault: boolean }>>('/users', { token });
+    return request<Array<{ user: { id: string; email: string; firstName?: string | null; lastName?: string | null; isActive: boolean }; role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER'; isDefault: boolean }>>('/users', { token });
   },
 
   updateUser(
@@ -1044,9 +1052,18 @@ export const apiClient = {
       firstName?: string | null;
       lastName?: string | null;
       role?: 'ADMIN' | 'COLLABORATOR' | 'VIEWER';
+      isActive?: boolean;
     },
   ) {
     return request(`/users/${userId}`, { method: 'PATCH', token, body: payload });
+  },
+
+  resetUserPassword(token: string, userId: string, password: string) {
+    return request<{ success: boolean }>(`/users/${userId}/reset-password`, {
+      method: 'POST',
+      token,
+      body: { password },
+    });
   },
 
   createUser(

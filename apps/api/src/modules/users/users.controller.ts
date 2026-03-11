@@ -5,6 +5,7 @@ import { WorkspaceRoles } from '../../common/decorators/workspace-roles.decorato
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { WorkspaceRoleGuard } from '../../common/guards/workspace-role.guard';
 import { CreateWorkspaceUserDto } from './dto/create-workspace-user.dto';
+import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { UpdateWorkspaceUserDto } from './dto/update-workspace-user.dto';
 import { UsersService } from './users.service';
 
@@ -38,6 +39,16 @@ export class UsersController {
     @Body() dto: UpdateWorkspaceUserDto,
   ) {
     return this.usersService.updateWorkspaceUser(user.activeWorkspaceId, user.sub, userId, dto);
+  }
+
+  @Post(':userId/reset-password')
+  @WorkspaceRoles(WorkspaceRole.ADMIN)
+  resetPassword(
+    @CurrentUser() user: AuthUser,
+    @Param('userId') userId: string,
+    @Body() dto: ResetUserPasswordDto,
+  ) {
+    return this.usersService.resetWorkspaceUserPassword(user.activeWorkspaceId, user.sub, userId, dto.password);
   }
 
   @Get(':userId/2fa-provisioning')

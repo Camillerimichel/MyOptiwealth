@@ -25,4 +25,8 @@ export class UpdateContactDto {
   @IsOptional()
   @IsString()
   phone?: string | null;
+
+  @IsOptional()
+  @IsString()
+  branch?: string | null;
 }

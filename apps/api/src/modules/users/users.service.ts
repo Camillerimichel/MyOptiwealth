@@ -28,6 +28,7 @@ export class UsersService {
             email: true,
             firstName: true,
             lastName: true,
+            isActive: true,
             createdAt: true,
             updatedAt: true,
             isPlatformAdmin: true,
@@ -60,6 +61,9 @@ export class UsersService {
     if (targetUserId === actorUserId && dto.role && dto.role !== membership.role) {
       throw new ForbiddenException('Tu ne peux pas modifier ton propre role');
     }
+    if (targetUserId === actorUserId && dto.isActive === false) {
+      throw new ForbiddenException('Tu ne peux pas désactiver ton propre compte');
+    }
 
     const updatedUserRole = await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
@@ -67,6 +71,7 @@ export class UsersService {
         data: {
           firstName: dto.firstName === undefined ? undefined : dto.firstName || null,
           lastName: dto.lastName === undefined ? undefined : dto.lastName || null,
+          isActive: dto.isActive,
         },
       });
 
@@ -80,11 +85,12 @@ export class UsersService {
             select: {
               id: true,
               email: true,
-              firstName: true,
-              lastName: true,
-              createdAt: true,
-              updatedAt: true,
-              isPlatformAdmin: true,
+            firstName: true,
+            lastName: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+            isPlatformAdmin: true,
             },
           },
         },
@@ -99,6 +105,7 @@ export class UsersService {
         role: dto.role ?? membership.role,
         firstNameUpdated: dto.firstName !== undefined,
         lastNameUpdated: dto.lastName !== undefined,
+        isActiveUpdated: dto.isActive !== undefined,
       },
       actorUserId,
     );
@@ -155,6 +162,7 @@ export class UsersService {
                 email: true,
                 firstName: true,
                 lastName: true,
+                isActive: true,
                 createdAt: true,
                 updatedAt: true,
                 isPlatformAdmin: true,
@@ -204,6 +212,7 @@ export class UsersService {
               email: true,
               firstName: true,
               lastName: true,
+              isActive: true,
               createdAt: true,
               updatedAt: true,
               isPlatformAdmin: true,
@@ -229,6 +238,46 @@ export class UsersService {
         otpauth: authenticator.keyuri(membership.user.email, 'MyOptiwealth', totpSecret),
       },
     };
+  }
+
+  async resetWorkspaceUserPassword(
+    workspaceId: string,
+    actorUserId: string,
+    targetUserId: string,
+    nextPassword: string,
+  ) {
+    const membership = await this.prisma.userWorkspaceRole.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId: targetUserId,
+          workspaceId,
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Utilisateur introuvable dans ce workspace');
+    }
+
+    const rounds = Number(this.configService.get<string>('BCRYPT_SALT_ROUNDS', '12'));
+    const passwordHash = await bcrypt.hash(nextPassword, rounds);
+
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        passwordHash,
+        refreshTokenHash: null,
+      },
+    });
+
+    await this.auditService.log(
+      workspaceId,
+      'WORKSPACE_USER_PASSWORD_RESET',
+      { targetUserId },
+      actorUserId,
+    );
+
+    return { success: true };
   }
 
   async getUserTwoFactorProvisioning(workspaceId: string, targetUserId: string) {

@@ -9,8 +9,10 @@ import { showToast } from '@/lib/toast';
 type Society = { id: string; name: string };
 type Contact = {
   id: string;
+  workspaceId?: string;
   firstName: string;
   lastName: string;
+  branch?: string | null;
   email?: string | null;
   phone?: string | null;
   role?: 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null;
@@ -48,10 +50,13 @@ export function ContactsBlock({
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [branch, setBranch] = useState('');
   const [role, setRole] = useState('');
   const [societyId, setSocietyId] = useState('');
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [editingContactWorkspaceId, setEditingContactWorkspaceId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const activeSocietyId = selectedSocietyId ?? '';
@@ -87,15 +92,30 @@ export function ContactsBlock({
 
   async function onCreateContact(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    const token = getAccessToken();
+    let token = getAccessToken();
     if (!token || !firstName.trim() || !lastName.trim()) return;
 
     if (editingContactId) {
+      if (editingContactWorkspaceId) {
+        const activeWorkspaceId = typeof window !== 'undefined'
+          ? window.localStorage.getItem('mw_active_workspace_id')
+          : null;
+        if (activeWorkspaceId !== editingContactWorkspaceId) {
+          const switched = await apiClient.switchWorkspace(token, editingContactWorkspaceId);
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('mw_access_token', switched.accessToken);
+            window.localStorage.setItem('mw_active_workspace_id', switched.activeWorkspaceId);
+            window.dispatchEvent(new Event('mw_workspace_changed'));
+          }
+          token = switched.accessToken;
+        }
+      }
       await apiClient.updateContact(token, editingContactId, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim() || null,
         phone: phone.trim() || null,
+        branch: branch.trim() || null,
         role: (role || null) as 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | null,
         societyId: societyId || null,
       });
@@ -106,6 +126,7 @@ export function ContactsBlock({
         lastName: lastName.trim(),
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
+        branch: branch.trim() || undefined,
         role: (role || undefined) as 'DECIDEUR' | 'N_MINUS_1' | 'OPERATIONNEL' | undefined,
         societyId: societyId || undefined,
       });
@@ -113,11 +134,13 @@ export function ContactsBlock({
     }
 
     setEditingContactId(null);
+    setEditingContactWorkspaceId(null);
     setIsFormOpen(false);
     setFirstName('');
     setLastName('');
     setEmail('');
     setPhone('');
+    setBranch('');
     setRole('');
     setSocietyId('');
     await load();
@@ -126,21 +149,59 @@ export function ContactsBlock({
   function onEditContact(contact: Contact): void {
     setIsFormOpen(true);
     setEditingContactId(contact.id);
+    setEditingContactWorkspaceId(contact.workspaceId ?? null);
     setFirstName(contact.firstName);
     setLastName(contact.lastName);
     setEmail(contact.email ?? '');
     setPhone(contact.phone ?? '');
+    setBranch(contact.branch ?? '');
     setRole(contact.role ?? '');
     setSocietyId(contact.society?.id ?? '');
+  }
+
+  async function onDeleteContact(contact: Contact): Promise<void> {
+    let token = getAccessToken();
+    if (!token) return;
+    const confirmed = window.confirm(`Supprimer le contact ${contact.lastName} ${contact.firstName} ?`);
+    if (!confirmed) return;
+    try {
+      setDeletingContactId(contact.id);
+      if (contact.workspaceId) {
+        const activeWorkspaceId = typeof window !== 'undefined'
+          ? window.localStorage.getItem('mw_active_workspace_id')
+          : null;
+        if (activeWorkspaceId !== contact.workspaceId) {
+          const switched = await apiClient.switchWorkspace(token, contact.workspaceId);
+          if (typeof window !== 'undefined') {
+            window.localStorage.setItem('mw_access_token', switched.accessToken);
+            window.localStorage.setItem('mw_active_workspace_id', switched.activeWorkspaceId);
+            window.dispatchEvent(new Event('mw_workspace_changed'));
+          }
+          token = switched.accessToken;
+        }
+      }
+      await apiClient.deleteContact(token, contact.id);
+      if (editingContactId === contact.id) {
+        onCancelEdit();
+      }
+      showToast('Contact supprime.', 'success');
+      await load();
+    } catch {
+      showToast('Suppression impossible.', 'error');
+    } finally {
+      setDeletingContactId(null);
+    }
   }
 
   function onCancelEdit(): void {
     setIsFormOpen(false);
     setEditingContactId(null);
+    setEditingContactWorkspaceId(null);
     setFirstName('');
     setLastName('');
     setEmail('');
     setPhone('');
+    setBranch('');
     setRole('');
     setSocietyId('');
   }
@@ -148,10 +209,12 @@ export function ContactsBlock({
   function onStartCreate(): void {
     setIsFormOpen(true);
     setEditingContactId(null);
+    setEditingContactWorkspaceId(null);
     setFirstName('');
     setLastName('');
     setEmail('');
     setPhone('');
+    setBranch('');
     setRole('');
     setSocietyId(activeSocietyId || '');
   }
@@ -256,6 +319,13 @@ export function ContactsBlock({
             />
           </div>
 
+          <input
+            value={branch}
+            onChange={(event) => setBranch(event.target.value)}
+            placeholder="Branche (saisie manuelle)"
+            className="h-10 rounded border border-[var(--line)] px-3"
+          />
+
           <div className="grid gap-2 sm:grid-cols-2">
             <select
               value={role}
@@ -303,8 +373,10 @@ export function ContactsBlock({
               <th className="px-2 py-2">Nom + Prenom</th>
               <th className="px-2 py-2">Adresse mail</th>
               <th className="px-2 py-2">Telephone</th>
+              <th className="px-2 py-2">Branche</th>
               <th className="px-2 py-2">Societe</th>
               <th className="px-2 py-2">Role</th>
+              <th className="px-2 py-2">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -321,8 +393,30 @@ export function ContactsBlock({
                 </td>
                 <td className="px-2 py-2">{contact.email || '-'}</td>
                 <td className="px-2 py-2">{contact.phone || '-'}</td>
+                <td className="px-2 py-2">{contact.branch || '-'}</td>
                 <td className="px-2 py-2">{contact.society?.name || '-'}</td>
                 <td className="px-2 py-2">{formatRole(contact.role)}</td>
+                <td className="px-2 py-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onEditContact(contact)}
+                      className="rounded border border-[var(--line)] px-2 py-1 text-xs"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void onDeleteContact(contact);
+                      }}
+                      disabled={deletingContactId === contact.id}
+                      className="rounded border border-red-200 px-2 py-1 text-xs text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingContactId === contact.id ? 'Suppression...' : 'Supprimer'}
+                    </button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

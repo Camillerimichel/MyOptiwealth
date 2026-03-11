@@ -139,6 +139,7 @@ export default function WorkspaceSettingsPage() {
     setShowCreateWorkspace(false);
     showToast('Workspace créé.', 'success');
     await load();
+    window.dispatchEvent(new Event('mw_workspace_changed'));
   }
 
   function onStartEdit(workspaceId: string, name: string, associatedSocietyName: string | null): void {
@@ -162,6 +163,7 @@ export default function WorkspaceSettingsPage() {
       setEditingAssociatedSocietyId('');
       setEditingAssociatedSocietyName(null);
       await load();
+      window.dispatchEvent(new Event('mw_workspace_changed'));
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Modification impossible.', 'error');
     }
@@ -176,6 +178,7 @@ export default function WorkspaceSettingsPage() {
       await apiClient.deleteWorkspace(token, workspaceId, confirmation);
       showToast('Workspace supprimé.', 'success');
       await load();
+      window.dispatchEvent(new Event('mw_workspace_changed'));
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Suppression impossible.', 'error');
     }

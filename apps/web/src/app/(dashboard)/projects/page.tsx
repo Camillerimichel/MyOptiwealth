@@ -85,6 +85,9 @@ function contactSocietyLink(name?: string | null): string {
 export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectEmailStatsByProjectId, setProjectEmailStatsByProjectId] = useState<
+    Record<string, { direct: number; task: number; workspace: number; total: number }>
+  >({});
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [workspaceSocietyNameKeys, setWorkspaceSocietyNameKeys] = useState<string[]>([]);
   const [projectContacts, setProjectContacts] = useState<ProjectContact[]>([]);
@@ -118,22 +121,72 @@ export default function ProjectsPage() {
     try {
       setLoading(true);
       setError(null);
-      const [projectsData, societiesData, settings, contactsData, workspacesData] = await Promise.all([
+      const [projectsData, societiesData, settings, contactsData, workspacesData, linkedEmailsData] = await Promise.all([
         apiClient.listProjects(token),
         apiClient.listSocieties(token),
         apiClient.getWorkspaceSettings(token),
         apiClient.listContactsAll(token),
         apiClient.listWorkspaces(token),
+        apiClient.listLinkedEmails(token),
       ]);
-      setProjects(projectsData);
-      setContacts(contactsData);
-      setWorkspaceSocietyNameKeys(
-        [...new Set(societiesData.map((society) => normalizeSocietyName(society.name)).filter(Boolean))],
-      );
       const workspaceId =
         typeof window !== 'undefined'
           ? window.localStorage.getItem('mw_active_workspace_id')
           : null;
+      const linkedEmailsForActiveWorkspace = workspaceId
+        ? linkedEmailsData.filter((email) => email.workspace.id === workspaceId)
+        : linkedEmailsData;
+      setProjects(projectsData);
+      setContacts(contactsData);
+      const directEmailIdsByProjectId = new Map<string, Set<string>>();
+      const taskEmailIdsByProjectId = new Map<string, Set<string>>();
+      for (const email of linkedEmailsForActiveWorkspace) {
+        if (email.project?.id) {
+          if (!directEmailIdsByProjectId.has(email.project.id)) {
+            directEmailIdsByProjectId.set(email.project.id, new Set<string>());
+          }
+          directEmailIdsByProjectId.get(email.project.id)?.add(email.id);
+        }
+        const taskProjectIds = new Set(
+          email.tasks
+            .map((link) => link.task.projectId)
+            .filter(Boolean),
+        );
+        for (const projectId of taskProjectIds) {
+          if (!taskEmailIdsByProjectId.has(projectId)) {
+            taskEmailIdsByProjectId.set(projectId, new Set<string>());
+          }
+          taskEmailIdsByProjectId.get(projectId)?.add(email.id);
+        }
+      }
+      let workspaceLevelValidatedCount = 0;
+      for (const email of linkedEmailsForActiveWorkspace) {
+        const metadata = email.metadata as { inboxValidated?: boolean; inboxIgnored?: boolean } | null | undefined;
+        const hasProject = Boolean(email.project?.id);
+        const hasTask = email.tasks.length > 0;
+        if (!hasProject && !hasTask && Boolean(metadata?.inboxValidated) && !Boolean(metadata?.inboxIgnored)) {
+          workspaceLevelValidatedCount += 1;
+        }
+      }
+
+      const nextProjectEmailStats: Record<string, { direct: number; task: number; workspace: number; total: number }> = {};
+      const shouldApplyWorkspaceLevelToSingleProject = projectsData.length === 1;
+      for (const project of projectsData) {
+        const directIds = directEmailIdsByProjectId.get(project.id) ?? new Set<string>();
+        const taskIds = taskEmailIdsByProjectId.get(project.id) ?? new Set<string>();
+        const totalIds = new Set<string>([...directIds, ...taskIds]);
+        const workspaceCount = shouldApplyWorkspaceLevelToSingleProject ? workspaceLevelValidatedCount : 0;
+        nextProjectEmailStats[project.id] = {
+          direct: directIds.size,
+          task: taskIds.size,
+          workspace: workspaceCount,
+          total: totalIds.size + workspaceCount,
+        };
+      }
+      setProjectEmailStatsByProjectId(nextProjectEmailStats);
+      setWorkspaceSocietyNameKeys(
+        [...new Set(societiesData.map((society) => normalizeSocietyName(society.name)).filter(Boolean))],
+      );
       const workspaceName = workspacesData.find((item) => item.workspace.id === workspaceId)?.workspace.name ?? null;
       setActiveWorkspaceName(workspaceName);
       const workspaceDefaultSociety = [...societiesData]
@@ -193,6 +246,7 @@ export default function ProjectsPage() {
       }
     } catch {
       setProjects([]);
+      setProjectEmailStatsByProjectId({});
       setDefaultSocietyName('');
       setError('Chargement impossible.');
     } finally {
@@ -614,49 +668,61 @@ export default function ProjectsPage() {
               </tr>
             </thead>
             <tbody>
-              {projects.map((project) => (
-                <tr
-                  key={project.id}
-                  className={project.id === activeProjectId ? 'border-b border-[var(--line)] bg-[#f7f3e8]' : 'border-b border-[var(--line)]'}
-                >
-                  <td className="px-2 py-2">{project.name}</td>
-                  <td className="px-2 py-2">{project.progressPercent}%</td>
-                  <td className="px-2 py-2">{project.missionType ? (LEGACY_MISSION_LABELS[project.missionType] ?? project.missionType) : '-'}</td>
-                  <td className="px-2 py-2">
-                    {project.contacts && project.contacts.length > 0 ? (
-                      <div className="flex flex-wrap gap-x-2 gap-y-1">
-                        {project.contacts.map((link) => (
-                          <Link
-                            key={`${project.id}-${link.contact.id}`}
-                            href={contactSocietyLink(link.contact.society?.name)}
-                            className="text-[var(--brand)] underline-offset-2 hover:underline"
-                          >
-                            {link.contact.firstName} {link.contact.lastName}
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      '-'
-                    )}
-                  </td>
-                  <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      onClick={() => onEditProject(project)}
-                      className="text-[var(--brand)] underline-offset-2 hover:underline"
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onSetProjectContext(project)}
-                      className="ml-3 text-[#4f4d45] underline-offset-2 hover:underline"
-                    >
-                      Contexte
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {projects.map((project) => {
+                const emailStats = projectEmailStatsByProjectId[project.id] ?? { direct: 0, task: 0, workspace: 0, total: 0 };
+                return (
+                  <tr
+                    key={project.id}
+                    className={project.id === activeProjectId ? 'border-b border-[var(--line)] bg-[#f7f3e8]' : 'border-b border-[var(--line)]'}
+                  >
+                    <td className="px-2 py-2">{project.name}</td>
+                    <td className="px-2 py-2">{project.progressPercent}%</td>
+                    <td className="px-2 py-2">{project.missionType ? (LEGACY_MISSION_LABELS[project.missionType] ?? project.missionType) : '-'}</td>
+                    <td className="px-2 py-2">
+                      {project.contacts && project.contacts.length > 0 ? (
+                        <div className="flex flex-wrap gap-x-2 gap-y-1">
+                          {project.contacts.map((link) => (
+                            <Link
+                              key={`${project.id}-${link.contact.id}`}
+                              href={contactSocietyLink(link.contact.society?.name)}
+                              className="text-[var(--brand)] underline-offset-2 hover:underline"
+                            >
+                              {link.contact.firstName} {link.contact.lastName}
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                    <td className="px-2 py-2">
+                      <Link
+                        href="/emails"
+                        className={emailStats.total > 0
+                          ? 'mr-3 inline-flex rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-900 underline underline-offset-2'
+                          : 'mr-3 inline-flex rounded-full border border-[var(--line)] bg-[#f7f6f2] px-2 py-1 text-xs text-[#6a6861] underline underline-offset-2'}
+                        title={`Projet: ${emailStats.direct} • Tâches: ${emailStats.task} • Workspace: ${emailStats.workspace}`}
+                      >
+                        Mails: {emailStats.total}
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => onSetProjectContext(project)}
+                        className="text-[#4f4d45] underline-offset-2 hover:underline"
+                      >
+                        Sélectionner
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onEditProject(project)}
+                        className="ml-3 text-[var(--brand)] underline-offset-2 hover:underline"
+                      >
+                        Modifier
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

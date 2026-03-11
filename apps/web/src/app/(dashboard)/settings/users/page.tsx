@@ -6,14 +6,14 @@ import { getAccessToken } from '@/lib/auth';
 import { showToast } from '@/lib/toast';
 
 type UserRole = {
-  user: { id: string; email: string; firstName?: string | null; lastName?: string | null };
+  user: { id: string; email: string; firstName?: string | null; lastName?: string | null; isActive: boolean };
   role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER';
   isDefault: boolean;
 };
 
 export default function SettingsUsersPage() {
   const [users, setUsers] = useState<UserRole[]>([]);
-  const [userDrafts, setUserDrafts] = useState<Record<string, { firstName: string; lastName: string; role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER' }>>({});
+  const [userDrafts, setUserDrafts] = useState<Record<string, { firstName: string; lastName: string; role: 'ADMIN' | 'COLLABORATOR' | 'VIEWER'; isActive: boolean; password: string }>>({});
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newFirstName, setNewFirstName] = useState('');
@@ -44,6 +44,8 @@ export default function SettingsUsersPage() {
               firstName: item.user.firstName ?? '',
               lastName: item.user.lastName ?? '',
               role: item.role,
+              isActive: item.user.isActive,
+              password: '',
             },
           ]),
         ),
@@ -59,15 +61,24 @@ export default function SettingsUsersPage() {
     void load();
   }, [load]);
 
-  function updateUserDraft(userId: string, field: 'firstName' | 'lastName' | 'role', value: string): void {
+  function updateUserDraft(userId: string, field: 'firstName' | 'lastName' | 'role' | 'isActive' | 'password', value: string): void {
     setUserDrafts((current) => {
-      const existing = current[userId] ?? { firstName: '', lastName: '', role: 'VIEWER' as const };
+      const existing = current[userId] ?? { firstName: '', lastName: '', role: 'VIEWER' as const, isActive: true, password: '' };
       if (field === 'role') {
         return {
           ...current,
           [userId]: {
             ...existing,
             role: value as 'ADMIN' | 'COLLABORATOR' | 'VIEWER',
+          },
+        };
+      }
+      if (field === 'isActive') {
+        return {
+          ...current,
+          [userId]: {
+            ...existing,
+            isActive: value === 'true',
           },
         };
       }
@@ -91,9 +102,29 @@ export default function SettingsUsersPage() {
       firstName: draft.firstName || null,
       lastName: draft.lastName || null,
       role: draft.role,
+      isActive: draft.isActive,
     });
     showToast('Utilisateur mis à jour.', 'success');
     await load();
+  }
+
+  async function onResetPassword(userId: string): Promise<void> {
+    const token = getAccessToken();
+    if (!token) return;
+    const draft = userDrafts[userId];
+    if (!draft?.password || draft.password.length < 8) {
+      showToast('Mot de passe minimum 8 caractères.', 'error');
+      return;
+    }
+    await apiClient.resetUserPassword(token, userId, draft.password);
+    setUserDrafts((current) => ({
+      ...current,
+      [userId]: {
+        ...(current[userId] ?? { firstName: '', lastName: '', role: 'VIEWER', isActive: true, password: '' }),
+        password: '',
+      },
+    }));
+    showToast('Mot de passe réinitialisé.', 'success');
   }
 
   async function onCreateUser(): Promise<void> {
@@ -183,6 +214,8 @@ export default function SettingsUsersPage() {
               firstName: item.user.firstName ?? '',
               lastName: item.user.lastName ?? '',
               role: item.role,
+              isActive: item.user.isActive,
+              password: '',
             };
             const selected = selectedUserId === item.user.id;
             return (
@@ -198,11 +231,14 @@ export default function SettingsUsersPage() {
                   <p className="text-sm font-medium text-[var(--fg)]">
                     {[item.user.firstName, item.user.lastName].filter(Boolean).join(' ') || 'Sans nom'} ({item.role})
                   </p>
+                  <p className={`text-xs ${item.user.isActive ? 'text-emerald-700' : 'text-red-700'}`}>
+                    {item.user.isActive ? 'Actif' : 'Non actif'}
+                  </p>
                 </button>
 
                 {selected ? (
                   <div className="grid gap-2 rounded border border-[var(--line)] bg-[#f8f4ea] p-2">
-                    <div className="grid gap-2 lg:grid-cols-4">
+                    <div className="grid gap-2 lg:grid-cols-5">
                       <input
                         value={draft.firstName}
                         onChange={(e) => updateUserDraft(item.user.id, 'firstName', e.target.value)}
@@ -224,6 +260,14 @@ export default function SettingsUsersPage() {
                         <option value="COLLABORATOR">COLLABORATOR</option>
                         <option value="VIEWER">VIEWER</option>
                       </select>
+                      <select
+                        value={String(draft.isActive)}
+                        onChange={(e) => updateUserDraft(item.user.id, 'isActive', e.target.value)}
+                        className="rounded border border-[var(--line)] px-2 py-2"
+                      >
+                        <option value="true">Actif</option>
+                        <option value="false">Non actif</option>
+                      </select>
                       <button
                         onClick={() => {
                           void onSaveUser(item.user.id);
@@ -231,6 +275,23 @@ export default function SettingsUsersPage() {
                         className="rounded bg-[var(--brand)] px-3 py-2 text-white"
                       >
                         Enregistrer
+                      </button>
+                    </div>
+                    <div className="grid gap-2 lg:grid-cols-4">
+                      <input
+                        type="password"
+                        value={draft.password}
+                        onChange={(e) => updateUserDraft(item.user.id, 'password', e.target.value)}
+                        placeholder="Nouveau mot de passe (8+ caractères)"
+                        className="rounded border border-[var(--line)] px-2 py-2 lg:col-span-3"
+                      />
+                      <button
+                        onClick={() => {
+                          void onResetPassword(item.user.id);
+                        }}
+                        className="rounded border border-[var(--line)] bg-white px-3 py-2"
+                      >
+                        Réinitialiser MDP
                       </button>
                     </div>
                   </div>

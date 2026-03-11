@@ -171,6 +171,9 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    if (!user.isActive) {
+      throw new UnauthorizedException('Compte inactif');
+    }
 
     const validPassword = await bcrypt.compare(dto.password, user.passwordHash);
     if (!validPassword) {
@@ -217,6 +220,10 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({ where: { id: decoded.sub } });
 
+    if (!user?.isActive) {
+      throw new UnauthorizedException('Compte inactif');
+    }
+
     if (!user?.refreshTokenHash) {
       throw new UnauthorizedException('Refresh denied');
     }
@@ -245,6 +252,14 @@ export class AuthService {
     isPlatformAdmin: boolean,
     workspaceId: string,
   ): Promise<TokenPair> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isActive: true },
+    });
+    if (!user?.isActive) {
+      throw new UnauthorizedException('Compte inactif');
+    }
+
     const payload: TokenPayload = {
       sub: userId,
       email,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { WorkspaceRoles } from '../../common/decorators/workspace-roles.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -70,5 +70,14 @@ export class CrmController {
     @Body() dto: UpdateContactDto,
   ) {
     return this.crmService.updateContact(user.activeWorkspaceId, contactId, dto);
+  }
+
+  @Delete('contacts/:contactId')
+  @WorkspaceRoles(WorkspaceRole.ADMIN, WorkspaceRole.COLLABORATOR)
+  deleteContact(
+    @CurrentUser() user: AuthUser,
+    @Param('contactId') contactId: string,
+  ) {
+    return this.crmService.deleteContact(user.activeWorkspaceId, contactId);
   }
 }

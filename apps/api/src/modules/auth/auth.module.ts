@@ -5,10 +5,11 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuditModule } from '../audit/audit.module';
+import { PrismaModule } from '../prisma.module';
 import { EncryptionService } from '../../common/crypto/encryption.service';
 
 @Module({
-  imports: [ConfigModule, JwtModule.register({}), AuditModule],
+  imports: [ConfigModule, JwtModule.register({}), AuditModule, PrismaModule],
   providers: [AuthService, JwtStrategy, EncryptionService],
   controllers: [AuthController],
   exports: [AuthService],

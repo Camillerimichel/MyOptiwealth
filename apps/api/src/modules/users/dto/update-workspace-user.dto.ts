@@ -1,5 +1,5 @@
 import { WorkspaceRole } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateWorkspaceUserDto {
   @IsOptional()
@@ -15,4 +15,8 @@ export class UpdateWorkspaceUserDto {
   @IsOptional()
   @IsEnum(WorkspaceRole)
   role?: WorkspaceRole;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

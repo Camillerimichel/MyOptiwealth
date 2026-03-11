@@ -95,6 +95,7 @@ export class CrmService {
         lastName: dto.lastName,
         email: dto.email,
         phone: dto.phone,
+        branch: dto.branch,
         role: dto.role,
         societyId: dto.societyId ?? undefined,
       },
@@ -108,6 +109,16 @@ export class CrmService {
       where: { id: contactId },
       include: { society: true },
     });
+  }
+
+  async deleteContact(workspaceId: string, contactId: string) {
+    const result = await this.prisma.contact.deleteMany({
+      where: { id: contactId, workspaceId },
+    });
+    if (result.count === 0) {
+      throw new NotFoundException('Contact introuvable dans ce workspace');
+    }
+    return { success: true };
   }
 
   listContacts(workspaceId: string) {

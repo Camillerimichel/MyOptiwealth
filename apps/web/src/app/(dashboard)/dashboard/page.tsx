@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
@@ -7,6 +9,7 @@ import {
   clearActiveTaskContext,
   getActiveProjectContext,
   setActiveProjectContext,
+  setActiveTaskContext,
 } from '@/lib/active-task';
 import { WorkspaceDashboardOverviewPayload } from '@/types/api';
 
@@ -33,6 +36,7 @@ function priorityLabel(priority: number): string {
 const WORKSPACE_NAME_COLLATOR = new Intl.Collator('fr', { sensitivity: 'base' });
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<WorkspaceDashboardOverviewPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeWorkspaceName, setActiveWorkspaceName] = useState<string | null>(null);
@@ -102,6 +106,40 @@ export default function DashboardPage() {
     window.location.href = path;
   }, []);
 
+  const ensureWorkspaceActive = useCallback(async (workspaceId: string): Promise<boolean> => {
+    const currentToken = typeof window !== 'undefined' ? localStorage.getItem('mw_access_token') : null;
+    if (!currentToken) return false;
+    const currentWorkspaceId = typeof window !== 'undefined' ? localStorage.getItem('mw_active_workspace_id') : null;
+    if (currentWorkspaceId === workspaceId) return true;
+    try {
+      const switched = await apiClient.switchWorkspace(currentToken, workspaceId);
+      localStorage.setItem('mw_access_token', switched.accessToken);
+      localStorage.setItem('mw_active_workspace_id', switched.activeWorkspaceId);
+      window.dispatchEvent(new Event('mw_workspace_changed'));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const openUpcomingTask = useCallback(async (task: WorkspaceDashboardOverviewPayload['upcomingTasks'][number]): Promise<void> => {
+    const switched = await ensureWorkspaceActive(task.workspace.id);
+    if (!switched) return;
+    setActiveProjectContext({
+      projectId: task.project.id,
+      projectTitle: task.project.name,
+      projectTypology: null,
+      workspaceId: task.workspace.id,
+    });
+    setActiveTaskContext({
+      taskId: task.id,
+      projectId: task.project.id,
+      taskDescription: task.description,
+      workspaceId: task.workspace.id,
+    });
+    router.push('/tasks');
+  }, [ensureWorkspaceActive, router]);
+
   if (!token) {
     return <p className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Aucun token détecté.</p>;
   }
@@ -136,8 +174,8 @@ export default function DashboardPage() {
         </p>
       </article>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel lg:col-span-1">
           <h2 className="mb-3 text-base font-semibold text-[var(--brand)]">Synthèse Finance</h2>
           <div className="grid gap-2 text-sm">
             <div className="flex items-center justify-between rounded border border-[var(--line)] bg-[#f9f7f2] px-3 py-2">
@@ -155,7 +193,7 @@ export default function DashboardPage() {
           </div>
         </article>
 
-        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
+        <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel lg:col-span-2">
           <h2 className="mb-3 text-base font-semibold text-[var(--brand)]">
             Alertes :{' '}
             {data.upcomingTasks.length === 0 ? 'Aucune' : data.upcomingTasks.length} tâche{data.upcomingTasks.length > 1 ? 's' : ''}{' '}
@@ -170,7 +208,7 @@ export default function DashboardPage() {
                   <tr className="border-b border-[var(--line)] bg-[#f9f7f2] text-left text-[#6a6861]">
                     <th className="w-28 px-2 py-2">Échéance</th>
                     <th className="px-2 py-2">Tâche</th>
-                    <th className="w-32 px-2 py-2">Workspace</th>
+                    <th className="w-40 px-2 py-2">Workspace concerné</th>
                     <th className="w-28 px-2 py-2">Priorité</th>
                   </tr>
                 </thead>
@@ -179,9 +217,17 @@ export default function DashboardPage() {
                     <tr key={task.id} className="border-b border-[var(--line)]">
                       <td className="px-2 py-2">{task.dueDate ? task.dueDate.slice(0, 10) : '-'}</td>
                       <td className="px-2 py-2">
-                        <span className="block truncate" title={task.description}>
+                        <Link
+                          href="/tasks"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            void openUpcomingTask(task);
+                          }}
+                          className="block truncate text-[#0f4c81] underline underline-offset-2"
+                          title={`Ouvrir la tâche: ${task.description}`}
+                        >
                           {task.description}
-                        </span>
+                        </Link>
                       </td>
                       <td className="px-2 py-2">
                         <span className="block truncate" title={task.workspace.name}>

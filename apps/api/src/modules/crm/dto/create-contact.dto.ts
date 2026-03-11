@@ -23,4 +23,8 @@ export class CreateContactDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  branch?: string;
 }
