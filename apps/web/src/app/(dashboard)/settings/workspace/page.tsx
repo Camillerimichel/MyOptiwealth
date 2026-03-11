@@ -107,6 +107,15 @@ export default function WorkspaceSettingsPage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const createRequested = new URLSearchParams(window.location.search).get('create');
+    if (createRequested === '1' || createRequested === 'true') {
+      setActiveSubmenu('workspaces');
+      setShowCreateWorkspace(true);
+    }
+  }, []);
+
   async function onSwitch(workspaceId: string): Promise<void> {
     const token = getAccessToken();
     if (!token) return;
@@ -211,7 +220,7 @@ export default function WorkspaceSettingsPage() {
           onClick={() => setActiveSubmenu('workspaces')}
           className={`rounded px-3 py-2 text-sm ${activeSubmenu === 'workspaces' ? 'bg-[var(--brand)] text-white' : 'border border-[var(--line)]'}`}
         >
-          Workspaces
+          Espaces de travail
         </button>
         <button
           type="button"
@@ -225,7 +234,7 @@ export default function WorkspaceSettingsPage() {
       {activeSubmenu === 'workspaces' ? (
       <article className="rounded-xl border border-[var(--line)] bg-white p-5 shadow-panel">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="font-semibold">Workspaces</h2>
+          <h2 className="font-semibold">Espaces de travail</h2>
           <button
             onClick={() => setShowCreateWorkspace((prev) => !prev)}
             className="h-8 w-8 rounded bg-[var(--brand)] text-lg leading-none text-white"
@@ -287,7 +296,7 @@ export default function WorkspaceSettingsPage() {
                 </span>
                 <div className="flex items-center gap-2">
                   <button onClick={() => void onSwitch(item.workspace.id)} className="rounded border border-[var(--line)] px-2 py-1 text-xs">
-                    Switch
+                    Basculer
                   </button>
                   <button
                     onClick={() => onStartEdit(item.workspace.id, item.workspace.name, item.associatedSocietyName)}

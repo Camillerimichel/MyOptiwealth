@@ -17,7 +17,11 @@
     "ops:qrt:tick": "node ops/qrt-ops-worker.mjs --tick",
     "ops:qrt:run": "node ops/qrt-ops-worker.mjs --run",
     "ops:qrt:once": "node ops/qrt-ops-worker.mjs --tick --run",
-    "ops:mail-gateway": "node ops/mail-gateway/server.mjs"
+    "ops:mail-gateway": "node ops/mail-gateway/server.mjs",
+    "release:quick": "bash ops/release.sh quick",
+    "release:web": "bash ops/release.sh web",
+    "release:full": "bash ops/release.sh full",
+    "release:full:pull": "bash ops/release.sh full --pull"
   },
   "dependencies": {
     "archiver": "^7.0.1",

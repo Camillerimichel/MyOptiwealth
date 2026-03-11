@@ -11,12 +11,12 @@ Contexte opérationnel rapide pour travailler sur MyOptiWealth.
 - WWW: `https://www.myoptiwealth.fr`
 
 ## PM2
-- `myoptiwealth-api` -> port `3400`
-- `myoptiwealth-frontend` -> port `3401`
+- `myoptiwealth-saas-api` -> port `7000`
+- `myoptiwealth-saas-web` -> port `3002`
 
 ## Déploiement standard
 ```bash
-bash /var/www/myoptiwealth/ops/deploy-local.sh
+bash /var/www/myoptiwealth/ops/release.sh
 ```
 
 ## Santé

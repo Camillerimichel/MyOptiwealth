@@ -6,41 +6,41 @@ import { useState } from 'react';
 import { cn } from '@/lib/cn';
 
 const links = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/calendar', label: 'Calendar' },
+  { href: '/dashboard', label: 'Tableau de bord' },
+  { href: '/calendar', label: 'Calendrier' },
   {
     href: '/crm',
     label: 'CRM',
     sectionKey: 'crm',
     children: [
-      { href: '/crm/societies', label: 'Societes' },
+      { href: '/crm/societies', label: 'Sociétés' },
       { href: '/crm/contacts', label: 'Contacts' },
     ],
   },
-  { href: '/projects', label: 'Projects' },
-  { href: '/tasks', label: 'Tasks' },
-  { href: '/emails', label: 'Emails' },
+  { href: '/projects', label: 'Projets' },
+  { href: '/tasks', label: 'Tâches' },
+  { href: '/emails', label: 'E-mails' },
   { href: '/documents', label: 'Documents' },
-  { href: '/timesheet', label: 'Timesheet' },
+  { href: '/timesheet', label: 'Feuille de temps' },
   { href: '/finance', label: 'Finance' },
   {
     href: '/boite-mail',
-    label: 'Boite mail',
+    label: 'Boîte mail',
     sectionKey: 'boite-mail',
     children: [
       { href: '/boite-mail', label: 'Globale' },
-      { href: '/boite-mail-inbox', label: 'Inbox' },
+      { href: '/boite-mail-inbox', label: 'Réception' },
     ],
   },
   {
     href: '/settings',
-    label: 'Settings',
+    label: 'Paramètres',
     sectionKey: 'settings',
     children: [
-      { href: '/settings/workspace', label: 'Workspace' },
-      { href: '/settings/parameters', label: 'Parametres' },
-      { href: '/settings/users', label: 'Users' },
-      { href: '/settings/log', label: 'Log' },
+      { href: '/settings/workspace', label: 'Espaces de travail' },
+      { href: '/settings/parameters', label: 'Paramètres' },
+      { href: '/settings/users', label: 'Utilisateurs' },
+      { href: '/settings/log', label: 'Journal' },
     ],
   },
 ];

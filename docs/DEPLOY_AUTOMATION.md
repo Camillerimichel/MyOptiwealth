@@ -31,5 +31,5 @@ Le workflow se connecte en SSH puis execute:
 ```bash
 cd /var/www/myoptiwealth
 git pull --ff-only origin main
-bash /var/www/myoptiwealth/ops/deploy-local.sh
+bash /var/www/myoptiwealth/ops/release.sh full
 ```

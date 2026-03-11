@@ -9,22 +9,23 @@ Plateforme de pilotage risques/assurance (SaaS: `apps/web` + `apps/api`).
 - Racine projet: `/var/www/myoptiwealth`
 
 ## Déploiement
-- Standard (avec pull):
+- Commande unique (recommandée):
 ```bash
-bash /var/www/myoptiwealth/ops/saas-deploy.sh
+bash /var/www/myoptiwealth/ops/release.sh
 ```
-- Local (sans pull):
+- Full (sans pull):
 ```bash
-bash /var/www/myoptiwealth/ops/saas-deploy-local.sh
+bash /var/www/myoptiwealth/ops/release.sh full
 ```
-- Web uniquement (changement UI):
+- Full (avec pull):
 ```bash
-bash /var/www/myoptiwealth/ops/saas-deploy-web-local.sh
+bash /var/www/myoptiwealth/ops/release.sh full --pull
+```
+- Web uniquement (changement UI, alias du mode par défaut):
+```bash
+bash /var/www/myoptiwealth/ops/release.sh quick
 ```
 - CI/CD GitHub Actions (push sur `main`): `.github/workflows/deploy.yml`
-
-## Compatibilité scripts legacy
-- `ops/deploy.sh`, `ops/deploy-local.sh` et `ops/deploy-frontend.sh` redirigent désormais vers les scripts SaaS.
 
 ## Sauvegarde base
 - Script backup: `/var/www/myoptiwealth/ops/backup-db.sh`

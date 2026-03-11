@@ -111,6 +111,16 @@ export default function DashboardPage() {
         <PageTitle
           title="Tableau de bord"
           description="Vue top-down avec blocs cliquables vers les pages thématiques de pilotage."
+          titleAddon={(
+            <a
+              href="https://myoptiwealth.fr/settings/workspace?create=1"
+              className="ml-auto inline-flex items-center rounded-md border border-slate-500 px-2 py-1 text-sm font-semibold text-white hover:bg-slate-700"
+              title="Créer un workspace"
+              aria-label="Créer un workspace"
+            >
+              /
+            </a>
+          )}
         />
 
         <section className="rounded-xl border border-slate-300 bg-white p-5 shadow-sm">

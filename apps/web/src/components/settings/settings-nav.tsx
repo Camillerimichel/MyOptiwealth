@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/cn';
 
 const tabs = [
-  { href: '/settings/workspace', label: 'Workspace' },
-  { href: '/settings/parameters', label: 'Parametres' },
-  { href: '/settings/users', label: 'Users' },
-  { href: '/settings/log', label: 'Log' },
+  { href: '/settings/workspace', label: 'Espaces de travail' },
+  { href: '/settings/parameters', label: 'Paramètres' },
+  { href: '/settings/users', label: 'Utilisateurs' },
+  { href: '/settings/log', label: 'Journal' },
 ];
 
 export function SettingsNav() {

@@ -20,5 +20,5 @@ mysqldump -u captiva -p'b8d0a427a4156542f625b9f6ba9f58bb' --single-transaction c
 
 ## 4) Redémarrer l'application
 ```bash
-bash /var/www/myoptiwealth/ops/deploy-local.sh
+bash /var/www/myoptiwealth/ops/release.sh full
 ```

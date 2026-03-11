@@ -1,5 +1,30 @@
 # MyOptiwealth SaaS Deploy (apps/api + apps/web)
 
+## 0) Commande unique (recommandé)
+
+Depuis `/var/www/myoptiwealth`, utiliser un seul point d’entrée:
+
+```bash
+bash ops/release.sh
+```
+
+Cela lance le mode `quick` (web uniquement): build front + restart PM2 + vérification.
+
+Variantes:
+```bash
+bash ops/release.sh web          # alias de quick
+bash ops/release.sh full         # API + Web, sans git pull
+bash ops/release.sh full --pull  # API + Web, avec git pull origin main
+```
+
+Alias npm équivalents:
+```bash
+npm run release:quick
+npm run release:web
+npm run release:full
+npm run release:full:pull
+```
+
 ## 1) Prerequisites
 
 - Path: `/var/www/myoptiwealth`
@@ -14,25 +39,12 @@
     - `apps/api/.env.production.example`
     - `apps/web/.env.production.example`
 
-## 2) Deploy commands
+## 2) Scripts techniques (usage avancé)
 
-- Standard deploy (with git pull):
-```bash
-cd /var/www/myoptiwealth
-bash ops/saas-deploy.sh
-```
+Ces scripts restent disponibles, mais `ops/release.sh` doit rester l’entrée standard.
 
-- Local deploy (no git pull):
-```bash
-cd /var/www/myoptiwealth
-bash ops/saas-deploy-local.sh
-```
-
-- Fast web-only deploy (UI changes only):
-```bash
-cd /var/www/myoptiwealth
-bash ops/saas-deploy-web-local.sh
-```
+- Déploiement complet (interne): `ops/saas-deploy.sh`
+- Déploiement web rapide (interne): `ops/saas-deploy-web-local.sh`
 
 ## 3) PM2
 

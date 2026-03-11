@@ -25,14 +25,14 @@ export const gestionMenu = [
 
 export const pilotageMenu = [
   { href: "/dashboard", label: "Retour", kind: "back" },
-  { href: "/actuariat?section=overview", label: "Simulation overview", section: "overview" },
+  { href: "/actuariat?section=overview", label: "Vue d’ensemble simulation", section: "overview" },
   { href: "/actuariat?section=orsa", label: "ORSA", section: "orsa" },
   { href: "/actuariat?section=s2", label: "Solvabilité II (S2)", section: "s2" },
-  { href: "/actuariat?section=fronting", label: "Fronting", section: "fronting" },
+  { href: "/actuariat?section=fronting", label: "Fronting (portage)", section: "fronting" },
   { href: "/actuariat?section=cat", label: "CAT géographique", section: "cat" },
   { href: "/actuariat?section=alm", label: "ALM / Fonds propres", section: "alm" },
   { href: "/actuariat?section=finance", label: "Finance ALM / Actifs", section: "finance" },
-  { href: "/reporting", label: "Reporting", section: "reporting" },
+  { href: "/reporting", label: "Rapports", section: "reporting" },
 ];
 
 export const captiveMenu = [
@@ -42,7 +42,7 @@ export const captiveMenu = [
   { href: "/captive?section=categories", label: "Catégories", section: "categories" },
   { href: "/captive?section=branch-categories", label: "Branches ↔ Catégories", section: "branch-categories" },
   { href: "/captive?section=policies", label: "Politiques d’éligibilité", section: "policies" },
-  { href: "/captive?section=risk-parameters", label: "Paramètres de risque", section: "risk-parameters" },
+  { href: "/captive?section=risk-parameters", label: "Paramètres de risques", section: "risk-parameters" },
   { href: "/captive?section=reinsurance", label: "Réassurance & fronting", section: "reinsurance" },
   { href: "/captive?section=programs", label: "Programmes", section: "programs" },
   { href: "/captive?section=program-branches", label: "Programmes ↔ Branches", section: "program-branches" },
@@ -60,7 +60,7 @@ export const programmesMenu = [
   { href: "/programmes?section=deductibles", label: "Franchises", section: "deductibles" },
   { href: "/programmes?section=exclusions", label: "Exclusions", section: "exclusions" },
   { href: "/programmes?section=conditions", label: "Conditions particulières", section: "conditions" },
-  { href: "/programmes?section=fronting", label: "Assureurs fronting", section: "fronting" },
+  { href: "/programmes?section=fronting", label: "Assureurs de fronting", section: "fronting" },
   { href: "/programmes?section=reinsurance", label: "Réassureurs", section: "reinsurance" },
   { href: "/programmes?section=carriers", label: "Assureurs / Portage", section: "carriers" },
   { href: "/programmes?section=documents", label: "Documents & pièces", section: "documents" },
@@ -82,8 +82,8 @@ export const parametrageMenu = [
   { href: "/dashboard", label: "Retour", kind: "back" },
   { href: "/parametrage", label: "Vue d’ensemble", section: "overview" },
   { href: "/superadmin?section=users", label: "Utilisateurs globaux", section: "users" },
-  { href: "/parametrage/jobs", label: "Monitoring jobs", section: "jobs" },
-  { href: "/parametrage/templates", label: "Templates de rapports", section: "templates" },
+  { href: "/parametrage/jobs", label: "Supervision des tâches", section: "jobs" },
+  { href: "/parametrage/templates", label: "Modèles de rapports", section: "templates" },
 ];
 
 export { documentationMenu };

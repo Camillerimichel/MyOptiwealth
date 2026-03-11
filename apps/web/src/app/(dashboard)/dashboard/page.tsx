@@ -114,7 +114,17 @@ export default function DashboardPage() {
 
   return (
     <section className="grid gap-5">
-      <h1 className="text-2xl font-semibold text-[var(--brand)]">Dashboard</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold text-[var(--brand)]">Tableau de bord</h1>
+        <a
+          href="https://myoptiwealth.fr/settings/workspace?create=1"
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-[var(--line)] text-lg font-semibold text-[var(--brand)] hover:bg-[#f8f5eb]"
+          title="Créer un workspace"
+          aria-label="Créer un workspace"
+        >
+          +
+        </a>
+      </div>
 
       <article className="rounded-xl border border-[var(--line)] bg-white p-4 shadow-panel">
         <h2 className="mb-2 text-base font-semibold text-[var(--brand)]">Niveau actif</h2>

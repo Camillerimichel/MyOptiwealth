@@ -21,4 +21,4 @@ jobs:
           script: |
             cd /var/www/myoptiwealth
             git pull --ff-only origin main
-            bash /var/www/myoptiwealth/ops/saas-deploy-local.sh
+            bash /var/www/myoptiwealth/ops/release.sh full

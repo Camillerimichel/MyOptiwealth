@@ -8,12 +8,24 @@ echo "== MyOptiWealth runtime check =="
 echo "Expected source directory: $APP_DIR"
 echo
 
-echo "== PM2 process (myoptiwealth-frontend) =="
-if PM2_DESC="$(pm2 describe myoptiwealth-frontend 2>&1)"; then
-  printf '%s\n' "$PM2_DESC" | sed -n '1,80p'
+echo "== PM2 process (myoptiwealth-saas-web) =="
+if PM2_WEB_DESC="$(pm2 describe myoptiwealth-saas-web 2>&1)"; then
+  printf '%s\n' "$PM2_WEB_DESC" | sed -n '1,80p'
   echo
-  echo "== PM2 cwd (extracted) =="
-  printf '%s\n' "$PM2_DESC" | rg "exec cwd" || true
+  echo "== PM2 web cwd (extracted) =="
+  printf '%s\n' "$PM2_WEB_DESC" | rg "exec cwd" || true
+  echo
+else
+  echo "PM2 process myoptiwealth-saas-web introuvable."
+  echo
+fi
+
+echo "== PM2 process (myoptiwealth-saas-api) =="
+if PM2_API_DESC="$(pm2 describe myoptiwealth-saas-api 2>&1)"; then
+  printf '%s\n' "$PM2_API_DESC" | sed -n '1,80p'
+  echo
+  echo "== PM2 api cwd (extracted) =="
+  printf '%s\n' "$PM2_API_DESC" | rg "exec cwd" || true
   echo
 else
   echo "PM2 inaccessible from current shell/context."
@@ -28,4 +40,6 @@ echo
 echo
 
 echo "== Reminder =="
-echo "Deploy local changes without pull: /var/www/myoptiwealth/ops/deploy-local.sh"
+echo "Deploy web quickly: /var/www/myoptiwealth/ops/release.sh quick"
+echo "Deploy full (sans pull): /var/www/myoptiwealth/ops/release.sh full"
+echo "Deploy full (avec pull): /var/www/myoptiwealth/ops/release.sh full --pull"
