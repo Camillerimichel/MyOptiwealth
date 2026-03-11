@@ -5,3 +5,5 @@ npm-debug.log*
 storage/
 .next/
 *.tsbuildinfo
+
+apps/api/dist/
